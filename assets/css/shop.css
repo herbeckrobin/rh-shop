@@ -271,9 +271,28 @@
 .rhshop-checkout__msg { min-height: 1.2em; margin: 0.7rem 0 0; color: #b3261e; font-size: 0.9rem; }
 .rhshop-checkout__payment { margin-top: 1.5rem; }
 
+/* Widerruf (§356a) */
+.rhshop-widerruf { max-width: 520px; }
+.rhshop-widerruf .rhshop-field { display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 0.9rem; }
+.rhshop-widerruf .rhshop-field label { font-weight: 500; }
+.rhshop-widerruf input[type="text"],
+.rhshop-widerruf input[type="email"],
+.rhshop-widerruf textarea {
+	width: 100%;
+	padding: 0.6rem 0.7rem;
+	border: 1px solid rgba(0, 0, 0, 0.25);
+	border-radius: 8px;
+	font-size: 1rem;
+}
+.rhshop-widerruf .rhshop-btn-order { margin-top: 0.4rem; }
+.rhshop-widerruf__belehrung { font-size: 0.9rem; opacity: 0.8; }
+.rhshop-widerruf__success h3 { margin-top: 0; }
+
 @media (prefers-color-scheme: dark) {
 	.rhshop-checkout__form input[type="email"],
-	.rhshop-checkout__form input[type="text"] { background: #1a1a1a; color: #fff; border-color: rgba(255, 255, 255, 0.25); }
+	.rhshop-checkout__form input[type="text"],
+	.rhshop-widerruf input,
+	.rhshop-widerruf textarea { background: #1a1a1a; color: #fff; border-color: rgba(255, 255, 255, 0.25); }
 	.rhshop-btn-order { background: #fff; color: #141414; }
 }
 

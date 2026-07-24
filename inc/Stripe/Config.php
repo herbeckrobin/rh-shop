@@ -26,6 +26,7 @@ final class Config
     public const FIELD_TAX_MODE = 'tax_mode';
     public const FIELD_SHIPPING = 'shipping_cents';
     public const FIELD_WEBHOOK_ENDPOINT = 'webhook_endpoint_id';
+    public const FIELD_WIDERRUF_BUTTON = 'widerruf_button';
 
     /** Enthaltene USt bei Regelbesteuerung (Deutschland, Standardsatz). */
     public const VAT_RATE_PERCENT = 19;
@@ -118,6 +119,15 @@ final class Config
     public function shippingCents(): int
     {
         return max(0, (int) rhbp_setting(self::GROUP, self::FIELD_SHIPPING, 0));
+    }
+
+    /**
+     * Zeigt das Plugin den sitewide "Vertrag widerrufen"-Button (§356a). Default an,
+     * weil es für B2C-Shops mit Widerrufsrecht Pflicht ist.
+     */
+    public function widerrufButtonEnabled(): bool
+    {
+        return (bool) rhbp_setting(self::GROUP, self::FIELD_WIDERRUF_BUTTON, true);
     }
 
     public function isConfigured(): bool

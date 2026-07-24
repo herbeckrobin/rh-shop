@@ -116,7 +116,7 @@ final class CheckoutView
     private function form(): string
     {
         $checkboxes = $this->checkbox('terms', __('AGB', 'rh-shop'), 'agb', __('Ich habe die %s gelesen und akzeptiere sie.', 'rh-shop'))
-            . $this->checkbox('revocation', __('Widerrufsbelehrung', 'rh-shop'), 'widerruf', __('Ich habe die %s zur Kenntnis genommen.', 'rh-shop'))
+            . $this->checkbox('revocation', __('Widerrufsbelehrung', 'rh-shop'), 'widerrufsbelehrung', __('Ich habe die %s zur Kenntnis genommen.', 'rh-shop'))
             . $this->checkbox('privacy', __('Datenschutzerklärung', 'rh-shop'), 'datenschutz', __('Ich habe die %s gelesen.', 'rh-shop'));
 
         return '<div class="rhshop-checkout__form" data-rhshop-checkout-form>'

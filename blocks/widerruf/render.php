@@ -1,0 +1,14 @@
+<?php
+
+/**
+ * Frontend-Render der Widerrufsseite (§356a). Die Absende-Logik übernimmt widerruf.js.
+ */
+
+declare(strict_types=1);
+
+use RhShop\Withdrawal\WithdrawalView;
+
+$wrapper = get_block_wrapper_attributes(['class' => 'rhshop-widerruf-block']);
+
+// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- WithdrawalView escapt intern.
+echo '<div ' . $wrapper . '>' . (new WithdrawalView())->render() . '</div>';

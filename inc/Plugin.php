@@ -10,9 +10,12 @@ use RhShop\Admin\OrdersPage;
 use RhShop\Admin\ShopSettingsPage;
 use RhShop\Checkout\CheckoutRestController;
 use RhShop\Admin\VariantMetaBox;
+use RhShop\Admin\WithdrawalsPage;
 use RhShop\Catalog\ProductType;
 use RhShop\Catalog\VariantRepository;
 use RhShop\Frontend\Blocks;
+use RhShop\Frontend\WiderrufButton;
+use RhShop\Withdrawal\WithdrawalRestController;
 use RhShop\Orders\Fulfillment;
 use RhShop\Orders\OrderMailer;
 use RhShop\Orders\OrderStore;
@@ -60,6 +63,10 @@ final class Plugin
         // Checkout-REST (§312j-Button → Bestellung + Stripe-Session).
         (new CheckoutRestController())->boot();
 
+        // Widerruf (§356a): sitewide "Vertrag widerrufen"-Button + REST-Endpoint.
+        (new WiderrufButton(new Config()))->boot();
+        (new WithdrawalRestController())->boot();
+
         // Stripe-Webhook: bestätigt die Zahlung serverseitig, bucht Bestand, mailt.
         $config = new Config();
         (new WebhookController(
@@ -74,6 +81,7 @@ final class Plugin
             (new VariantMetaBox())->boot();
             (new ShopSettingsPage(new Config()))->boot();
             (new OrdersPage())->boot();
+            (new WithdrawalsPage())->boot();
         }
 
         add_filter('rh-blueprint/dashboard/quick_links', static function (array $links): array {

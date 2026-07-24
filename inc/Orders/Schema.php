@@ -18,7 +18,7 @@ namespace RhShop\Orders;
  */
 final class Schema
 {
-    public const DB_VERSION = '1';
+    public const DB_VERSION = '2';
     public const OPTION_DB_VERSION = 'rhshop_orders_db_version';
 
     public static function ordersTable(): string
@@ -26,6 +26,13 @@ final class Schema
         global $wpdb;
 
         return $wpdb->prefix . 'rhshop_orders';
+    }
+
+    public static function withdrawalsTable(): string
+    {
+        global $wpdb;
+
+        return $wpdb->prefix . 'rhshop_withdrawals';
     }
 
     public static function activate(): void
@@ -77,6 +84,27 @@ final class Schema
         ) {$charset};";
 
         dbDelta($sql);
+
+        // Widerrufe nach §356a BGB. Eigene Tabelle, weil ein Widerruf auch ohne
+        // gefundene Bestellung erfasst werden muss (der Kunde kann eine falsche
+        // Nummer eingeben, die Erklärung ist trotzdem entgegenzunehmen). received_at
+        // ist der nachweispflichtige Eingangszeitpunkt (§356a Abs. 4/5).
+        $withdrawals = self::withdrawalsTable();
+        $sqlWithdrawals = "CREATE TABLE {$withdrawals} (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            order_id BIGINT UNSIGNED NOT NULL DEFAULT 0,
+            order_number VARCHAR(64) NOT NULL DEFAULT '',
+            customer_name VARCHAR(190) NOT NULL DEFAULT '',
+            email VARCHAR(190) NOT NULL DEFAULT '',
+            reason TEXT NULL,
+            ip VARCHAR(64) NOT NULL DEFAULT '',
+            received_at DATETIME NOT NULL,
+            PRIMARY KEY  (id),
+            KEY order_id (order_id),
+            KEY received_at (received_at)
+        ) {$charset};";
+
+        dbDelta($sqlWithdrawals);
 
         update_option(self::OPTION_DB_VERSION, self::DB_VERSION);
     }

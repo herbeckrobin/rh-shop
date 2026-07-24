@@ -18,7 +18,7 @@ use RhShop\Catalog\ProductType;
  */
 final class Blocks
 {
-    private const BLOCKS = ['product-grid', 'product-single', 'cart', 'checkout'];
+    private const BLOCKS = ['product-grid', 'product-single', 'cart', 'checkout', 'widerruf'];
 
     public function boot(): void
     {
@@ -78,6 +78,9 @@ final class Blocks
             'nonce' => wp_create_nonce('wp_rest'),
         ]);
 
+        // Widerruf (§356a): eigenes Script, nutzt rhShopConfig aus rh-shop-view.
+        wp_register_script('rh-shop-widerruf', RHSHOP_PLUGIN_URL . 'assets/js/widerruf.js', ['rh-shop-view'], $this->assetVersion('assets/js/widerruf.js'), true);
+
         // Kasse: eigenes Script (lädt Stripe.js erst dort nach) + Publishable Key.
         wp_register_script('rh-shop-checkout', RHSHOP_PLUGIN_URL . 'assets/js/checkout.js', [], $this->assetVersion('assets/js/checkout.js'), true);
         wp_localize_script('rh-shop-checkout', 'rhShopCheckout', [
@@ -98,6 +101,10 @@ final class Blocks
 
         if (has_block('rh-shop/checkout')) {
             wp_enqueue_script('rh-shop-checkout');
+        }
+
+        if (has_block('rh-shop/widerruf')) {
+            wp_enqueue_script('rh-shop-widerruf');
         }
     }
 

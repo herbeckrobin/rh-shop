@@ -154,6 +154,13 @@ final class ShopSettingsPage
         echo '<p class="rhbp-field__desc">' . esc_html__('Pauschale Versandkosten pro Bestellung. Leer oder 0 = kostenloser Versand.', 'rh-shop') . '</p>';
         echo '</div>';
 
+        // Widerrufs-Button (§356a)
+        echo '<div class="rhbp-field">';
+        echo '<label><input type="checkbox" name="widerruf_button" value="1" ' . checked($this->config->widerrufButtonEnabled(), true, false) . ' /> '
+            . esc_html__('"Vertrag widerrufen"-Button auf jeder Seite anzeigen (§356a)', 'rh-shop') . '</label>';
+        echo '<p class="rhbp-field__desc">' . esc_html__('Pflicht für B2C-Shops mit Widerrufsrecht. Nur abschalten, wenn du den Button selbst im Template platzierst oder kein Widerrufsrecht besteht.', 'rh-shop') . '</p>';
+        echo '</div>';
+
         echo '<p><button type="submit" class="rhbp-btn rhbp-btn--primary">' . esc_html__('Speichern', 'rh-shop') . '</button></p>';
         echo '</form>';
         echo '</div>';
@@ -256,6 +263,7 @@ final class ShopSettingsPage
             Config::FIELD_CURRENCY => $this->sanitizeCurrency($_POST['currency'] ?? 'eur'),
             Config::FIELD_TAX_MODE => $this->sanitizeTaxMode($_POST['tax_mode'] ?? ''),
             Config::FIELD_SHIPPING => Money::toCents(isset($_POST['shipping_cents']) ? sanitize_text_field(wp_unslash($_POST['shipping_cents'])) : ''),
+            Config::FIELD_WIDERRUF_BUTTON => isset($_POST['widerruf_button']),
         ];
 
         $this->collectSecret($values, 'secret_key', Config::FIELD_SECRET_ENC);
