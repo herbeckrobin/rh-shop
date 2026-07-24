@@ -110,6 +110,7 @@
 	var edits = {
 		'rh-shop/product-grid': editGrid,
 		'rh-shop/product-single': editSingle,
+		'rh-shop/buy-box': hint( __( 'Kauf-Box. Zeigt Preis, Varianten und In-den-Warenkorb des jeweiligen Produkts.', 'rh-shop' ) ),
 		'rh-shop/cart': hint( __( 'Warenkorb. Wird im Frontend mit den Artikeln des Besuchers gefüllt.', 'rh-shop' ) ),
 		'rh-shop/checkout': hint( __( 'Kasse. Bestellübersicht, Pflichtangaben und Stripe-Zahlung im Frontend.', 'rh-shop' ) ),
 		'rh-shop/widerruf': hint( __( 'Widerrufsseite (§356a). Formular mit Name, Bestellnummer und E-Mail.', 'rh-shop' ) ),

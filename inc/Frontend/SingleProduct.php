@@ -7,10 +7,10 @@ namespace RhShop\Frontend;
 use RhShop\Catalog\ProductType;
 
 /**
- * Hängt die Kauf-Steuerung (Preis, Varianten, In-den-Warenkorb) unter den Inhalt
- * einer Produkt-Detailseite. So funktioniert die Produktseite mit jedem Theme,
- * ohne ein eigenes Single-Template zu erzwingen. Titel/Beschreibung/Bild rendert
- * das Theme wie gewohnt, hier kommt nur die Commerce-UI dazu.
+ * Fallback für WP < 6.7: hängt die Kauf-Steuerung unter den Inhalt einer
+ * Produkt-Detailseite. Ab 6.7 liefert das registrierte Single-Template die Kauf-Box
+ * als platzierbaren Block ({@see Templates}), dann macht dieser Filter nichts (sonst
+ * doppelt). Titel/Beschreibung/Bild rendert das Theme bzw. Template.
  */
 final class SingleProduct
 {
@@ -25,6 +25,11 @@ final class SingleProduct
 
     public function appendControls(string $content): string
     {
+        // Ab WP 6.7 liefert das registrierte Template die Kauf-Box als Block.
+        if (Templates::available()) {
+            return $content;
+        }
+
         if (is_admin() || ! is_singular(ProductType::POST_TYPE) || ! in_the_loop() || ! is_main_query()) {
             return $content;
         }

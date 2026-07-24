@@ -17,6 +17,7 @@ use RhShop\Catalog\ProductType;
 use RhShop\Catalog\VariantRepository;
 use RhShop\Frontend\Blocks;
 use RhShop\Frontend\Shortcodes;
+use RhShop\Frontend\Templates;
 use RhShop\Frontend\WiderrufButton;
 use RhShop\Withdrawal\WithdrawalRestController;
 use RhShop\Orders\Fulfillment;
@@ -61,8 +62,12 @@ final class Plugin
         // die Varianten-Meta-Box nur im Admin.
         (new ProductType())->boot();
 
-        // Frontend: Blocks (Raster, Einzelprodukt, Warenkorb), Detailseiten-Integration
-        // und Cart-REST. Läuft auch im Admin (Editor-Assets + REST-Registrierung).
+        // Eigenes Produkt-Single-Template (WP 6.7+), damit die Produktseite kein
+        // Blog-Single mit Autor-Byline ist und im Editor anpassbar wird. Nach dem CPT.
+        (new Templates())->boot();
+
+        // Frontend: Blocks (Raster, Einzelprodukt, Kauf-Box, Warenkorb),
+        // Detailseiten-Integration und Cart-REST. Läuft auch im Admin.
         (new Blocks())->boot();
 
         // Checkout-REST (§312j-Button → Bestellung + Stripe-Session).

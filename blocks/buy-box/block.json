@@ -1,0 +1,20 @@
+{
+    "$schema": "https://schemas.wp.org/trunk/block.json",
+    "apiVersion": 3,
+    "name": "rh-shop/buy-box",
+    "title": "Kauf-Box",
+    "category": "rh-shop",
+    "icon": "cart",
+    "description": "Preis, Varianten-Auswahl und In-den-Warenkorb des Produkts. Gedacht für das Produkt-Template.",
+    "textdomain": "rh-shop",
+    "attributes": {
+        "productId": { "type": "number", "default": 0 }
+    },
+    "supports": {
+        "html": false,
+        "spacing": { "margin": true, "padding": true }
+    },
+    "editorScript": "rh-shop-blocks-editor",
+    "style": "rh-shop",
+    "render": "file:./render.php"
+}
