@@ -6,6 +6,7 @@ namespace RhShop;
 
 use RhBlueprint\Core\Core;
 use RhBlueprint\Core\Settings\SettingsPage;
+use RhShop\Admin\OrdersPage;
 use RhShop\Admin\ShopSettingsPage;
 use RhShop\Checkout\CheckoutRestController;
 use RhShop\Admin\VariantMetaBox;
@@ -72,6 +73,7 @@ final class Plugin
         if (is_admin()) {
             (new VariantMetaBox())->boot();
             (new ShopSettingsPage(new Config()))->boot();
+            (new OrdersPage())->boot();
         }
 
         add_filter('rh-blueprint/dashboard/quick_links', static function (array $links): array {

@@ -7,8 +7,11 @@ namespace RhShop\Admin;
 use RhBlueprint\Core\Settings\SettingsPage;
 use RhShop\Orders\Order;
 use RhShop\Stripe\Config;
+use RhShop\Stripe\StripeClient;
+use RhShop\Stripe\WebhookInstaller;
 use RhShop\Support\Money;
 use RhShop\Support\Secret;
+use WP_Error;
 
 /**
  * Der Shop-Settings-Tab: Stripe-Anbindung (Keys) und Währung.
@@ -34,6 +37,8 @@ final class ShopSettingsPage
         add_action('rh-blueprint/settings/tab_content_before', [$this, 'renderMessage']);
         add_action('rh-blueprint/settings/tab_content_after', [$this, 'render']);
         add_action('admin_post_rhshop_settings_save', [$this, 'handleSave']);
+        add_action('admin_post_rhshop_webhook_install', [$this, 'handleWebhookInstall']);
+        add_action('admin_post_rhshop_webhook_remove', [$this, 'handleWebhookRemove']);
     }
 
     public function renderMessage(string $tabId): void
@@ -44,8 +49,19 @@ final class ShopSettingsPage
 
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- nur Anzeige nach Redirect.
         $message = isset($_GET['rhbp_message']) ? sanitize_key(wp_unslash($_GET['rhbp_message'])) : '';
-        if ($message === 'shop_saved') {
-            echo '<div class="rhbp-callout rhbp-callout--success">' . esc_html__('Einstellungen wurden gespeichert.', 'rh-shop') . '</div>';
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+        $detail = isset($_GET['rhbp_detail']) ? sanitize_text_field(wp_unslash($_GET['rhbp_detail'])) : '';
+
+        $map = [
+            'shop_saved' => ['success', __('Einstellungen wurden gespeichert.', 'rh-shop')],
+            'webhook_installed' => ['success', __('Webhook wurde bei Stripe eingerichtet.', 'rh-shop')],
+            'webhook_removed' => ['success', __('Webhook wurde entfernt.', 'rh-shop')],
+            'webhook_error' => ['warn', $detail !== '' ? $detail : __('Webhook konnte nicht eingerichtet werden.', 'rh-shop')],
+        ];
+
+        if (isset($map[$message])) {
+            [$type, $text] = $map[$message];
+            printf('<div class="rhbp-callout rhbp-callout--%s">%s</div>', esc_attr($type === 'success' ? 'success' : 'warn'), esc_html($text));
         }
     }
 
@@ -140,6 +156,48 @@ final class ShopSettingsPage
 
         echo '<p><button type="submit" class="rhbp-btn rhbp-btn--primary">' . esc_html__('Speichern', 'rh-shop') . '</button></p>';
         echo '</form>';
+        echo '</div>';
+
+        $this->renderWebhookCard();
+    }
+
+    /**
+     * Eigene Karte (ausserhalb des Haupt-Formulars, weil eigene admin-post-Forms)
+     * für den automatischen Webhook.
+     */
+    private function renderWebhookCard(): void
+    {
+        $installer = new WebhookInstaller($this->config, new StripeClient($this->config));
+        $installed = $this->config->webhookEndpointId() !== '';
+
+        echo '<div class="rhbp-card" style="max-width:640px;margin-top:1rem">';
+        echo '<h3 style="margin-top:0">' . esc_html__('Webhook', 'rh-shop') . '</h3>';
+        echo '<p class="rhbp-field__desc">' . esc_html__('Der Webhook bestätigt Zahlungen serverseitig (Bestellung wird auf bezahlt gesetzt). Auf einer öffentlich erreichbaren Seite richtet ihn das Plugin per Klick selbst ein, kein Kopieren im Stripe-Dashboard nötig.', 'rh-shop') . '</p>';
+
+        echo '<p>' . ($installed
+            ? '<span class="rhbp-pill rhbp-pill--ok"><span class="rhbp-pill__dot" aria-hidden="true"></span> ' . esc_html__('Eingerichtet', 'rh-shop') . '</span>'
+            : '<span class="rhbp-pill rhbp-pill--warn">' . esc_html__('Nicht eingerichtet', 'rh-shop') . '</span>') . '</p>';
+
+        if ($installer->isLocalUrl()) {
+            echo '<div class="rhbp-callout rhbp-callout--warn">' . esc_html__('Diese Seite ist lokal und für Stripe nicht erreichbar. Für lokale Tests die Stripe-CLI nutzen und das Signing-Secret oben eintragen. Der automatische Webhook ist für die öffentliche Live-Seite gedacht.', 'rh-shop') . '</div>';
+        }
+
+        echo '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '" style="display:inline-block;margin-right:0.5rem">';
+        wp_nonce_field('rhshop_webhook_install');
+        echo '<input type="hidden" name="action" value="rhshop_webhook_install" />';
+        echo '<button type="submit" class="rhbp-btn rhbp-btn--primary">'
+            . ($installed ? esc_html__('Webhook neu einrichten', 'rh-shop') : esc_html__('Webhook automatisch einrichten', 'rh-shop'))
+            . '</button>';
+        echo '</form>';
+
+        if ($installed) {
+            echo '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '" style="display:inline-block">';
+            wp_nonce_field('rhshop_webhook_remove');
+            echo '<input type="hidden" name="action" value="rhshop_webhook_remove" />';
+            echo '<button type="submit" class="rhbp-btn rhbp-btn--ghost">' . esc_html__('Webhook entfernen', 'rh-shop') . '</button>';
+            echo '</form>';
+        }
+
         echo '</div>';
     }
 
@@ -243,14 +301,50 @@ final class ShopSettingsPage
 
     private function redirect(): never
     {
-        wp_safe_redirect(add_query_arg(
-            [
-                'page' => SettingsPage::MENU_SLUG,
-                'tab' => self::TAB_ID,
-                'rhbp_message' => 'shop_saved',
-            ],
-            admin_url('admin.php')
-        ));
+        $this->redirectWith('shop_saved');
+    }
+
+    public function handleWebhookInstall(): void
+    {
+        if (! current_user_can(self::CAPABILITY)) {
+            wp_die(esc_html__('Keine Berechtigung.', 'rh-shop'));
+        }
+        check_admin_referer('rhshop_webhook_install');
+
+        $installer = new WebhookInstaller($this->config, new StripeClient($this->config));
+        $result = $installer->install();
+
+        if ($result instanceof WP_Error) {
+            $this->redirectWith('webhook_error', $result->get_error_message());
+        }
+
+        $this->redirectWith('webhook_installed');
+    }
+
+    public function handleWebhookRemove(): void
+    {
+        if (! current_user_can(self::CAPABILITY)) {
+            wp_die(esc_html__('Keine Berechtigung.', 'rh-shop'));
+        }
+        check_admin_referer('rhshop_webhook_remove');
+
+        (new WebhookInstaller($this->config, new StripeClient($this->config)))->remove();
+
+        $this->redirectWith('webhook_removed');
+    }
+
+    private function redirectWith(string $message, string $detail = ''): never
+    {
+        $args = [
+            'page' => SettingsPage::MENU_SLUG,
+            'tab' => self::TAB_ID,
+            'rhbp_message' => $message,
+        ];
+        if ($detail !== '') {
+            $args['rhbp_detail'] = $detail;
+        }
+
+        wp_safe_redirect(add_query_arg($args, admin_url('admin.php')));
         exit;
     }
 }

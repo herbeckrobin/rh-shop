@@ -25,6 +25,7 @@ final class Config
     public const FIELD_CURRENCY = 'currency';
     public const FIELD_TAX_MODE = 'tax_mode';
     public const FIELD_SHIPPING = 'shipping_cents';
+    public const FIELD_WEBHOOK_ENDPOINT = 'webhook_endpoint_id';
 
     /** Enthaltene USt bei Regelbesteuerung (Deutschland, Standardsatz). */
     public const VAT_RATE_PERCENT = 19;
@@ -72,6 +73,11 @@ final class Config
     {
         return (defined(self::CONST_WEBHOOK) && constant(self::CONST_WEBHOOK) !== '')
             || (string) rhbp_setting(self::GROUP, self::FIELD_WEBHOOK_ENC, '') !== '';
+    }
+
+    public function webhookEndpointId(): string
+    {
+        return (string) rhbp_setting(self::GROUP, self::FIELD_WEBHOOK_ENDPOINT, '');
     }
 
     public function currency(): string
