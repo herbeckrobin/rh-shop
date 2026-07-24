@@ -5,18 +5,26 @@ declare(strict_types=1);
 namespace RhShop\Orders;
 
 use RhShop\Catalog\VariantRepository;
+use RhShop\Stripe\InvoiceService;
 
 /**
- * Was nach bestätigter Zahlung passiert: Bestand reduzieren und die Bestätigungs-
- * mails verschicken. Wird NUR aufgerufen, wenn die Bestellung frisch auf "bezahlt"
- * übergegangen ist (OrderStore::markPaid ist idempotent), darum kein doppelter
- * Bestand-Abzug und keine doppelte Mail bei einem wiederholten Webhook-Event.
+ * Was nach bestätigter Zahlung passiert: Bestand reduzieren, Rechnung erstellen und
+ * die Bestätigungsmails verschicken. Wird NUR aufgerufen, wenn die Bestellung frisch
+ * auf "bezahlt" übergegangen ist (OrderStore::markPaid ist idempotent), darum kein
+ * doppelter Bestand-Abzug, keine doppelte Rechnung und keine doppelte Mail bei einem
+ * wiederholten Webhook-Event.
+ *
+ * Die Rechnung ist best-effort: schlägt die Stripe-Rechnung fehl, bricht die
+ * Bestellabwicklung (Bestand, Mail) trotzdem nicht ab.
  */
 final class Fulfillment
 {
     public function __construct(
         private readonly VariantRepository $variants,
         private readonly OrderMailer $mailer,
+        private readonly OrderStore $orders,
+        private readonly ?InvoiceService $invoices,
+        private readonly bool $invoiceEnabled,
     ) {
     }
 
@@ -32,11 +40,19 @@ final class Fulfillment
             }
         }
 
-        $this->mailer->sendConfirmation($order);
+        $invoiceUrl = '';
+        if ($this->invoiceEnabled && $this->invoices !== null) {
+            $ref = $this->invoices->createForOrder($order);
+            if ($ref !== null) {
+                $this->orders->saveInvoice($order->id, $ref['id'], $ref['number'], $ref['url']);
+                $invoiceUrl = $ref['url'];
+            }
+        }
+
+        $this->mailer->sendConfirmation($order, $invoiceUrl);
 
         /**
-         * Nach abgeschlossener Bestellung (bezahlt, Bestand gebucht, Mail raus).
-         * Anker für Erweiterungen (z.B. Stripe-Rechnung anstoßen, Versanddienst).
+         * Nach abgeschlossener Bestellung (bezahlt, Bestand gebucht, Rechnung + Mail raus).
          *
          * @param Order $order
          */

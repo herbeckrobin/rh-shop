@@ -27,6 +27,7 @@ final class Config
     public const FIELD_SHIPPING = 'shipping_cents';
     public const FIELD_WEBHOOK_ENDPOINT = 'webhook_endpoint_id';
     public const FIELD_WIDERRUF_BUTTON = 'widerruf_button';
+    public const FIELD_INVOICE = 'invoice_enabled';
 
     /** Enthaltene USt bei Regelbesteuerung (Deutschland, Standardsatz). */
     public const VAT_RATE_PERCENT = 19;
@@ -128,6 +129,15 @@ final class Config
     public function widerrufButtonEnabled(): bool
     {
         return (bool) rhbp_setting(self::GROUP, self::FIELD_WIDERRUF_BUTTON, true);
+    }
+
+    /**
+     * Erstellt das Plugin nach der Zahlung eine Stripe-Rechnung (Stripe Invoicing,
+     * kostenpflichtiges Add-on). Default an.
+     */
+    public function invoiceEnabled(): bool
+    {
+        return (bool) rhbp_setting(self::GROUP, self::FIELD_INVOICE, true);
     }
 
     public function isConfigured(): bool

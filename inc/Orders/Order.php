@@ -52,6 +52,9 @@ final class Order
         public readonly string $taxMode,
         public readonly string $stripeSessionId,
         public readonly string $stripePaymentIntentId,
+        public readonly string $invoiceId,
+        public readonly string $invoiceNumber,
+        public readonly string $invoiceUrl,
         public readonly string $createdAt,
         public readonly ?string $paidAt,
     ) {
@@ -92,6 +95,9 @@ final class Order
             taxMode: (string) ($row['tax_mode'] ?? self::TAX_VAT),
             stripeSessionId: (string) ($row['stripe_session_id'] ?? ''),
             stripePaymentIntentId: (string) ($row['stripe_payment_intent_id'] ?? ''),
+            invoiceId: (string) ($row['invoice_id'] ?? ''),
+            invoiceNumber: (string) ($row['invoice_number'] ?? ''),
+            invoiceUrl: (string) ($row['invoice_url'] ?? ''),
             createdAt: (string) ($row['created_at'] ?? ''),
             paidAt: isset($row['paid_at']) && $row['paid_at'] !== null ? (string) $row['paid_at'] : null,
         );

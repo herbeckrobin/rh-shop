@@ -21,6 +21,8 @@ use RhShop\Orders\OrderMailer;
 use RhShop\Orders\OrderStore;
 use RhShop\Orders\Schema;
 use RhShop\Stripe\Config;
+use RhShop\Stripe\InvoiceService;
+use RhShop\Stripe\StripeClient;
 use RhShop\Stripe\WebhookController;
 
 /**
@@ -67,12 +69,20 @@ final class Plugin
         (new WiderrufButton(new Config()))->boot();
         (new WithdrawalRestController())->boot();
 
-        // Stripe-Webhook: bestätigt die Zahlung serverseitig, bucht Bestand, mailt.
+        // Stripe-Webhook: bestätigt die Zahlung serverseitig, bucht Bestand, erstellt
+        // die Rechnung und mailt.
         $config = new Config();
+        $stripeClient = new StripeClient($config);
         (new WebhookController(
             $config,
             new OrderStore(),
-            new Fulfillment(new VariantRepository(), new OrderMailer($config))
+            new Fulfillment(
+                new VariantRepository(),
+                new OrderMailer($config),
+                new OrderStore(),
+                new InvoiceService($config, $stripeClient),
+                $config->invoiceEnabled()
+            )
         ))->boot();
 
         $core->settings()->registerTab('shop', __('Shop', 'rh-shop'), 70);

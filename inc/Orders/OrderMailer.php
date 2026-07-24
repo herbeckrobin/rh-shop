@@ -21,7 +21,7 @@ final class OrderMailer
     {
     }
 
-    public function sendConfirmation(Order $order): void
+    public function sendConfirmation(Order $order, string $invoiceUrl = ''): void
     {
         $symbol = $this->config->currencySymbol();
         $headers = ['Content-Type: text/html; charset=UTF-8'];
@@ -30,7 +30,7 @@ final class OrderMailer
             wp_mail(
                 $order->email,
                 sprintf(/* translators: %s: Bestellnummer */ __('Deine Bestellung %s', 'rh-shop'), $order->orderNumber),
-                $this->customerBody($order, $symbol),
+                $this->customerBody($order, $symbol, $invoiceUrl),
                 $headers
             );
         }
@@ -46,7 +46,7 @@ final class OrderMailer
         }
     }
 
-    private function customerBody(Order $order, string $symbol): string
+    private function customerBody(Order $order, string $symbol, string $invoiceUrl = ''): string
     {
         $intro = sprintf(
             /* translators: %s: Bestellnummer */
@@ -54,9 +54,18 @@ final class OrderMailer
             $order->orderNumber
         );
 
+        $invoice = $invoiceUrl !== ''
+            ? '<p>' . sprintf(
+                /* translators: %s: Link zur Rechnung */
+                esc_html__('Deine Rechnung findest du hier: %s', 'rh-shop'),
+                '<a href="' . esc_url($invoiceUrl) . '">' . esc_html__('Rechnung ansehen', 'rh-shop') . '</a>'
+            ) . '</p>'
+            : '';
+
         return '<p>' . esc_html__('Hallo,', 'rh-shop') . '</p>'
             . '<p>' . esc_html($intro) . '</p>'
             . $this->itemsTable($order, $symbol)
+            . $invoice
             . '<p>' . esc_html__('Wir melden uns, sobald deine Bestellung unterwegs ist.', 'rh-shop') . '</p>';
     }
 

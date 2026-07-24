@@ -161,6 +161,13 @@ final class ShopSettingsPage
         echo '<p class="rhbp-field__desc">' . esc_html__('Pflicht für B2C-Shops mit Widerrufsrecht. Nur abschalten, wenn du den Button selbst im Template platzierst oder kein Widerrufsrecht besteht.', 'rh-shop') . '</p>';
         echo '</div>';
 
+        // Rechnung über Stripe Invoicing
+        echo '<div class="rhbp-field">';
+        echo '<label><input type="checkbox" name="invoice_enabled" value="1" ' . checked($this->config->invoiceEnabled(), true, false) . ' /> '
+            . esc_html__('Rechnung nach der Zahlung über Stripe erstellen', 'rh-shop') . '</label>';
+        echo '<p class="rhbp-field__desc">' . esc_html__('Stripe erzeugt eine fortlaufende PDF-Rechnung und schickt sie dem Kunden (Stripe Invoicing, kostenpflichtiges Add-on). Verkäufer-Stammdaten (Anschrift, Steuernummer) pflegst du in den Stripe-Rechnungseinstellungen.', 'rh-shop') . '</p>';
+        echo '</div>';
+
         echo '<p><button type="submit" class="rhbp-btn rhbp-btn--primary">' . esc_html__('Speichern', 'rh-shop') . '</button></p>';
         echo '</form>';
         echo '</div>';
@@ -181,9 +188,15 @@ final class ShopSettingsPage
         echo '<h3 style="margin-top:0">' . esc_html__('Webhook', 'rh-shop') . '</h3>';
         echo '<p class="rhbp-field__desc">' . esc_html__('Der Webhook bestätigt Zahlungen serverseitig (Bestellung wird auf bezahlt gesetzt). Auf einer öffentlich erreichbaren Seite richtet ihn das Plugin per Klick selbst ein, kein Kopieren im Stripe-Dashboard nötig.', 'rh-shop') . '</p>';
 
-        echo '<p>' . ($installed
-            ? '<span class="rhbp-pill rhbp-pill--ok"><span class="rhbp-pill__dot" aria-hidden="true"></span> ' . esc_html__('Eingerichtet', 'rh-shop') . '</span>'
-            : '<span class="rhbp-pill rhbp-pill--warn">' . esc_html__('Nicht eingerichtet', 'rh-shop') . '</span>') . '</p>';
+        if ($installed) {
+            $pill = '<span class="rhbp-pill rhbp-pill--ok"><span class="rhbp-pill__dot" aria-hidden="true"></span> ' . esc_html__('Automatisch eingerichtet', 'rh-shop') . '</span>';
+        } elseif ($this->config->hasStoredWebhookSecret()) {
+            $pill = '<span class="rhbp-pill rhbp-pill--ok"><span class="rhbp-pill__dot" aria-hidden="true"></span> ' . esc_html__('Manuell / CLI konfiguriert (Secret gesetzt)', 'rh-shop') . '</span>';
+        } else {
+            $pill = '<span class="rhbp-pill rhbp-pill--warn">' . esc_html__('Nicht eingerichtet', 'rh-shop') . '</span>';
+        }
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Pill-Markup bereits escapt.
+        echo '<p>' . $pill . '</p>';
 
         if ($installer->isLocalUrl()) {
             echo '<div class="rhbp-callout rhbp-callout--warn">' . esc_html__('Diese Seite ist lokal und für Stripe nicht erreichbar. Für lokale Tests die Stripe-CLI nutzen und das Signing-Secret oben eintragen. Der automatische Webhook ist für die öffentliche Live-Seite gedacht.', 'rh-shop') . '</div>';
@@ -264,6 +277,7 @@ final class ShopSettingsPage
             Config::FIELD_TAX_MODE => $this->sanitizeTaxMode($_POST['tax_mode'] ?? ''),
             Config::FIELD_SHIPPING => Money::toCents(isset($_POST['shipping_cents']) ? sanitize_text_field(wp_unslash($_POST['shipping_cents'])) : ''),
             Config::FIELD_WIDERRUF_BUTTON => isset($_POST['widerruf_button']),
+            Config::FIELD_INVOICE => isset($_POST['invoice_enabled']),
         ];
 
         $this->collectSecret($values, 'secret_key', Config::FIELD_SECRET_ENC);

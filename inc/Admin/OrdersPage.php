@@ -62,6 +62,7 @@ final class OrdersPage
             __('Kunde', 'rh-shop'),
             __('Artikel', 'rh-shop'),
             __('Summe', 'rh-shop'),
+            __('Rechnung', 'rh-shop'),
         ] as $head) {
             echo '<th>' . esc_html($head) . '</th>';
         }
@@ -100,6 +101,14 @@ final class OrdersPage
             $itemCount
         );
         echo '<td>' . esc_html(Money::format($order->totalCents, $symbol)) . '</td>';
+        if ($order->invoiceNumber !== '') {
+            $label = esc_html($order->invoiceNumber);
+            echo '<td>' . ($order->invoiceUrl !== ''
+                ? '<a href="' . esc_url($order->invoiceUrl) . '" target="_blank" rel="noopener">' . $label . '</a>'
+                : $label) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $label ist escapt, URL via esc_url.
+        } else {
+            echo '<td>-</td>';
+        }
         echo '</tr>';
     }
 

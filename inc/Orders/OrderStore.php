@@ -147,6 +147,26 @@ final class OrderStore
         return $this->find($order->id);
     }
 
+    public function saveInvoice(int $id, string $invoiceId, string $invoiceNumber, string $invoiceUrl): void
+    {
+        global $wpdb;
+
+        $table = Schema::ordersTable();
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+        $wpdb->update(
+            $table,
+            [
+                'invoice_id' => $invoiceId,
+                'invoice_number' => $invoiceNumber,
+                'invoice_url' => $invoiceUrl,
+                'updated_at' => current_time('mysql'),
+            ],
+            ['id' => $id],
+            ['%s', '%s', '%s', '%s'],
+            ['%d']
+        );
+    }
+
     public function updateStatus(int $id, string $status): void
     {
         if (! in_array($status, Order::STATUSES, true)) {

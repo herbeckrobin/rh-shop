@@ -18,7 +18,7 @@ namespace RhShop\Orders;
  */
 final class Schema
 {
-    public const DB_VERSION = '2';
+    public const DB_VERSION = '3';
     public const OPTION_DB_VERSION = 'rhshop_orders_db_version';
 
     public static function ordersTable(): string
@@ -74,6 +74,9 @@ final class Schema
             tax_mode VARCHAR(20) NOT NULL DEFAULT 'vat',
             stripe_session_id VARCHAR(255) NOT NULL DEFAULT '',
             stripe_payment_intent_id VARCHAR(255) NOT NULL DEFAULT '',
+            invoice_id VARCHAR(64) NOT NULL DEFAULT '',
+            invoice_number VARCHAR(64) NOT NULL DEFAULT '',
+            invoice_url VARCHAR(255) NOT NULL DEFAULT '',
             created_at DATETIME NOT NULL,
             updated_at DATETIME NOT NULL,
             paid_at DATETIME NULL DEFAULT NULL,
