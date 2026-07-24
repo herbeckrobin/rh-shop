@@ -9,6 +9,7 @@ use RhBlueprint\Core\Settings\SettingsPage;
 use RhShop\Admin\OrdersPage;
 use RhShop\Admin\ShopSettingsPage;
 use RhShop\Checkout\CheckoutRestController;
+use RhShop\Checkout\ReturnHandler;
 use RhShop\Admin\VariantMetaBox;
 use RhShop\Admin\WithdrawalsPage;
 use RhShop\Catalog\ProductType;
@@ -65,6 +66,9 @@ final class Plugin
 
         // Checkout-REST (§312j-Button → Bestellung + Stripe-Session).
         (new CheckoutRestController())->boot();
+
+        // Warenkorb leeren, wenn Stripe nach der Zahlung auf die Rück-URL springt.
+        (new ReturnHandler())->boot();
 
         // Frontend-Shortcodes (Versandkosten aus der Shop-Einstellung für die Versand-Seite).
         (new Shortcodes(new Config()))->boot();
