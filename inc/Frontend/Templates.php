@@ -54,8 +54,8 @@ final class Templates
     private function content(): string
     {
         return '<!-- wp:template-part {"slug":"header","area":"header","tagName":"header"} /-->'
-            . '<!-- wp:group {"tagName":"main","layout":{"type":"constrained"}} -->'
-            . '<main class="wp-block-group">'
+            . '<!-- wp:group {"tagName":"main","layout":{"type":"constrained"},"style":{"spacing":{"padding":{"top":"clamp(2rem, 5vw, 4rem)","bottom":"clamp(3rem, 6vw, 5rem)"}}}} -->'
+            . '<main class="wp-block-group" style="padding-top:clamp(2rem, 5vw, 4rem);padding-bottom:clamp(3rem, 6vw, 5rem)">'
             . '<!-- wp:columns {"align":"wide"} -->'
             . '<div class="wp-block-columns alignwide">'
             . '<!-- wp:column -->'
