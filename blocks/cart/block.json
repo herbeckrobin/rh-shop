@@ -1,0 +1,18 @@
+{
+    "$schema": "https://schemas.wp.org/trunk/block.json",
+    "apiVersion": 3,
+    "name": "rh-shop/cart",
+    "title": "Warenkorb",
+    "category": "rh-shop",
+    "icon": "cart",
+    "description": "Zeigt den Warenkorb mit Mengen, Summe und Weg zur Kasse.",
+    "textdomain": "rh-shop",
+    "attributes": {},
+    "supports": {
+        "align": ["wide"],
+        "html": false
+    },
+    "editorScript": "rh-shop-blocks-editor",
+    "style": "rh-shop",
+    "render": "file:./render.php"
+}

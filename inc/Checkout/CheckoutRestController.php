@@ -1,0 +1,80 @@
+<?php
+
+declare(strict_types=1);
+
+namespace RhShop\Checkout;
+
+use RhShop\Cart\Cart;
+use RhShop\Cart\CartRestController;
+use RhShop\Catalog\VariantRepository;
+use RhShop\Orders\OrderStore;
+use RhShop\Stripe\CheckoutService;
+use RhShop\Stripe\Config;
+use RhShop\Stripe\StripeClient;
+use WP_Error;
+use WP_REST_Request;
+use WP_REST_Response;
+use WP_REST_Server;
+
+/**
+ * REST-Endpoint, den der "Zahlungspflichtig bestellen"-Button auslöst.
+ *
+ * Hier werden die §312j-Pflicht-Checkboxen (AGB, Widerruf, Datenschutz) UND die
+ * E-Mail serverseitig geprüft, BEVOR die Bestellung angelegt und die Stripe-Session
+ * erzeugt wird. Erst danach liefert der Endpoint das client_secret, mit dem das
+ * Frontend die embedded Stripe-Zahl-UI mountet.
+ */
+final class CheckoutRestController
+{
+    public function boot(): void
+    {
+        add_action('rest_api_init', [$this, 'registerRoutes']);
+    }
+
+    public function registerRoutes(): void
+    {
+        register_rest_route(CartRestController::NAMESPACE, '/checkout/session', [
+            'methods' => WP_REST_Server::CREATABLE,
+            'callback' => [$this, 'createSession'],
+            'permission_callback' => [$this, 'checkNonce'],
+        ]);
+    }
+
+    public function checkNonce(WP_REST_Request $request): bool
+    {
+        return (bool) wp_verify_nonce((string) $request->get_header('X-WP-Nonce'), 'wp_rest');
+    }
+
+    public function createSession(WP_REST_Request $request): WP_REST_Response|WP_Error
+    {
+        $terms = rest_sanitize_boolean($request->get_param('accept_terms'));
+        $revocation = rest_sanitize_boolean($request->get_param('accept_revocation'));
+        $privacy = rest_sanitize_boolean($request->get_param('accept_privacy'));
+
+        if (! $terms || ! $revocation || ! $privacy) {
+            return new WP_Error(
+                'rhshop_terms_required',
+                __('Bitte bestätige AGB, Widerrufsbelehrung und Datenschutz.', 'rh-shop'),
+                ['status' => 400]
+            );
+        }
+
+        $email = sanitize_email((string) $request->get_param('email'));
+        if (! is_email($email)) {
+            return new WP_Error('rhshop_email_invalid', __('Bitte gib eine gültige E-Mail-Adresse an.', 'rh-shop'), ['status' => 400]);
+        }
+
+        $name = sanitize_text_field((string) $request->get_param('name'));
+
+        $config = new Config();
+        $service = new CheckoutService($config, new StripeClient($config), new OrderStore());
+
+        $result = $service->createSession(new Cart(new VariantRepository()), ['email' => $email, 'name' => $name]);
+
+        if ($result instanceof WP_Error) {
+            return $result;
+        }
+
+        return new WP_REST_Response($result);
+    }
+}

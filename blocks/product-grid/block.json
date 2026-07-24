@@ -1,0 +1,22 @@
+{
+    "$schema": "https://schemas.wp.org/trunk/block.json",
+    "apiVersion": 3,
+    "name": "rh-shop/product-grid",
+    "title": "Produkt-Raster",
+    "category": "rh-shop",
+    "icon": "grid-view",
+    "description": "Zeigt Produkte als Raster, optional nach Kategorie gefiltert.",
+    "textdomain": "rh-shop",
+    "attributes": {
+        "category": { "type": "string", "default": "" },
+        "columns": { "type": "number", "default": 3 },
+        "limit": { "type": "number", "default": 12 }
+    },
+    "supports": {
+        "align": ["wide", "full"],
+        "html": false
+    },
+    "editorScript": "rh-shop-blocks-editor",
+    "style": "rh-shop",
+    "render": "file:./render.php"
+}

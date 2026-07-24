@@ -1,0 +1,20 @@
+{
+    "$schema": "https://schemas.wp.org/trunk/block.json",
+    "apiVersion": 3,
+    "name": "rh-shop/product-single",
+    "title": "Einzelprodukt",
+    "category": "rh-shop",
+    "icon": "cart",
+    "description": "Ein Produkt mit Bild, Varianten-Auswahl und In-den-Warenkorb.",
+    "textdomain": "rh-shop",
+    "attributes": {
+        "productId": { "type": "number", "default": 0 }
+    },
+    "supports": {
+        "align": ["wide"],
+        "html": false
+    },
+    "editorScript": "rh-shop-blocks-editor",
+    "style": "rh-shop",
+    "render": "file:./render.php"
+}
