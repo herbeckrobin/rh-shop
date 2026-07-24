@@ -51,6 +51,12 @@
 .rhshop-card__title { margin-top: 0.7rem; font-weight: 600; }
 .rhshop-card__price { margin-top: 0.15rem; opacity: 0.75; }
 
+/* PAngV: Grundpreis und Preishinweis (inkl. MwSt. / § 19, zzgl. Versand) */
+.rhshop-grundpreis { font-size: 0.82em; font-weight: 400; opacity: 0.75; }
+.rhshop-price-note { display: block; font-size: 0.78rem; font-weight: 400; opacity: 0.7; }
+.rhshop-card__price .rhshop-price-note { margin-top: 0.1rem; }
+.rhshop-price-note a { color: inherit; }
+
 .rhshop-card.is-sold-out .rhshop-card__media { opacity: 0.55; }
 
 .rhshop-badge {
@@ -86,8 +92,11 @@
 .rhshop-buy__price {
 	font-size: 1.5rem;
 	font-weight: 700;
-	margin-bottom: 1rem;
+	margin-bottom: 0.3rem;
 }
+.rhshop-buy__price .rhshop-grundpreis { font-size: 0.85rem; }
+.rhshop-buy__price .rhshop-grundpreis:not(:empty) { margin-left: 0.4em; }
+.rhshop-buy .rhshop-price-note { margin-bottom: 1rem; }
 
 .rhshop-buy__select {
 	display: block;

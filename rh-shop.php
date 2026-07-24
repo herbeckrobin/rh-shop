@@ -41,4 +41,7 @@ require_once $rhshop_autoload;
 // zusätzlich über Schema::maybeUpgrade auf init).
 register_activation_hook(__FILE__, ['RhShop\\Orders\\Schema', 'activate']);
 
+// Versand-Seite (PAngV) anlegen, idempotent (überschreibt eine vorhandene nicht).
+register_activation_hook(__FILE__, ['RhShop\\Setup\\Pages', 'install']);
+
 RhShop\Plugin::boot();

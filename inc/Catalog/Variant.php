@@ -31,6 +31,7 @@ final class Variant
         public readonly string $sku,
         public readonly int $priceCents,
         public readonly ?int $stock,
+        public readonly ?float $gpAmount = null,
     ) {
     }
 
@@ -69,6 +70,7 @@ final class Variant
             'sku' => $this->sku,
             'price_cents' => $this->priceCents,
             'stock' => $this->stock,
+            'gp_amount' => $this->gpAmount,
         ];
     }
 
@@ -78,6 +80,7 @@ final class Variant
     public static function fromArray(array $row): self
     {
         $stock = $row['stock'] ?? null;
+        $gp = $row['gp_amount'] ?? null;
 
         return new self(
             id: (string) ($row['id'] ?? ''),
@@ -86,6 +89,7 @@ final class Variant
             sku: (string) ($row['sku'] ?? ''),
             priceCents: (int) ($row['price_cents'] ?? 0),
             stock: ($stock === null || $stock === '') ? null : (int) $stock,
+            gpAmount: ($gp === null || $gp === '' || (float) $gp <= 0) ? null : (float) $gp,
         );
     }
 }

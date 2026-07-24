@@ -23,6 +23,13 @@ final class VariantRepository
     public const META_SIMPLE_PRICE = '_rhshop_price_cents';
     public const META_SIMPLE_STOCK = '_rhshop_stock';
 
+    // PAngV-Grundpreis. Die Nennmenge liegt PRO VARIANTE (echte Varianten im
+    // Varianten-Array, das Produkt ohne Varianten in META_GP_AMOUNT). Die Einheit
+    // (g/kg/ml/l/cm/m/m²) ist die Mess-Dimension der Ware und gilt produktweit,
+    // sie wechselt nicht pro Variante.
+    public const META_GP_AMOUNT = '_rhshop_gp_amount';
+    public const META_GP_UNIT = '_rhshop_gp_unit';
+
     private const SIMPLE_VARIANT_ID = 'default';
 
     /**
@@ -68,12 +75,39 @@ final class VariantRepository
      */
     public function fromPriceCents(int $productId): int
     {
-        $prices = array_map(
-            static fn (Variant $v): int => $v->priceCents,
-            array_filter($this->forProduct($productId), static fn (Variant $v): bool => $v->priceCents > 0)
+        $cheapest = $this->cheapestVariant($productId);
+
+        return $cheapest?->priceCents ?? 0;
+    }
+
+    /**
+     * Die günstigste Einheit eines Produkts (für "ab X €" + den dazu passenden
+     * Grundpreis im Raster). null, wenn kein Preis gepflegt ist.
+     */
+    public function cheapestVariant(int $productId): ?Variant
+    {
+        $priced = array_filter(
+            $this->forProduct($productId),
+            static fn (Variant $v): bool => $v->priceCents > 0
         );
 
-        return $prices === [] ? 0 : min($prices);
+        if ($priced === []) {
+            return null;
+        }
+
+        usort($priced, static fn (Variant $a, Variant $b): int => $a->priceCents <=> $b->priceCents);
+
+        return $priced[0];
+    }
+
+    /**
+     * Grundpreis-Einheit des Produkts (produktweit). Leer = keine Grundpreis-Pflicht.
+     */
+    public function unit(int $productId): string
+    {
+        $unit = (string) get_post_meta($productId, self::META_GP_UNIT, true);
+
+        return in_array($unit, ['g', 'kg', 'ml', 'l', 'cm', 'm', 'm2'], true) ? $unit : '';
     }
 
     public function isSoldOut(int $productId): bool
@@ -159,6 +193,7 @@ final class VariantRepository
     {
         $priceCents = (int) get_post_meta($productId, self::META_SIMPLE_PRICE, true);
         $stockRaw = get_post_meta($productId, self::META_SIMPLE_STOCK, true);
+        $gpRaw = get_post_meta($productId, self::META_GP_AMOUNT, true);
 
         return new Variant(
             id: self::SIMPLE_VARIANT_ID,
@@ -167,6 +202,7 @@ final class VariantRepository
             sku: '',
             priceCents: $priceCents,
             stock: ($stockRaw === '' || $stockRaw === false) ? null : (int) $stockRaw,
+            gpAmount: ($gpRaw === '' || $gpRaw === false || (float) $gpRaw <= 0) ? null : (float) $gpRaw,
         );
     }
 

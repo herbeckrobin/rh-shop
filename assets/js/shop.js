@@ -58,6 +58,7 @@
 		var hasVariants = box.getAttribute( 'data-rhshop-has-variants' ) === '1';
 		var productId = parseInt( box.getAttribute( 'data-rhshop-product' ), 10 );
 		var priceEl = box.querySelector( '[data-rhshop-price]' );
+		var gpEl = box.querySelector( '[data-rhshop-grundpreis]' );
 		var addBtn = box.querySelector( '[data-rhshop-add]' );
 		var msgEl = box.querySelector( '[data-rhshop-msg]' );
 		var qtyInput = box.querySelector( '[data-rhshop-qty-input]' );
@@ -103,6 +104,9 @@
 			if ( selected ) {
 				if ( priceEl ) {
 					priceEl.textContent = selected.price;
+				}
+				if ( gpEl ) {
+					gpEl.textContent = selected.gp || '';
 				}
 				addBtn.disabled = ! selected.available;
 				addBtn.textContent = selected.available ? LABELS.add : LABELS.soldOut;

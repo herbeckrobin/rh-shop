@@ -14,6 +14,7 @@ use RhShop\Admin\WithdrawalsPage;
 use RhShop\Catalog\ProductType;
 use RhShop\Catalog\VariantRepository;
 use RhShop\Frontend\Blocks;
+use RhShop\Frontend\Shortcodes;
 use RhShop\Frontend\WiderrufButton;
 use RhShop\Withdrawal\WithdrawalRestController;
 use RhShop\Orders\Fulfillment;
@@ -64,6 +65,9 @@ final class Plugin
 
         // Checkout-REST (§312j-Button → Bestellung + Stripe-Session).
         (new CheckoutRestController())->boot();
+
+        // Frontend-Shortcodes (Versandkosten aus der Shop-Einstellung für die Versand-Seite).
+        (new Shortcodes(new Config()))->boot();
 
         // Widerruf (§356a): sitewide "Vertrag widerrufen"-Button + REST-Endpoint.
         (new WiderrufButton(new Config()))->boot();
