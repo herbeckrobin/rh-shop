@@ -57,8 +57,7 @@ final class CheckoutView
      */
     private function summary(array $lines, string $symbol): string
     {
-        $html = '<h2 class="rhshop-checkout__title">' . esc_html__('Deine Bestellung', 'rh-shop') . '</h2>';
-        $html .= '<ul class="rhshop-checkout__items">';
+        $html = '<ul class="rhshop-checkout__items">';
 
         foreach ($lines as $line) {
             $name = $line->productTitle . ($line->optionsLabel !== '' ? ' (' . $line->optionsLabel . ')' : '');
