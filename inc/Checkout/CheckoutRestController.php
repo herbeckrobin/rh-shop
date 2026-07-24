@@ -38,6 +38,31 @@ final class CheckoutRestController
             'callback' => [$this, 'createSession'],
             'permission_callback' => [$this, 'checkNonce'],
         ]);
+
+        // Öffentlicher Read: der Käufer fragt auf der Danke-Seite den Rechnungsstatus
+        // zu SEINER Session ab (die Session-ID ist die Zugangsberechtigung). Liefert nur
+        // paid-Status und die Stripe-Rechnungs-URL, keine Kundendaten.
+        register_rest_route(CartRestController::NAMESPACE, '/checkout/invoice', [
+            'methods' => WP_REST_Server::READABLE,
+            'callback' => [$this, 'invoiceStatus'],
+            'permission_callback' => '__return_true',
+            'args' => ['session_id' => ['type' => 'string', 'required' => true]],
+        ]);
+    }
+
+    public function invoiceStatus(WP_REST_Request $request): WP_REST_Response
+    {
+        $sessionId = sanitize_text_field((string) $request->get_param('session_id'));
+        $order = str_starts_with($sessionId, 'cs_') ? (new OrderStore())->findBySessionId($sessionId) : null;
+
+        if ($order === null) {
+            return new WP_REST_Response(['paid' => false, 'invoice_url' => '']);
+        }
+
+        return new WP_REST_Response([
+            'paid' => $order->isPaid(),
+            'invoice_url' => $order->invoiceUrl,
+        ]);
     }
 
     public function checkNonce(WP_REST_Request $request): bool

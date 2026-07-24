@@ -120,6 +120,17 @@ final class Blocks
             }
         }
 
+        // Seiten, die die Shop-Frontend-Ausgabe per Shortcode einbinden (Danke-,
+        // Versand-, Widerrufsformular-Seite). Sonst fehlt dort das shop.css.
+        $post = get_post();
+        if ($post instanceof \WP_Post) {
+            foreach (['rhshop_danke', 'rhshop_versandkosten', 'rhshop_widerrufsformular'] as $shortcode) {
+                if (has_shortcode($post->post_content, $shortcode)) {
+                    return true;
+                }
+            }
+        }
+
         return false;
     }
 

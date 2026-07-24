@@ -8,6 +8,7 @@ use RhShop\Orders\Order;
 use RhShop\Orders\OrderStore;
 use RhShop\Stripe\Config;
 use RhShop\Stripe\StripeClient;
+use RhShop\Support\Money;
 use Stripe\Exception\ApiErrorException;
 
 /**
@@ -48,9 +49,9 @@ final class DankeView
             : null;
 
         if ($order === null) {
-            return $this->wrap(
-                esc_html__('Vielen Dank', 'rh-shop'),
-                '<p>' . esc_html__('Vielen Dank für deinen Einkauf.', 'rh-shop') . '</p>'
+            return $this->shell(
+                'neutral',
+                '<p class="rhshop-danke__lead">' . esc_html__('Vielen Dank für deinen Einkauf.', 'rh-shop') . '</p>'
             );
         }
 
@@ -63,28 +64,150 @@ final class DankeView
 
     private function confirmed(Order $order): string
     {
-        $body = '<p>' . sprintf(
-            /* translators: %s: Bestellnummer */
-            esc_html__('deine Zahlung ist bestätigt. Deine Bestellung %s ist bei uns eingegangen.', 'rh-shop'),
-            '<strong>' . esc_html($order->orderNumber) . '</strong>'
-        ) . '</p>';
+        $inner = $this->statusHead('success', esc_html__('Deine Zahlung ist bestätigt.', 'rh-shop'), $order)
+            . '<p class="rhshop-danke__note">' . esc_html__('Die Bestellbestätigung schicken wir dir per E-Mail. Wir melden uns, sobald deine Bestellung unterwegs ist.', 'rh-shop') . '</p>'
+            . $this->orderSummary($order);
 
-        $body .= '<p>' . esc_html__('Die Bestellbestätigung schicken wir dir per E-Mail. Wir melden uns, sobald deine Bestellung unterwegs ist.', 'rh-shop') . '</p>';
-
-        return $this->wrap(esc_html__('Vielen Dank für deine Bestellung', 'rh-shop'), $body);
+        return $this->shell('success', $inner);
     }
 
     private function processing(Order $order): string
     {
-        $body = '<p>' . sprintf(
-            /* translators: %s: Bestellnummer */
-            esc_html__('deine Bestellung %s ist bei uns eingegangen. Deine Zahlung wird gerade verarbeitet.', 'rh-shop'),
-            '<strong>' . esc_html($order->orderNumber) . '</strong>'
-        ) . '</p>';
+        $inner = $this->statusHead('pending', esc_html__('Deine Zahlung wird gerade verarbeitet.', 'rh-shop'), $order)
+            . '<p class="rhshop-danke__note">' . esc_html__('Sobald die Zahlung bestätigt ist, bekommst du die Bestellbestätigung per E-Mail.', 'rh-shop') . '</p>'
+            . $this->orderSummary($order);
 
-        $body .= '<p>' . esc_html__('Sobald die Zahlung bestätigt ist, bekommst du die Bestellbestätigung per E-Mail.', 'rh-shop') . '</p>';
+        return $this->shell('pending', $inner);
+    }
 
-        return $this->wrap(esc_html__('Danke für deine Bestellung', 'rh-shop'), $body);
+    /**
+     * Bestellübersicht aus dem Positions-Snapshot der Bestellung (Preise vom
+     * Kaufzeitpunkt, keine Neuberechnung). Zeigt Positionen, Summen und, falls die
+     * Rechnung schon erstellt ist, den Link dazu.
+     */
+    private function orderSummary(Order $order): string
+    {
+        $symbol = $this->config->currencySymbol();
+
+        $items = '';
+        foreach ($order->items as $item) {
+            $name = (string) ($item['title'] ?? '');
+            $options = (string) ($item['options'] ?? '');
+            if ($options !== '') {
+                $name .= ' (' . $options . ')';
+            }
+            $items .= sprintf(
+                '<li class="rhshop-danke__item"><span class="rhshop-danke__item-name">%s</span>'
+                . '<span class="rhshop-danke__item-qty">%s %d</span>'
+                . '<span class="rhshop-danke__item-total">%s</span></li>',
+                esc_html($name),
+                esc_html__('Menge', 'rh-shop'),
+                (int) ($item['qty'] ?? 0),
+                esc_html(Money::format((int) ($item['line_total_cents'] ?? 0), $symbol))
+            );
+        }
+
+        $shippingLabel = $order->shippingCents > 0
+            ? Money::format($order->shippingCents, $symbol)
+            : __('kostenlos', 'rh-shop');
+
+        $rows = $this->row(__('Zwischensumme', 'rh-shop'), Money::format($order->subtotalCents, $symbol));
+        $rows .= $this->row(__('Versand', 'rh-shop'), $shippingLabel);
+
+        if ($order->taxMode === Order::TAX_KLEINUNTERNEHMER) {
+            $rows .= $this->row(__('Gesamt', 'rh-shop'), Money::format($order->totalCents, $symbol), 'total');
+            $rows .= '<p class="rhshop-danke__taxnote">' . esc_html__('Kleinunternehmer gemäß § 19 UStG. Im Preis ist keine Umsatzsteuer enthalten.', 'rh-shop') . '</p>';
+        } else {
+            $rows .= $this->row(
+                sprintf(/* translators: %d: Steuersatz */ __('enthaltene USt (%d %%)', 'rh-shop'), Config::VAT_RATE_PERCENT),
+                Money::format($order->taxCents, $symbol),
+                'muted'
+            );
+            $rows .= $this->row(__('Gesamt (inkl. MwSt.)', 'rh-shop'), Money::format($order->totalCents, $symbol), 'total');
+        }
+
+        $invoice = $this->invoiceSection($order);
+
+        return '<div class="rhshop-danke__order">'
+            . '<h3 class="rhshop-danke__order-title">' . esc_html__('Deine Bestellung', 'rh-shop') . '</h3>'
+            . '<ul class="rhshop-danke__items">' . $items . '</ul>'
+            . '<div class="rhshop-danke__breakdown">' . $rows . '</div>'
+            . $invoice
+            . '</div>';
+    }
+
+    /**
+     * Rechnungs-Abschnitt. Ist die Rechnung schon da, direkt der Link. Ist bezahlt,
+     * aber die Rechnung noch nicht erstellt (der Webhook erstellt sie ein paar
+     * Sekunden nach dem Rücksprung), ein Slot der per Poll live nachgeladen wird,
+     * ohne dass der Käufer neu laden muss.
+     */
+    private function invoiceSection(Order $order): string
+    {
+        if ($order->invoiceUrl !== '') {
+            return '<p class="rhshop-danke__invoice"><a href="' . esc_url($order->invoiceUrl) . '" target="_blank" rel="noopener">'
+                . esc_html__('Rechnung ansehen', 'rh-shop') . '</a></p>';
+        }
+
+        if (! $order->isPaid()) {
+            return '';
+        }
+
+        $endpoint = rest_url(\RhShop\Cart\CartRestController::NAMESPACE . '/checkout/invoice');
+
+        $config = wp_json_encode([
+            'url' => $endpoint,
+            'sessionId' => $order->stripeSessionId,
+            'label' => __('Rechnung ansehen', 'rh-shop'),
+        ]);
+
+        return '<p class="rhshop-danke__invoice" data-rhshop-invoice-slot>'
+            . '<span class="rhshop-danke__invoice-wait">' . esc_html__('Rechnung wird erstellt …', 'rh-shop') . '</span></p>'
+            . '<script>(' . $this->pollScript() . ')(' . $config . ');</script>';
+    }
+
+    /**
+     * Poll-Funktion als String (per JSON-Config aufgerufen), damit keine Werte
+     * unescaped in den JS-Code interpoliert werden. Link wird per DOM gesetzt (href +
+     * textContent), keine HTML-Injektion.
+     */
+    private function pollScript(): string
+    {
+        return <<<'JS'
+function(c){
+  var slot=document.querySelector('[data-rhshop-invoice-slot]');
+  if(!slot||!c.sessionId){return;}
+  var tries=0;
+  function fill(u){
+    var a=document.createElement('a');
+    a.href=u;a.target='_blank';a.rel='noopener';a.textContent=c.label;
+    slot.textContent='';slot.appendChild(a);
+  }
+  function poll(){
+    tries++;
+    fetch(c.url+'?session_id='+encodeURIComponent(c.sessionId),{credentials:'same-origin'})
+      .then(function(r){return r.json();})
+      .then(function(d){
+        if(d&&d.invoice_url){fill(d.invoice_url);return;}
+        if(tries<12){setTimeout(poll,2500);}else{slot.textContent='';}
+      })
+      .catch(function(){if(tries<12){setTimeout(poll,2500);}else{slot.textContent='';}});
+  }
+  setTimeout(poll,2000);
+}
+JS;
+    }
+
+    private function row(string $label, string $value, string $modifier = ''): string
+    {
+        $class = 'rhshop-danke__row' . ($modifier !== '' ? ' rhshop-danke__row--' . $modifier : '');
+
+        return sprintf(
+            '<div class="%s"><span>%s</span><span>%s</span></div>',
+            esc_attr($class),
+            esc_html($label),
+            esc_html($value)
+        );
     }
 
     /**
@@ -108,13 +231,35 @@ final class DankeView
         return ($session->payment_status ?? '') === 'paid';
     }
 
-    private function wrap(string $title, string $body): string
+    private function shell(string $variant, string $inner): string
     {
-        return '<div class="rhshop-danke">'
-            . '<h2 class="rhshop-danke__title">' . $title . '</h2>'
-            . '<p>' . esc_html__('Hallo,', 'rh-shop') . '</p>'
-            // $body ist bereits escaptes Markup.
-            . $body // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+        // $inner ist bereits escaptes Markup.
+        return '<div class="rhshop-danke rhshop-danke--' . esc_attr($variant) . '">'
+            . $inner // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
             . '</div>';
+    }
+
+    /**
+     * Status-Kopf: Badge (Haken bzw. Sanduhr) neben der Kern-Aussage und der
+     * Bestellnummer. Kein großer Titel, der Seitentitel des Themes steht schon drüber.
+     */
+    private function statusHead(string $variant, string $lead, Order $order): string
+    {
+        $badge = $variant === 'success'
+            ? '<span class="rhshop-danke__badge rhshop-danke__badge--ok" aria-hidden="true">✓</span>'
+            : '<span class="rhshop-danke__badge rhshop-danke__badge--wait" aria-hidden="true">⏳</span>';
+
+        $orderNo = sprintf(
+            /* translators: %s: Bestellnummer */
+            esc_html__('Bestellung %s', 'rh-shop'),
+            '<strong>' . esc_html($order->orderNumber) . '</strong>'
+        );
+
+        return '<div class="rhshop-danke__status">'
+            . $badge
+            . '<div class="rhshop-danke__status-text">'
+            . '<p class="rhshop-danke__lead">' . $lead . '</p>'
+            . '<p class="rhshop-danke__order-no">' . $orderNo . '</p>'
+            . '</div></div>';
     }
 }

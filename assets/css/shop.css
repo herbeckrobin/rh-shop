@@ -104,9 +104,11 @@
 	max-width: 260px;
 	padding: 0.6rem 0.7rem;
 	margin-bottom: 0.7rem;
-	border: 1px solid rgba(0, 0, 0, 0.2);
+	border: 1px solid rgba(128, 128, 128, 0.45);
+	border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
 	border-radius: 8px;
-	background: #fff;
+	background: transparent;
+	color: inherit;
 	font-size: 1rem;
 }
 
@@ -252,8 +254,11 @@
 .rhshop-checkout__form input[type="email"],
 .rhshop-checkout__form input[type="text"] {
 	padding: 0.6rem 0.7rem;
-	border: 1px solid rgba(0, 0, 0, 0.25);
+	border: 1px solid rgba(128, 128, 128, 0.5);
+	border: 1px solid color-mix(in srgb, currentColor 38%, transparent);
 	border-radius: 8px;
+	background: transparent;
+	color: inherit;
 	font-size: 1rem;
 }
 
@@ -289,42 +294,104 @@
 .rhshop-widerruf textarea {
 	width: 100%;
 	padding: 0.6rem 0.7rem;
-	border: 1px solid rgba(0, 0, 0, 0.25);
+	border: 1px solid rgba(128, 128, 128, 0.5);
+	border: 1px solid color-mix(in srgb, currentColor 38%, transparent);
 	border-radius: 8px;
+	background: transparent;
+	color: inherit;
 	font-size: 1rem;
 }
 .rhshop-widerruf .rhshop-btn-order { margin-top: 0.4rem; }
 .rhshop-widerruf__belehrung { font-size: 0.9rem; opacity: 0.8; }
 .rhshop-widerruf__success h3 { margin-top: 0; }
 
-@media (prefers-color-scheme: dark) {
-	.rhshop-checkout__form input[type="email"],
-	.rhshop-checkout__form input[type="text"],
-	.rhshop-widerruf input,
-	.rhshop-widerruf textarea { background: #1a1a1a; color: #fff; border-color: rgba(255, 255, 255, 0.25); }
-	.rhshop-btn-order { background: #fff; color: #141414; }
-}
-
-@media (prefers-color-scheme: dark) {
-	.rhshop-card__media, .rhshop-card__ph { background: rgba(255, 255, 255, 0.06); }
-	.rhshop-buy__select { background: #1a1a1a; color: #fff; border-color: rgba(255, 255, 255, 0.2); }
-	.rhshop-btn-add, .rhshop-btn-checkout { background: #fff; color: #141414; }
-	.rhshop-badge { background: rgba(255, 255, 255, 0.9); color: #141414; }
-}
-
 /* Muster-Widerrufsformular (Shortcode auf der Widerrufsbelehrungs-Seite) */
 .rhshop-widerrufsformular { margin: 1.5rem 0; }
 .rhshop-widerrufsformular__list { list-style: none; margin: 0; padding: 0; }
 .rhshop-widerrufsformular__list li {
 	padding: 0.55rem 0;
-	border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+	border-bottom: 1px solid rgba(128, 128, 128, 0.28);
+	border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent);
 }
 .rhshop-widerrufsformular__note { margin-top: 0.75rem; font-size: 0.85rem; opacity: 0.75; }
 
-@media (prefers-color-scheme: dark) {
-	.rhshop-widerrufsformular__list li { border-bottom-color: rgba(255, 255, 255, 0.18); }
-}
+/* Bestätigungsseite (/danke, [rhshop_danke]). Fließt links im Content, keine
+   zentrierte Box: nur die Bestellübersicht ist eine abgesetzte Beleg-Karte. */
+.rhshop-danke { margin: 0; }
 
-/* Bestätigungsseite (/danke, [rhshop_danke]) */
-.rhshop-danke { max-width: 560px; }
-.rhshop-danke__title { margin: 0 0 0.8rem; }
+.rhshop-danke__status { display: flex; align-items: flex-start; gap: 0.85rem; margin-bottom: 1.1rem; }
+.rhshop-danke__badge {
+	flex: none;
+	width: 2.4rem;
+	height: 2.4rem;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 1.2rem;
+	line-height: 1;
+}
+.rhshop-danke__badge--ok { background: #1a7f37; color: #fff; }
+.rhshop-danke__badge--wait {
+	background: rgba(128, 128, 128, 0.18);
+	background: color-mix(in srgb, currentColor 12%, transparent);
+}
+.rhshop-danke__status-text { padding-top: 0.15rem; }
+.rhshop-danke__lead { margin: 0; font-size: 1.3rem; font-weight: 700; line-height: 1.25; }
+.rhshop-danke__order-no { margin: 0.2rem 0 0; opacity: 0.65; font-size: 0.95rem; }
+.rhshop-danke__note { margin: 0 0 1.6rem; max-width: 46ch; }
+
+.rhshop-danke__order {
+	border: 1px solid rgba(128, 128, 128, 0.32);
+	border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+	border-radius: 12px;
+	padding: clamp(1.1rem, 3vw, 1.5rem);
+	background: rgba(128, 128, 128, 0.08);
+	background: color-mix(in srgb, currentColor 5%, transparent);
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+.rhshop-danke__order-title {
+	margin: 0 0 0.9rem;
+	font-size: 0.75rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	opacity: 0.55;
+}
+.rhshop-danke__items { list-style: none; margin: 0; padding: 0; }
+.rhshop-danke__item {
+	display: grid;
+	grid-template-columns: 1fr auto auto;
+	gap: 0.9rem;
+	align-items: baseline;
+	padding: 0.55rem 0;
+	border-bottom: 1px solid rgba(128, 128, 128, 0.22);
+	border-bottom: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+}
+.rhshop-danke__item-qty { opacity: 0.55; font-size: 0.9rem; white-space: nowrap; }
+.rhshop-danke__item-total { font-weight: 600; white-space: nowrap; }
+.rhshop-danke__breakdown { margin-top: 0.9rem; }
+.rhshop-danke__row { display: flex; justify-content: space-between; gap: 1rem; padding: 0.28rem 0; }
+.rhshop-danke__row--muted { opacity: 0.6; font-size: 0.9rem; }
+.rhshop-danke__row--total {
+	border-top: 2px solid rgba(128, 128, 128, 0.4);
+	border-top: 2px solid color-mix(in srgb, currentColor 28%, transparent);
+	margin-top: 0.45rem;
+	padding-top: 0.6rem;
+	font-size: 1.15rem;
+	font-weight: 700;
+}
+.rhshop-danke__taxnote { font-size: 0.85rem; opacity: 0.65; margin: 0.5rem 0 0; }
+
+.rhshop-danke__invoice { margin: 1.4rem 0 0; }
+.rhshop-danke__invoice a {
+	display: inline-block;
+	padding: 0.6rem 1.3rem;
+	border: 1px solid currentColor;
+	border-radius: 8px;
+	font-weight: 600;
+	text-decoration: none;
+	color: inherit;
+}
+.rhshop-danke__invoice a:hover { opacity: 0.7; }
+.rhshop-danke__invoice-wait { opacity: 0.55; font-size: 0.9rem; }
