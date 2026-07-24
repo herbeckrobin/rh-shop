@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace RhShop\Orders;
 
+use RhShop\Legal\Widerrufsformular;
 use RhShop\Stripe\Config;
 use RhShop\Support\Money;
 
@@ -66,7 +67,44 @@ final class OrderMailer
             . '<p>' . esc_html($intro) . '</p>'
             . $this->itemsTable($order, $symbol)
             . $invoice
-            . '<p>' . esc_html__('Wir melden uns, sobald deine Bestellung unterwegs ist.', 'rh-shop') . '</p>';
+            . '<p>' . esc_html__('Wir melden uns, sobald deine Bestellung unterwegs ist.', 'rh-shop') . '</p>'
+            . $this->widerrufBlock();
+    }
+
+    /**
+     * Widerruf auf dauerhaftem Datenträger (Art. 246a EGBGB): Link zur
+     * Widerrufsbelehrung (falls als Seite vorhanden) plus das amtliche
+     * Muster-Widerrufsformular. Per Filter abschaltbar für Sortimente ohne
+     * Widerrufsrecht (z.B. reine Dienstleistungen/Downloads).
+     */
+    private function widerrufBlock(): string
+    {
+        if (! (bool) apply_filters('rh-blueprint/shop/confirmation_widerruf', true)) {
+            return '';
+        }
+
+        $url = $this->widerrufsbelehrungUrl();
+        $link = $url !== ''
+            ? '<p>' . sprintf(
+                /* translators: %s: Link zur Widerrufsbelehrung */
+                esc_html__('Deine Widerrufsbelehrung findest du hier: %s', 'rh-shop'),
+                '<a href="' . esc_url($url) . '">' . esc_html__('zur Widerrufsbelehrung', 'rh-shop') . '</a>'
+            ) . '</p>'
+            : '';
+
+        return '<hr>' . $link . Widerrufsformular::html();
+    }
+
+    /**
+     * URL der Widerrufsbelehrungs-Seite. Leer, wenn keine existiert (kein toter Link),
+     * überschreibbar per Filter `rh-blueprint/shop/legal_url`.
+     */
+    private function widerrufsbelehrungUrl(): string
+    {
+        $page = get_page_by_path('widerrufsbelehrung');
+        $default = $page instanceof \WP_Post ? (string) get_permalink($page) : '';
+
+        return (string) apply_filters('rh-blueprint/shop/legal_url', $default, 'widerrufsbelehrung');
     }
 
     private function adminBody(Order $order, string $symbol): string

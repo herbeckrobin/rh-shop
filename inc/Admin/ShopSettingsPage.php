@@ -154,6 +154,13 @@ final class ShopSettingsPage
         echo '<p class="rhbp-field__desc">' . esc_html__('Pauschale Versandkosten pro Bestellung. Leer oder 0 = kostenloser Versand.', 'rh-shop') . '</p>';
         echo '</div>';
 
+        // AGB-Zustimmung im Checkout (optional, AGB sind nicht Pflicht)
+        echo '<div class="rhbp-field">';
+        echo '<label><input type="checkbox" name="agb_enabled" value="1" ' . checked($this->config->agbEnabled(), true, false) . ' /> '
+            . esc_html__('AGB-Zustimmung im Checkout verlangen', 'rh-shop') . '</label>';
+        echo '<p class="rhbp-field__desc">' . esc_html__('Nur einschalten, wenn du eine AGB-Seite hast. AGB sind rechtlich nicht Pflicht. Ist der Schalter aus, verlangt die Kasse nur Widerrufsbelehrung und Datenschutz.', 'rh-shop') . '</p>';
+        echo '</div>';
+
         // Widerrufs-Button (§356a)
         echo '<div class="rhbp-field">';
         echo '<label><input type="checkbox" name="widerruf_button" value="1" ' . checked($this->config->widerrufButtonEnabled(), true, false) . ' /> '
@@ -166,6 +173,16 @@ final class ShopSettingsPage
         echo '<label><input type="checkbox" name="invoice_enabled" value="1" ' . checked($this->config->invoiceEnabled(), true, false) . ' /> '
             . esc_html__('Rechnung nach der Zahlung über Stripe erstellen', 'rh-shop') . '</label>';
         echo '<p class="rhbp-field__desc">' . esc_html__('Stripe erzeugt eine fortlaufende PDF-Rechnung und schickt sie dem Kunden (Stripe Invoicing, kostenpflichtiges Add-on). Verkäufer-Stammdaten (Anschrift, Steuernummer) pflegst du in den Stripe-Rechnungseinstellungen.', 'rh-shop') . '</p>';
+        echo '</div>';
+
+        // Anbieter-Anschrift (für das Muster-Widerrufsformular)
+        echo '<div class="rhbp-field">';
+        echo '<label class="rhbp-field__label" for="rhshop-anbieter">' . esc_html__('Anbieter-Anschrift', 'rh-shop') . '</label>';
+        printf(
+            '<textarea id="rhshop-anbieter" name="anbieter_adresse" rows="3" class="regular-text" style="max-width:420px">%s</textarea>',
+            esc_textarea((string) rhbp_setting(Config::GROUP, \RhShop\Legal\Anbieter::SETTING_ADDRESS, ''))
+        );
+        echo '<p class="rhbp-field__desc">' . esc_html__('Vollständige Anschrift (Straße, PLZ, Ort). Wird ins Muster-Widerrufsformular eingesetzt. Name und E-Mail kommen aus den WordPress-Stammdaten. Pflegst du Stammdaten schon in rh-seo, kann eine Suite-Integration das automatisch liefern.', 'rh-shop') . '</p>';
         echo '</div>';
 
         echo '<p><button type="submit" class="rhbp-btn rhbp-btn--primary">' . esc_html__('Speichern', 'rh-shop') . '</button></p>';
@@ -278,6 +295,10 @@ final class ShopSettingsPage
             Config::FIELD_SHIPPING => Money::toCents(isset($_POST['shipping_cents']) ? sanitize_text_field(wp_unslash($_POST['shipping_cents'])) : ''),
             Config::FIELD_WIDERRUF_BUTTON => isset($_POST['widerruf_button']),
             Config::FIELD_INVOICE => isset($_POST['invoice_enabled']),
+            Config::FIELD_AGB_ENABLED => isset($_POST['agb_enabled']),
+            \RhShop\Legal\Anbieter::SETTING_ADDRESS => isset($_POST['anbieter_adresse'])
+                ? sanitize_textarea_field(wp_unslash($_POST['anbieter_adresse']))
+                : '',
         ];
 
         $this->collectSecret($values, 'secret_key', Config::FIELD_SECRET_ENC);

@@ -47,16 +47,20 @@ final class CheckoutRestController
 
     public function createSession(WP_REST_Request $request): WP_REST_Response|WP_Error
     {
-        $terms = rest_sanitize_boolean($request->get_param('accept_terms'));
+        $config = new Config();
+
         $revocation = rest_sanitize_boolean($request->get_param('accept_revocation'));
         $privacy = rest_sanitize_boolean($request->get_param('accept_privacy'));
+        // AGB nur verlangen, wenn der Betreiber sie eingeschaltet hat (sie sind nicht
+        // gesetzlich Pflicht). Widerruf + Datenschutz sind immer Pflicht.
+        $terms = ! $config->agbEnabled() || rest_sanitize_boolean($request->get_param('accept_terms'));
 
         if (! $terms || ! $revocation || ! $privacy) {
-            return new WP_Error(
-                'rhshop_terms_required',
-                __('Bitte bestätige AGB, Widerrufsbelehrung und Datenschutz.', 'rh-shop'),
-                ['status' => 400]
-            );
+            $missing = $config->agbEnabled()
+                ? __('Bitte bestätige AGB, Widerrufsbelehrung und Datenschutz.', 'rh-shop')
+                : __('Bitte bestätige Widerrufsbelehrung und Datenschutz.', 'rh-shop');
+
+            return new WP_Error('rhshop_terms_required', $missing, ['status' => 400]);
         }
 
         $email = sanitize_email((string) $request->get_param('email'));
@@ -65,8 +69,6 @@ final class CheckoutRestController
         }
 
         $name = sanitize_text_field((string) $request->get_param('name'));
-
-        $config = new Config();
         $service = new CheckoutService($config, new StripeClient($config), new OrderStore());
 
         $result = $service->createSession(new Cart(new VariantRepository()), ['email' => $email, 'name' => $name]);

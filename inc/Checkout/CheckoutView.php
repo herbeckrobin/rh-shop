@@ -115,8 +115,13 @@ final class CheckoutView
      */
     private function form(): string
     {
-        $checkboxes = $this->checkbox('terms', __('AGB', 'rh-shop'), 'agb', __('Ich habe die %s gelesen und akzeptiere sie.', 'rh-shop'))
-            . $this->checkbox('revocation', __('Widerrufsbelehrung', 'rh-shop'), 'widerrufsbelehrung', __('Ich habe die %s zur Kenntnis genommen.', 'rh-shop'))
+        // AGB sind nicht Pflicht: die Checkbox erscheint nur, wenn der Betreiber sie
+        // eingeschaltet hat. Widerruf + Datenschutz sind immer da.
+        $checkboxes = '';
+        if ($this->config->agbEnabled()) {
+            $checkboxes .= $this->checkbox('terms', __('AGB', 'rh-shop'), 'agb', __('Ich habe die %s gelesen und akzeptiere sie.', 'rh-shop'));
+        }
+        $checkboxes .= $this->checkbox('revocation', __('Widerrufsbelehrung', 'rh-shop'), 'widerrufsbelehrung', __('Ich habe die %s zur Kenntnis genommen.', 'rh-shop'))
             . $this->checkbox('privacy', __('Datenschutzerklärung', 'rh-shop'), 'datenschutz', __('Ich habe die %s gelesen.', 'rh-shop'));
 
         return '<div class="rhshop-checkout__form" data-rhshop-checkout-form>'

@@ -4,14 +4,16 @@ declare(strict_types=1);
 
 namespace RhShop\Frontend;
 
+use RhShop\Legal\Widerrufsformular;
 use RhShop\Stripe\Config;
 use RhShop\Support\Money;
 
 /**
- * Kleine Frontend-Shortcodes, damit Rechtstexte (Versand-Seite) die Shop-Werte aus
- * EINER Quelle ziehen statt sie doppelt zu pflegen. `[rhshop_versandkosten]` gibt die
- * konfigurierten Pauschal-Versandkosten aus, so bleibt die Versand-Seite automatisch
- * synchron zur Einstellung im Shop-Tab.
+ * Kleine Frontend-Shortcodes, damit Rechtstexte die Shop-Werte aus EINER Quelle
+ * ziehen statt sie doppelt zu pflegen. `[rhshop_versandkosten]` gibt die
+ * konfigurierten Pauschal-Versandkosten aus. `[rhshop_widerrufsformular]` rendert das
+ * amtliche Muster-Widerrufsformular mit den Anbieterdaten, zum Einbinden auf der
+ * Widerrufsbelehrungs-Seite.
  */
 final class Shortcodes
 {
@@ -22,6 +24,15 @@ final class Shortcodes
     public function boot(): void
     {
         add_shortcode('rhshop_versandkosten', [$this, 'shippingCost']);
+        add_shortcode('rhshop_widerrufsformular', [$this, 'widerrufsformular']);
+    }
+
+    /**
+     * Amtliches Muster-Widerrufsformular. Rückgabe ist bereits escaptes Markup.
+     */
+    public function widerrufsformular(): string
+    {
+        return Widerrufsformular::html();
     }
 
     /**

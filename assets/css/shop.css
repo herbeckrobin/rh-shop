@@ -311,3 +311,16 @@
 	.rhshop-btn-add, .rhshop-btn-checkout { background: #fff; color: #141414; }
 	.rhshop-badge { background: rgba(255, 255, 255, 0.9); color: #141414; }
 }
+
+/* Muster-Widerrufsformular (Shortcode auf der Widerrufsbelehrungs-Seite) */
+.rhshop-widerrufsformular { margin: 1.5rem 0; }
+.rhshop-widerrufsformular__list { list-style: none; margin: 0; padding: 0; }
+.rhshop-widerrufsformular__list li {
+	padding: 0.55rem 0;
+	border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+}
+.rhshop-widerrufsformular__note { margin-top: 0.75rem; font-size: 0.85rem; opacity: 0.75; }
+
+@media (prefers-color-scheme: dark) {
+	.rhshop-widerrufsformular__list li { border-bottom-color: rgba(255, 255, 255, 0.18); }
+}

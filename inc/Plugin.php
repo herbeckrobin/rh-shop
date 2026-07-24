@@ -6,6 +6,7 @@ namespace RhShop;
 
 use RhBlueprint\Core\Core;
 use RhBlueprint\Core\Settings\SettingsPage;
+use RhShop\Admin\GoLiveCheck;
 use RhShop\Admin\OrdersPage;
 use RhShop\Admin\ShopSettingsPage;
 use RhShop\Checkout\CheckoutRestController;
@@ -98,6 +99,7 @@ final class Plugin
         if (is_admin()) {
             (new VariantMetaBox())->boot();
             (new ShopSettingsPage(new Config()))->boot();
+            (new GoLiveCheck(new Config()))->boot();
             (new OrdersPage())->boot();
             (new WithdrawalsPage())->boot();
         }

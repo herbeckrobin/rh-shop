@@ -11,7 +11,7 @@
 
 	var LABELS = {
 		ordering: 'Bestellung wird angelegt…',
-		consents: 'Bitte bestätige AGB, Widerrufsbelehrung und Datenschutz.',
+		consents: 'Bitte bestätige die markierten Pflichtangaben.',
 		email: 'Bitte gib eine gültige E-Mail-Adresse an.',
 		error: 'Etwas ist schiefgelaufen. Bitte nochmal versuchen.',
 	};

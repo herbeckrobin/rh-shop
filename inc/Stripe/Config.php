@@ -28,6 +28,7 @@ final class Config
     public const FIELD_WEBHOOK_ENDPOINT = 'webhook_endpoint_id';
     public const FIELD_WIDERRUF_BUTTON = 'widerruf_button';
     public const FIELD_INVOICE = 'invoice_enabled';
+    public const FIELD_AGB_ENABLED = 'agb_enabled';
 
     /** Enthaltene USt bei Regelbesteuerung (Deutschland, Standardsatz). */
     public const VAT_RATE_PERCENT = 19;
@@ -138,6 +139,17 @@ final class Config
     public function invoiceEnabled(): bool
     {
         return (bool) rhbp_setting(self::GROUP, self::FIELD_INVOICE, true);
+    }
+
+    /**
+     * Verlangt der Checkout eine AGB-Zustimmung. AGB sind für einen Shop rechtlich
+     * NICHT Pflicht (ohne AGB gilt das Gesetz), darum Default aus: die AGB-Checkbox
+     * plus Link erscheinen nur, wenn der Betreiber sie einschaltet (und dann eigene
+     * AGB hat). Widerruf + Datenschutz bleiben davon unberührt Pflicht.
+     */
+    public function agbEnabled(): bool
+    {
+        return (bool) rhbp_setting(self::GROUP, self::FIELD_AGB_ENABLED, false);
     }
 
     public function isConfigured(): bool
