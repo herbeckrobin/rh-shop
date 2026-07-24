@@ -18,10 +18,13 @@ final class Pages
 {
     private const VERSAND_SLUG = 'versand';
     private const OPTION_VERSAND_ID = 'rhshop_versand_page_id';
+    private const DANKE_SLUG = 'danke';
+    private const OPTION_DANKE_ID = 'rhshop_danke_page_id';
 
     public static function install(): void
     {
         self::ensureVersandPage();
+        self::ensureDankePage();
     }
 
     private static function ensureVersandPage(): void
@@ -42,6 +45,31 @@ final class Pages
 
         if (is_int($pageId) && $pageId > 0) {
             update_option(self::OPTION_VERSAND_ID, $pageId);
+        }
+    }
+
+    /**
+     * Bestätigungsseite (Ziel der Stripe-Rück-URL). Der Shortcode zeigt den echten
+     * Zahlungsstatus statt eines blinden Mail-Versprechens.
+     */
+    private static function ensureDankePage(): void
+    {
+        $existing = get_page_by_path(self::DANKE_SLUG);
+        if ($existing instanceof \WP_Post) {
+            update_option(self::OPTION_DANKE_ID, $existing->ID);
+            return;
+        }
+
+        $pageId = wp_insert_post([
+            'post_type' => 'page',
+            'post_status' => 'publish',
+            'post_title' => __('Vielen Dank', 'rh-shop'),
+            'post_name' => self::DANKE_SLUG,
+            'post_content' => "<!-- wp:shortcode -->[rhshop_danke]<!-- /wp:shortcode -->",
+        ]);
+
+        if (is_int($pageId) && $pageId > 0) {
+            update_option(self::OPTION_DANKE_ID, $pageId);
         }
     }
 

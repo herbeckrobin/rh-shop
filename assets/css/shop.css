@@ -324,3 +324,7 @@
 @media (prefers-color-scheme: dark) {
 	.rhshop-widerrufsformular__list li { border-bottom-color: rgba(255, 255, 255, 0.18); }
 }
+
+/* Bestätigungsseite (/danke, [rhshop_danke]) */
+.rhshop-danke { max-width: 560px; }
+.rhshop-danke__title { margin: 0 0 0.8rem; }

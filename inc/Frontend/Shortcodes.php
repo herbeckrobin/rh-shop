@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace RhShop\Frontend;
 
+use RhShop\Checkout\DankeView;
 use RhShop\Legal\Widerrufsformular;
 use RhShop\Stripe\Config;
 use RhShop\Support\Money;
@@ -25,6 +26,15 @@ final class Shortcodes
     {
         add_shortcode('rhshop_versandkosten', [$this, 'shippingCost']);
         add_shortcode('rhshop_widerrufsformular', [$this, 'widerrufsformular']);
+        add_shortcode('rhshop_danke', [$this, 'danke']);
+    }
+
+    /**
+     * Status-bewusste Bestätigungsseite nach der Zahlung. Rückgabe ist escaptes Markup.
+     */
+    public function danke(): string
+    {
+        return DankeView::make()->render();
     }
 
     /**
