@@ -6,6 +6,7 @@ namespace RhShop\Admin;
 
 use RhShop\Catalog\ProductType;
 use RhShop\Orders\Order;
+use RhShop\Orders\OrderMailer;
 use RhShop\Orders\OrderStore;
 use RhShop\Stripe\Config;
 use RhShop\Support\Money;
@@ -162,13 +163,16 @@ final class OrdersPage
             );
         }
 
+        // Das Sendungs-Feld wird nur genutzt, wenn auf "versendet" gesetzt wird, dann
+        // geht es in die "ist unterwegs"-Mail an den Kunden. Sonst wird es ignoriert.
         return $this->statusPill($order->status)
-            . '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '" style="margin-top:6px;display:flex;gap:4px;align-items:center">'
+            . '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '" style="margin-top:6px;display:flex;gap:4px;align-items:center;flex-wrap:wrap;max-width:250px">'
             . '<input type="hidden" name="action" value="' . esc_attr(self::ACTION_SET_STATUS) . '" />'
             . '<input type="hidden" name="order_id" value="' . esc_attr((string) $order->id) . '" />'
             . wp_nonce_field(self::NONCE, '_wpnonce', true, false)
             . '<select name="status" aria-label="' . esc_attr__('Status ändern', 'rh-shop') . '">' . $options . '</select>'
             . '<button type="submit" class="button button-small">' . esc_html__('Setzen', 'rh-shop') . '</button>'
+            . '<input type="text" name="tracking" value="" placeholder="' . esc_attr__('Sendungsnr./Link (optional)', 'rh-shop') . '" style="flex:1 1 100%;font-size:12px" />'
             . '</form>';
     }
 
@@ -187,11 +191,25 @@ final class OrdersPage
 
         $orderId = isset($_POST['order_id']) ? absint(wp_unslash($_POST['order_id'])) : 0;
         $status = isset($_POST['status']) ? sanitize_key(wp_unslash($_POST['status'])) : '';
+        $tracking = isset($_POST['tracking']) ? sanitize_text_field(wp_unslash($_POST['tracking'])) : '';
 
         $ok = false;
-        if ($orderId > 0 && in_array($status, Order::STATUSES, true)) {
-            (new OrderStore())->updateStatus($orderId, $status);
+        $store = new OrderStore();
+        $order = $orderId > 0 ? $store->find($orderId) : null;
+
+        if ($order !== null && in_array($status, Order::STATUSES, true)) {
+            $wasShipped = $order->status === Order::STATUS_SHIPPED;
+            $store->updateStatus($orderId, $status);
             $ok = true;
+
+            // Versandbestätigung nur beim Übergang NACH "versendet", nicht bei jedem
+            // Speichern (kein doppelter Versand, wenn schon versendet war).
+            if ($status === Order::STATUS_SHIPPED && ! $wasShipped) {
+                $fresh = $store->find($orderId);
+                if ($fresh !== null) {
+                    (new OrderMailer(new Config()))->sendShipped($fresh, $tracking);
+                }
+            }
         }
 
         wp_safe_redirect(add_query_arg(

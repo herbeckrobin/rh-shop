@@ -25,15 +25,7 @@ final class OrderMailer
     public function sendConfirmation(Order $order, string $invoiceUrl = ''): void
     {
         $symbol = $this->config->currencySymbol();
-        $headers = ['Content-Type: text/html; charset=UTF-8'];
-
-        // Absender (From) nur setzen, wenn der Betreiber eine eigene Adresse gepflegt
-        // hat, sonst bleibt der WordPress-/rh-smtp-Default. Der Name ist optional.
-        $fromAddress = $this->config->mailFromAddress();
-        if ($fromAddress !== '') {
-            $fromName = $this->config->mailFromName();
-            $headers[] = 'From: ' . ($fromName !== '' ? sprintf('%s <%s>', $fromName, $fromAddress) : $fromAddress);
-        }
+        $headers = $this->headers();
 
         if ($order->email !== '') {
             wp_mail(
@@ -53,6 +45,65 @@ final class OrderMailer
                 $headers
             );
         }
+    }
+
+    /**
+     * Versandbestätigung an den Kunden ("ist unterwegs"), ausgelöst wenn der Betreiber
+     * die Bestellung auf "versendet" setzt. Sendungsnummer/Link ist optional.
+     */
+    public function sendShipped(Order $order, string $tracking = ''): void
+    {
+        if ($order->email === '') {
+            return;
+        }
+
+        wp_mail(
+            $order->email,
+            sprintf(/* translators: %s: Bestellnummer */ __('Deine Bestellung %s ist unterwegs', 'rh-shop'), $order->orderNumber),
+            $this->shippedBody($order, $tracking),
+            $this->headers()
+        );
+    }
+
+    /**
+     * Gemeinsame Mail-Header. Absender (From) nur setzen, wenn der Betreiber eine eigene
+     * Adresse gepflegt hat, sonst bleibt der WordPress-/rh-smtp-Default.
+     *
+     * @return array<int, string>
+     */
+    private function headers(): array
+    {
+        $headers = ['Content-Type: text/html; charset=UTF-8'];
+
+        $fromAddress = $this->config->mailFromAddress();
+        if ($fromAddress !== '') {
+            $fromName = $this->config->mailFromName();
+            $headers[] = 'From: ' . ($fromName !== '' ? sprintf('%s <%s>', $fromName, $fromAddress) : $fromAddress);
+        }
+
+        return $headers;
+    }
+
+    private function shippedBody(Order $order, string $tracking): string
+    {
+        $trackingHtml = '';
+        if ($tracking !== '') {
+            $trackingHtml = filter_var($tracking, FILTER_VALIDATE_URL) !== false
+                ? '<p>' . sprintf(
+                    /* translators: %s: Link zur Sendungsverfolgung */
+                    esc_html__('Sendung verfolgen: %s', 'rh-shop'),
+                    '<a href="' . esc_url($tracking) . '">' . esc_html__('zur Sendungsverfolgung', 'rh-shop') . '</a>'
+                ) . '</p>'
+                : '<p>' . esc_html(sprintf(/* translators: %s: Sendungsnummer */ __('Sendungsnummer: %s', 'rh-shop'), $tracking)) . '</p>';
+        }
+
+        return '<p>' . esc_html__('Hallo,', 'rh-shop') . '</p>'
+            . '<p>' . esc_html(sprintf(
+                /* translators: %s: Bestellnummer */
+                __('gute Nachrichten: deine Bestellung %s ist unterwegs zu dir.', 'rh-shop'),
+                $order->orderNumber
+            )) . '</p>'
+            . $trackingHtml;
     }
 
     private function customerBody(Order $order, string $symbol, string $invoiceUrl = ''): string
