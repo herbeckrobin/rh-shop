@@ -4,7 +4,7 @@ Tags: shop, ecommerce, stripe, products
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 0.5.0
+Stable tag: 0.6.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -17,6 +17,13 @@ RH Shop ist der leichte Weg, ein kleines Sortiment (Merch, ein paar Produkte) zu
 Teil der rh-blueprint Kollektion.
 
 == Changelog ==
+
+= 0.6.0 =
+* Schutz gegen Überverkauf bei gleichzeitigem Zugriff: Beim Auslösen der Bestellung wird der Bestand reserviert, bevor die Zahlung startet. So können nicht zwei Kunden denselben letzten Artikel kaufen. Reicht der Bestand nicht, bricht die Kasse mit einem klaren Hinweis ab, es wird nichts belastet.
+* Die Produktseite zeigt jetzt den wirklich verfügbaren Bestand (abzüglich laufender Reservierungen): ein reservierter letzter Artikel erscheint sofort als vergriffen.
+* Bleibt eine Zahlung aus, wird der reservierte Bestand nach einer einstellbaren Frist automatisch wieder frei (Einstellungen → Preise & Steuer, Standard 30 Minuten), und die unbezahlte Bestellung wird storniert.
+* WICHTIG beim Update: Der Bestand zieht aus den Produktdaten in eine eigene Tabelle um (Voraussetzung für die zuverlässige Reservierung). Das passiert beim ersten Aufruf nach dem Update automatisch, du musst nichts tun.
+* Kasse und Warenkorb behandeln Fehler jetzt einheitlich: Ladeanzeigen an jeder wartenden Aktion, klare Meldung statt stillem Fehlschlag, keine internen Zahlungs-Fehlertexte mehr nach außen.
 
 = 0.5.0 =
 * Neuer Block „Warenkorb-Widget" für die Navigation: ein Warenkorb-Symbol (Tasche, Wagen oder Korb) oder ein Wort mit Anzahl-Badge. Ein Klick öffnet ein Overlay (Drawer von rechts) mit dem Warenkorb, Mengen änderbar, direkt zur Kasse.
