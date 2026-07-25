@@ -4,7 +4,7 @@ Tags: shop, ecommerce, stripe, products
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 0.3.0
+Stable tag: 0.4.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -17,6 +17,13 @@ RH Shop ist der leichte Weg, ein kleines Sortiment (Merch, ein paar Produkte) zu
 Teil der rh-blueprint Kollektion.
 
 == Changelog ==
+
+= 0.4.0 =
+* Bestell-Detailansicht im Admin: ein Klick auf die Bestellnummer öffnet Kunde, Lieferadresse, Positionen mit Summen, den Rechnungslink und die Stripe-Zahlungsreferenz. Der Status lässt sich direkt dort setzen.
+* Bestand als ein Mechanismus überall: Kauf-Box und Warenkorb deckeln die Menge am verfügbaren Bestand und melden es („Nur noch X verfügbar, die Menge wurde angepasst").
+* Die Varianten-Auswahl zeigt den Bestand pro Option, ausverkaufte Varianten sind nicht mehr wählbar, knappe sind markiert.
+* Vor der Auswahl sichtbar: eine Zusammenfassungszeile auf der Produktseite („Einige Varianten nur noch X Stück verfügbar") und ein „Fast ausverkauft"-Badge auf der Produktübersicht.
+* Neue Einstellung „Lager-Warnung ab" (Preise & Steuer): ab welchem Restbestand der Hinweis erscheint (Standard 5, 0 schaltet ihn ab).
 
 = 0.3.0 =
 * Kasse auf das Stripe Payment Element umgestellt: die Zahlung ist jetzt in die Seite integriert und im Design des Themes (Schrift, Farben), statt einer eingebetteten Stripe-Kasse mit doppelter Übersicht. Adresse und Zahlart als getheme'te Stripe-Elemente, unser Layout und der „Zahlungspflichtig bestellen"-Button bleiben unsere.
