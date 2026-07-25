@@ -35,17 +35,26 @@ final class Totals
         $shipping = $subtotal > 0 ? $config->shippingCents() : 0;
         $total = $subtotal + $shipping;
         $mode = $config->taxMode();
-
-        // Enthaltene USt aus dem Bruttobetrag herausrechnen (nur zur Anzeige/Rechnung),
-        // NICHT aufschlagen. tax = brutto - netto, netto = brutto / (1 + satz).
-        $tax = 0;
-        if ($mode === Order::TAX_VAT && $total > 0) {
-            $divisor = 1 + (Config::VAT_RATE_PERCENT / 100);
-            $net = (int) round($total / $divisor);
-            $tax = $total - $net;
-        }
+        $tax = self::includedTax($total, $mode, Config::VAT_RATE_PERCENT);
 
         return new self($subtotal, $shipping, $tax, $total, $mode);
+    }
+
+    /**
+     * Enthaltene Umsatzsteuer aus einem Brutto-Betrag herausrechnen (deutsche B2C-Logik,
+     * PAngV: Preise sind Endpreise). NICHT aufschlagen: tax = brutto minus netto,
+     * netto = brutto / (1 + satz). Bei Kleinunternehmer (§19) oder Satz 0 fällt keine
+     * USt an. Reine Rechnung ohne WordPress, damit testbar und als eine Quelle nutzbar.
+     */
+    public static function includedTax(int $grossCents, string $taxMode, int $ratePercent): int
+    {
+        if ($taxMode !== Order::TAX_VAT || $grossCents <= 0 || $ratePercent <= 0) {
+            return 0;
+        }
+
+        $net = (int) round($grossCents / (1 + ($ratePercent / 100)));
+
+        return $grossCents - $net;
     }
 
     public function isKleinunternehmer(): bool

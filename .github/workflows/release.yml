@@ -30,6 +30,9 @@ jobs:
       - name: Validate composer.json
         run: composer validate --no-check-publish
 
+      - name: Run unit tests
+        run: php tests/run.php
+
       - name: Install production dependencies
         run: composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
 

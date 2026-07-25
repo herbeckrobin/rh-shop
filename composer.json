@@ -26,6 +26,9 @@
             "RhShop\\": "inc/"
         }
     },
+    "scripts": {
+        "test": "php tests/run.php"
+    },
     "config": {
         "optimize-autoloader": true,
         "platform": {
