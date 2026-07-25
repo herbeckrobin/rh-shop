@@ -95,33 +95,41 @@ final class ShopSettingsPage
             . esc_html__('Alle Shop-Einstellungen an einem Ort. Was gerade los ist (Bestellungen, Umsatz), siehst du unter ', 'rh-shop')
             . '<a href="' . esc_url($this->overviewUrl()) . '">' . esc_html__('Shop → Übersicht', 'rh-shop') . '</a>.</p>';
 
-        // Sub-Tab-Leiste. Reihenfolge = Einrichtungs-Reihenfolge: erst zahlen können.
+        // Erster Tab = Status/Einrichtung (Startklar-Check + Webhook), das ist der
+        // Setup-Kram OHNE Speichern. Danach die Config-Tabs, die nur Felder + Speichern
+        // enthalten. So klebt kein Webhook mehr unter dem Speichern-Knopf.
         echo '<div class="rhbp-subtabs">';
-        $this->tabButton('zahlung', __('Zahlung', 'rh-shop'), true);
+        $this->tabButton('status', __('Status', 'rh-shop'), true);
+        $this->tabButton('zahlung', __('Zahlung', 'rh-shop'), false);
         $this->tabButton('preise', __('Preise & Steuer', 'rh-shop'), false);
         $this->tabButton('versand', __('Versand', 'rh-shop'), false);
         $this->tabButton('email', __('E-Mail', 'rh-shop'), false);
         $this->tabButton('rechtlich', __('Rechtliches', 'rh-shop'), false);
         echo '</div>';
 
-        // Ein Formular über alle Panes: alle Felder werden immer abgeschickt (auch
-        // versteckte), ein Speichern sichert alles. Die Tabs blenden nur ein/aus.
+        // Status-Tab: Startklar-Check + Webhook. Ausserhalb des Formulars (der Webhook
+        // hat eigene Formulare, und hier gibt es nichts zu speichern).
+        echo '<div class="rhshop-pane is-active" data-rhshop-pane="status">';
+        (new GoLiveCheck($this->config))->render(self::TAB_ID);
+        $this->renderWebhookCard();
+        echo '</div>';
+
+        // Config-Formular: nur speicherbare Felder. Ein Speichern sichert alle Tabs
+        // (versteckte Felder werden mit abgeschickt).
         echo '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '">';
         wp_nonce_field(self::NONCE);
         echo '<input type="hidden" name="action" value="rhshop_settings_save" />';
 
-        $this->pane('zahlung', [$this, 'renderPaymentSection'], true);
+        $this->pane('zahlung', [$this, 'renderPaymentSection'], false);
         $this->pane('preise', [$this, 'renderPricingSection'], false);
         $this->pane('versand', [$this, 'renderShippingSection'], false);
         $this->pane('email', [$this, 'renderMailSection'], false);
         $this->pane('rechtlich', [$this, 'renderLegalSection'], false);
 
-        echo '<p style="max-width:640px"><button type="submit" class="rhbp-btn rhbp-btn--primary">' . esc_html__('Speichern', 'rh-shop') . '</button></p>';
+        // Speichern auf dem Status-Tab ausgeblendet (dort gibt es nichts zu speichern).
+        // Initial versteckt, weil Status der Default-Tab ist.
+        echo '<p class="rhshop-hidden" data-rhshop-hide="status" style="max-width:640px"><button type="submit" class="rhbp-btn rhbp-btn--primary">' . esc_html__('Speichern', 'rh-shop') . '</button></p>';
         echo '</form>';
-
-        // Webhook-Karte gehört zum Zahlung-Tab, hat aber eigene Formulare, muss also
-        // ausserhalb des Hauptformulars stehen. Gleicher Tab-Schlüssel -> schaltet mit.
-        $this->pane('zahlung', [$this, 'renderWebhookCard'], true);
 
         echo '</div>';
     }
@@ -250,7 +258,7 @@ final class ShopSettingsPage
             'webhook_secret',
             __('Webhook Signing Secret', 'rh-shop'),
             'whsec_...',
-            __('Signatur-Geheimnis aus dem Stripe-Webhook. Verifiziert, dass Zahlungs-Events wirklich von Stripe kommen. Auf einer Live-Seite füllt das der Webhook-Knopf unten automatisch.', 'rh-shop'),
+            __('Signatur-Geheimnis aus dem Stripe-Webhook. Verifiziert, dass Zahlungs-Events wirklich von Stripe kommen. Auf einer Live-Seite füllt das der Webhook-Knopf im Status-Tab automatisch.', 'rh-shop'),
             $this->config->hasStoredWebhookSecret(),
             defined(Config::CONST_WEBHOOK) && constant(Config::CONST_WEBHOOK) !== ''
         );

@@ -20,5 +20,10 @@
 		root.querySelectorAll( '[data-rhshop-pane]' ).forEach( function ( p ) {
 			p.classList.toggle( 'is-active', p.getAttribute( 'data-rhshop-pane' ) === key );
 		} );
+		// Elemente, die auf einem bestimmten Tab NICHT gezeigt werden sollen (z.B. der
+		// Speichern-Knopf auf dem Status-Tab, wo es nichts zu speichern gibt).
+		root.querySelectorAll( '[data-rhshop-hide]' ).forEach( function ( el ) {
+			el.classList.toggle( 'rhshop-hidden', el.getAttribute( 'data-rhshop-hide' ) === key );
+		} );
 	} );
 } )();

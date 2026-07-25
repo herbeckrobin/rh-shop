@@ -7,7 +7,6 @@ namespace RhShop;
 use RhBlueprint\Core\Core;
 use RhBlueprint\Core\Settings\SettingsPage;
 use RhShop\Admin\DashboardPage;
-use RhShop\Admin\GoLiveCheck;
 use RhShop\Admin\OrdersPage;
 use RhShop\Admin\ShopSettingsPage;
 use RhShop\Checkout\CheckoutRestController;
@@ -105,8 +104,9 @@ final class Plugin
         if (is_admin()) {
             (new DashboardPage(new Config()))->boot();
             (new VariantMetaBox())->boot();
+            // GoLiveCheck rendert die ShopSettingsPage selbst in den Status-Tab, kein
+            // eigener Hook mehr (sonst doppelt).
             (new ShopSettingsPage(new Config()))->boot();
-            (new GoLiveCheck(new Config()))->boot();
             (new OrdersPage())->boot();
             (new WithdrawalsPage())->boot();
         }

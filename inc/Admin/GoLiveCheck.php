@@ -25,12 +25,6 @@ final class GoLiveCheck
     {
     }
 
-    public function boot(): void
-    {
-        // Priorität 20: nach der Haupt-Settings-Karte (die hängt auf 10).
-        add_action('rh-blueprint/settings/tab_content_after', [$this, 'render'], 20);
-    }
-
     public function render(string $tabId): void
     {
         if ($tabId !== self::TAB_ID) {
