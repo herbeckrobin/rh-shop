@@ -78,7 +78,64 @@ final class DashboardPage
         $this->actionsCard();
         echo '</div>';
 
+        $this->shopPagesCard();
+
         echo '</div>';
+    }
+
+    /**
+     * "Deine Shop-Seiten": findet die zentralen Seiten (über den enthaltenen Block bzw.
+     * den Slug) und verlinkt Ansehen/Bearbeiten. So findet der Betreiber die Seiten,
+     * ohne sie in der Seitenliste suchen zu müssen.
+     */
+    private function shopPagesCard(): void
+    {
+        $pages = [
+            [__('Shop', 'rh-shop'), $this->findByBlock('rh-shop/product-grid')],
+            [__('Warenkorb', 'rh-shop'), $this->findByBlock('rh-shop/cart-items')],
+            [__('Kasse', 'rh-shop'), $this->findByBlock('rh-shop/checkout-form')],
+            [__('Vielen Dank', 'rh-shop'), $this->findBySlug('danke')],
+            [__('Vertrag widerrufen', 'rh-shop'), $this->findByBlock('rh-shop/widerruf')],
+        ];
+
+        echo '<div class="rhshop-dash__card rhshop-dash__card--wide">';
+        echo '<h2>' . esc_html__('Deine Shop-Seiten', 'rh-shop') . '</h2>';
+        echo '<ul class="rhshop-dash__pages">';
+
+        foreach ($pages as [$label, $page]) {
+            echo '<li><span class="rhshop-dash__page-name">' . esc_html($label) . '</span>';
+            if ($page instanceof \WP_Post) {
+                echo '<span class="rhshop-dash__page-links">'
+                    . '<a href="' . esc_url((string) get_permalink($page)) . '" target="_blank" rel="noopener">' . esc_html__('ansehen', 'rh-shop') . '</a>'
+                    . '<a href="' . esc_url((string) get_edit_post_link($page->ID, 'url')) . '">' . esc_html__('bearbeiten', 'rh-shop') . '</a>'
+                    . '</span>';
+            } else {
+                echo '<span class="rhshop-dash__page-missing">' . esc_html__('nicht angelegt', 'rh-shop') . '</span>';
+            }
+            echo '</li>';
+        }
+
+        echo '</ul></div>';
+    }
+
+    private function findByBlock(string $block): ?\WP_Post
+    {
+        global $wpdb;
+
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        $id = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'page' AND post_status = 'publish' AND post_content LIKE %s ORDER BY ID ASC LIMIT 1",
+            '%' . $wpdb->esc_like('wp:' . $block) . '%'
+        ));
+
+        return $id > 0 ? get_post($id) : null;
+    }
+
+    private function findBySlug(string $slug): ?\WP_Post
+    {
+        $page = get_page_by_path($slug);
+
+        return $page instanceof \WP_Post ? $page : null;
     }
 
     private function tile(string $number, string $label, string $url, bool $attn): void
@@ -229,6 +286,13 @@ a.rhshop-dash__tile:hover{border-color:#3858e9}
 .rhshop-dash__todo li:last-child{border-bottom:0}
 .rhshop-dash__done{color:#646970;margin:0}
 .rhshop-dash__actions{display:flex;flex-wrap:wrap;gap:8px}
+.rhshop-dash__card--wide{margin-top:16px;max-width:900px}
+.rhshop-dash__pages{list-style:none;margin:0;padding:0}
+.rhshop-dash__pages li{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:9px 0;border-bottom:1px solid #f0f0f1;flex-wrap:wrap}
+.rhshop-dash__pages li:last-child{border-bottom:0}
+.rhshop-dash__page-name{font-weight:600}
+.rhshop-dash__page-links a{margin-left:12px}
+.rhshop-dash__page-missing{color:#646970;font-size:12px}
 </style>';
     }
 }
