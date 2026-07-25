@@ -50,6 +50,12 @@
 		document.dispatchEvent( new CustomEvent( 'rhshop:cart-updated', { detail: state } ) );
 	}
 
+	// Eigenes Signal fürs "gerade hinzugefügt" (nur beim In-den-Warenkorb-Legen), damit
+	// das Nav-Widget-Overlay nur dann aufgeht, nicht bei jeder Mengenänderung.
+	function emitAdded( state ) {
+		document.dispatchEvent( new CustomEvent( 'rhshop:cart-added', { detail: state } ) );
+	}
+
 	// --- Buy-Box (Einzelprodukt / Produktseite) ---
 	function initBuyBox( box ) {
 		var variants = [];
@@ -248,8 +254,10 @@
 			addBtn.disabled = true;
 			post( 'cart/add', { product_id: productId, variant_id: selected.id, qty: qty } )
 				.then( function ( state ) {
-					updateCartCount( state );
+					// Alle Ansichten (auch das Nav-Widget-Overlay) synchron ziehen.
+					applyCartState( state );
 					emitUpdated( state );
+					emitAdded( state );
 					// Hat der Server wegen Bestand gedeckelt, seine Warnung zeigen,
 					// sonst die Erfolgsmeldung.
 					msgEl.textContent = state.notice || LABELS.added;
@@ -266,69 +274,59 @@
 	}
 
 	// --- Warenkorb ---
-	// Seiten-weit statt pro Root: Positionen (data-rhshop-cart-lines) und Summe
-	// (data-rhshop-cart-total) dürfen in getrennten Blöcken liegen. Die Aktualisierung
-	// findet sie über die data-Attribute, egal in welchem Block sie stehen.
+	// Seiten-weit UND mehr-Ansichten: die Warenkorb-Positionen können in mehreren
+	// Ansichten gleichzeitig stehen (die Warenkorb-Seite und das Nav-Widget-Overlay).
+	// Der Renderer aktualisiert darum ALLE data-rhshop-cart-*-Container, nicht nur den
+	// ersten. Eine Cart-State-Quelle, viele Ansichten, immer synchron.
+	function lineHtml( l ) {
+		var media = l.thumbnail
+			? '<img src="' + esc( l.thumbnail ) + '" alt="" loading="lazy" />'
+			: '<span class="rhshop-card__ph" aria-hidden="true"></span>';
+		return '<li class="rhshop-cart__line" data-p="' + parseInt( l.product_id, 10 ) + '" data-v="' + esc( l.variant_id ) + '">' +
+			'<div class="rhshop-cart__media">' + media + '</div>' +
+			'<div class="rhshop-cart__info"><span class="rhshop-cart__title">' + esc( l.title ) + '</span>' +
+			'<span class="rhshop-cart__opts">' + esc( l.options ) + '</span>' +
+			'<span class="rhshop-cart__unit">' + esc( l.unit_price ) + '</span></div>' +
+			'<div class="rhshop-qty"><button type="button" data-rhshop-cart-qty="-">−</button>' +
+			'<input type="number" value="' + parseInt( l.qty, 10 ) + '" min="1" max="' + ( l.max != null ? Math.min( 99, l.max ) : 99 ) + '" data-rhshop-cart-qty-input inputmode="numeric" />' +
+			'<button type="button" data-rhshop-cart-qty="+">+</button></div>' +
+			'<span class="rhshop-cart__lt" data-rhshop-line-total>' + esc( l.line_total ) + '</span>' +
+			'<button type="button" class="rhshop-cart__remove" data-rhshop-cart-remove aria-label="Entfernen">×</button>' +
+			'</li>';
+	}
+
+	// Alle Warenkorb-Ansichten auf der Seite aus einem State aktualisieren.
+	function renderCartViews( state ) {
+		document.querySelectorAll( '[data-rhshop-cart-empty]' ).forEach( function ( el ) {
+			el.hidden = ! state.empty;
+		} );
+		document.querySelectorAll( '[data-rhshop-cart-lines]' ).forEach( function ( el ) {
+			el.hidden = state.empty;
+			el.innerHTML = state.empty ? '' : state.lines.map( lineHtml ).join( '' );
+		} );
+		document.querySelectorAll( '[data-rhshop-cart-foot]' ).forEach( function ( el ) {
+			el.hidden = state.empty;
+		} );
+		document.querySelectorAll( '[data-rhshop-cart-total]' ).forEach( function ( el ) {
+			el.textContent = state.total;
+		} );
+		document.querySelectorAll( '[data-rhshop-cart-notice]' ).forEach( function ( el ) {
+			// Bestands-Warnung des Servers (Menge gedeckelt) zeigen, sonst leeren.
+			el.textContent = state.notice || '';
+		} );
+	}
+
+	// Ein State -> alle Ansichten + alle Zähler-Badges. Zentral, damit Buy-Box,
+	// Warenkorb-Seite und Widget nie auseinanderlaufen.
+	function applyCartState( state ) {
+		renderCartViews( state );
+		updateCartCount( state );
+	}
+
 	function initCart() {
-		var linesEl = document.querySelector( '[data-rhshop-cart-lines]' );
-		var emptyEl = document.querySelector( '[data-rhshop-cart-empty]' );
-		var footEl = document.querySelector( '[data-rhshop-cart-foot]' );
-		var totalEl = document.querySelector( '[data-rhshop-cart-total]' );
-		var noticeEl = document.querySelector( '[data-rhshop-cart-notice]' );
-
-		if ( ! linesEl ) {
-			return;
-		}
-
-		function lineHtml( l ) {
-			var media = l.thumbnail
-				? '<img src="' + esc( l.thumbnail ) + '" alt="" loading="lazy" />'
-				: '<span class="rhshop-card__ph" aria-hidden="true"></span>';
-			return '<li class="rhshop-cart__line" data-p="' + parseInt( l.product_id, 10 ) + '" data-v="' + esc( l.variant_id ) + '">' +
-				'<div class="rhshop-cart__media">' + media + '</div>' +
-				'<div class="rhshop-cart__info"><span class="rhshop-cart__title">' + esc( l.title ) + '</span>' +
-				'<span class="rhshop-cart__opts">' + esc( l.options ) + '</span>' +
-				'<span class="rhshop-cart__unit">' + esc( l.unit_price ) + '</span></div>' +
-				'<div class="rhshop-qty"><button type="button" data-rhshop-cart-qty="-">−</button>' +
-				'<input type="number" value="' + parseInt( l.qty, 10 ) + '" min="1" max="' + ( l.max != null ? Math.min( 99, l.max ) : 99 ) + '" data-rhshop-cart-qty-input inputmode="numeric" />' +
-				'<button type="button" data-rhshop-cart-qty="+">+</button></div>' +
-				'<span class="rhshop-cart__lt" data-rhshop-line-total>' + esc( l.line_total ) + '</span>' +
-				'<button type="button" class="rhshop-cart__remove" data-rhshop-cart-remove aria-label="Entfernen">×</button>' +
-				'</li>';
-		}
-
-		function render( state ) {
-			if ( emptyEl ) {
-				emptyEl.hidden = ! state.empty;
-			}
-			if ( linesEl ) {
-				linesEl.hidden = state.empty;
-				linesEl.innerHTML = state.empty ? '' : state.lines.map( lineHtml ).join( '' );
-			}
-			if ( footEl ) {
-				footEl.hidden = state.empty;
-			}
-			if ( totalEl ) {
-				totalEl.textContent = state.total;
-			}
-			if ( noticeEl ) {
-				// Bestands-Warnung des Servers (Menge gedeckelt) zeigen, sonst leeren.
-				noticeEl.textContent = state.notice || '';
-			}
-		}
-
-		function change( line, qty, remove ) {
-			var p = parseInt( line.getAttribute( 'data-p' ), 10 );
-			var v = line.getAttribute( 'data-v' );
-			var path = remove ? 'cart/remove' : 'cart/update';
-			var body = remove ? { product_id: p, variant_id: v } : { product_id: p, variant_id: v, qty: qty };
-			post( path, body ).then( function ( state ) {
-				render( state );
-				updateCartCount( state );
-				emitUpdated( state );
-			} );
-		}
-
+		// Klick-Delegation am document: greift für JEDE Warenkorb-Ansicht (Seite wie
+		// Widget-Overlay), auch für später eingehängte (das Overlay wandert per JS an
+		// den body). Darum kein Early-Return, wenn beim Init noch keine Zeile da ist.
 		document.addEventListener( 'click', function ( e ) {
 			var line = e.target.closest( '.rhshop-cart__line' );
 			if ( ! line ) {
@@ -354,6 +352,17 @@
 				change( line, Math.max( 0, parseInt( input.value, 10 ) || 0 ), false );
 			}
 		} );
+
+		function change( line, qty, remove ) {
+			var p = parseInt( line.getAttribute( 'data-p' ), 10 );
+			var v = line.getAttribute( 'data-v' );
+			var path = remove ? 'cart/remove' : 'cart/update';
+			var body = remove ? { product_id: p, variant_id: v } : { product_id: p, variant_id: v, qty: qty };
+			post( path, body ).then( function ( state ) {
+				applyCartState( state );
+				emitUpdated( state );
+			} );
+		}
 	}
 
 	function init() {

@@ -18,7 +18,7 @@ use RhShop\Catalog\ProductType;
  */
 final class Blocks
 {
-    private const BLOCKS = ['product-grid', 'product-single', 'buy-box', 'cart-items', 'cart-summary', 'checkout-summary', 'checkout-form', 'widerruf'];
+    private const BLOCKS = ['product-grid', 'product-single', 'buy-box', 'cart-items', 'cart-summary', 'checkout-summary', 'checkout-form', 'cart-widget', 'widerruf'];
 
     public function boot(): void
     {
@@ -80,6 +80,12 @@ final class Blocks
 
         // Widerruf (§356a): eigenes Script, nutzt rhShopConfig aus rh-shop-view.
         wp_register_script('rh-shop-widerruf', RHSHOP_PLUGIN_URL . 'assets/js/widerruf.js', ['rh-shop-view'], $this->assetVersion('assets/js/widerruf.js'), true);
+
+        // Warenkorb-Widget (Nav): eigenes View-Script als block.json-viewScript-Handle.
+        // Über die Handle-Referenz lädt WP es (und die Abhängigkeit rh-shop-view mit dem
+        // Cart-Renderer) auch dann, wenn der Block in einem Template-Part (Header) steckt,
+        // wo has_block() nicht greift. Deshalb braucht das Widget keinen needsAssets-Zweig.
+        wp_register_script('rh-shop-cart-widget', RHSHOP_PLUGIN_URL . 'assets/js/cart-widget.js', ['rh-shop-view'], $this->assetVersion('assets/js/cart-widget.js'), true);
 
         // Kasse: eigenes Script (lädt Stripe.js erst dort nach) + Publishable Key.
         // Payment Element braucht Betrag + Währung vorab (deferred Elements), den Total

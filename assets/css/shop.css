@@ -554,3 +554,142 @@
 	.rhshop-spinner { animation-duration: 1.6s; }
 	.rhshop-skeleton { animation: none; opacity: 0.7; }
 }
+
+/* =========================================================================
+   Warenkorb-Widget (Nav-Trigger + Drawer-Overlay)
+   Der Drawer wird per JS an den <body> gehängt. Alles ist unter .rhshop-cw
+   bzw. .rhshop-cw__drawer gescopt, plus ein :where()-Reset (Specificity 0),
+   der Theme-Defaults der genutzten Elemente neutralisiert, ohne unsere
+   eigenen Klassen-Regeln zu überstimmen. So keine Konflikte mit dem Theme.
+   ========================================================================= */
+
+/* --- Trigger in der Navigation (erbt Farbe/Schrift der Nav) --- */
+.rhshop-cw { display: inline-flex; }
+.rhshop-cw__trigger {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4em;
+	color: inherit;
+	text-decoration: none;
+	line-height: 1;
+	cursor: pointer;
+}
+.rhshop-cw__icon { display: inline-flex; }
+.rhshop-cw__badge {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 1.3em;
+	height: 1.3em;
+	padding: 0 0.35em;
+	font-size: 0.7em;
+	font-weight: 700;
+	line-height: 1;
+	color: var(--rhshop-on-accent);
+	background: var(--rhshop-accent);
+	border-radius: var(--rhshop-radius-pill);
+}
+.rhshop-cw__badge[hidden] { display: none; }
+
+/* --- Drawer-Overlay (an body gehängt) --- */
+.rhshop-cw__drawer { position: fixed; inset: 0; z-index: 2147483000; }
+.rhshop-cw__drawer[hidden] { display: none; }
+
+.rhshop-cw__drawer,
+.rhshop-cw__drawer *,
+.rhshop-cw__drawer *::before,
+.rhshop-cw__drawer *::after { box-sizing: border-box; }
+
+/* :where()-Reset: neutralisiert Theme-Grundstile der im Drawer genutzten
+   Elemente. Specificity 0 -> unsere .rhshop-*-Klassen gewinnen immer. */
+.rhshop-cw__panel :where(ul, ol, li) { margin: 0; padding: 0; list-style: none; }
+.rhshop-cw__panel :where(p, h1, h2, h3, h4, figure, span, strong, div) { margin: 0; }
+.rhshop-cw__panel :where(button) { margin: 0; font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+.rhshop-cw__panel :where(a) { color: inherit; }
+.rhshop-cw__panel :where(img) { max-width: 100%; height: auto; display: block; }
+.rhshop-cw__panel :where(input) { font: inherit; }
+
+.rhshop-cw__backdrop {
+	position: absolute;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.45);
+	opacity: 0;
+	transition: opacity 0.3s ease;
+}
+.rhshop-cw__panel {
+	position: absolute;
+	top: 0;
+	right: 0;
+	height: 100%;
+	width: min(420px, 100%);
+	display: flex;
+	flex-direction: column;
+	/* Eigene, theme-neutrale Fläche: das Overlay steht bewusst nicht auf der
+	   (evtl. transparenten) Theme-Fläche. Über die Variablen überschreibbar. */
+	--rhshop-cw-bg: #ffffff;
+	--rhshop-cw-fg: #1c2c2c;
+	background: var(--rhshop-cw-bg);
+	color: var(--rhshop-cw-fg);
+	box-shadow: -8px 0 30px rgba(0, 0, 0, 0.16);
+	transform: translateX(100%);
+	transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+	overflow: hidden;
+	font-family: inherit;
+}
+.rhshop-cw__drawer.is-open .rhshop-cw__backdrop { opacity: 1; }
+.rhshop-cw__drawer.is-open .rhshop-cw__panel { transform: translateX(0); }
+
+.rhshop-cw__head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	padding: 1rem 1.2rem;
+	border-bottom: 1px solid var(--rhshop-line-fallback);
+	border-bottom: 1px solid var(--rhshop-line);
+}
+.rhshop-cw__panel-title { font-size: 1.15rem; font-weight: 700; }
+.rhshop-cw__close {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 2.1rem;
+	height: 2.1rem;
+	font-size: 1.6rem;
+	border-radius: var(--rhshop-radius-pill);
+}
+.rhshop-cw__close:hover {
+	background: var(--rhshop-surface-fallback);
+	background: var(--rhshop-surface);
+}
+.rhshop-cw__body { flex: 1 1 auto; overflow-y: auto; padding: 0.6rem 1.2rem; }
+.rhshop-cw__summary { padding: 1rem 1.2rem 1.3rem; }
+
+/* Die wiederverwendete Summe klebt im Drawer nicht (kein sticky), der Rahmen
+   der Summe bleibt als abgesetztes Panel erhalten. */
+.rhshop-cw__panel .rhshop-cart-summary { position: static; top: auto; }
+.rhshop-cw__panel .rhshop-cart__notice:not(:empty) { margin-top: 0.6rem; }
+
+/* Im schmalen Drawer die Positions-Zeile zweizeilig: Bild links über beide Zeilen,
+   oben Titel + Entfernen, unten Mengen-Stepper + Zeilensumme. Sonst quetscht das
+   5-spaltige Desktop-Raster den Stepper zusammen. */
+.rhshop-cw__panel .rhshop-cart__line {
+	grid-template-columns: 56px 1fr auto;
+	grid-template-areas:
+		"media info remove"
+		"media qty total";
+	column-gap: 0.9rem;
+	row-gap: 0.55rem;
+	align-items: center;
+}
+.rhshop-cw__panel .rhshop-cart__media { grid-area: media; align-self: start; }
+.rhshop-cw__panel .rhshop-cart__info { grid-area: info; }
+.rhshop-cw__panel .rhshop-cart__remove { grid-area: remove; justify-self: end; }
+.rhshop-cw__panel .rhshop-qty { grid-area: qty; justify-self: start; }
+.rhshop-cw__panel .rhshop-cart__lt { grid-area: total; justify-self: end; }
+
+@media (prefers-reduced-motion: reduce) {
+	.rhshop-cw__backdrop,
+	.rhshop-cw__panel { transition: none; }
+}

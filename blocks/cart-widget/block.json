@@ -1,0 +1,23 @@
+{
+    "$schema": "https://schemas.wp.org/trunk/block.json",
+    "apiVersion": 3,
+    "name": "rh-shop/cart-widget",
+    "title": "Warenkorb-Widget",
+    "category": "rh-shop",
+    "icon": "cart",
+    "description": "Ein Warenkorb-Symbol oder -Wort für die Navigation, mit Anzahl-Badge und einem Overlay, das den Warenkorb zeigt. Öffnet sich auch beim In-den-Warenkorb-Legen.",
+    "textdomain": "rh-shop",
+    "attributes": {
+        "display": { "type": "string", "default": "icon" },
+        "label": { "type": "string", "default": "Warenkorb" },
+        "icon": { "type": "string", "default": "bag" },
+        "showBadge": { "type": "boolean", "default": true },
+        "hideZero": { "type": "boolean", "default": true },
+        "openOnAdd": { "type": "boolean", "default": true }
+    },
+    "supports": { "html": false, "spacing": { "margin": true } },
+    "editorScript": "rh-shop-blocks-editor",
+    "style": "rh-shop",
+    "viewScript": "rh-shop-cart-widget",
+    "render": "file:./render.php"
+}
