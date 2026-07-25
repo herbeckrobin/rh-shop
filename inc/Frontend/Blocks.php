@@ -99,7 +99,7 @@ final class Blocks
         wp_enqueue_style('rh-shop');
         wp_enqueue_script('rh-shop-view');
 
-        if (has_block('rh-shop/checkout')) {
+        if (has_block('rh-shop/checkout-form')) {
             wp_enqueue_script('rh-shop-checkout');
         }
 
