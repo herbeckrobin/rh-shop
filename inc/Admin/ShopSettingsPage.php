@@ -164,6 +164,17 @@ final class ShopSettingsPage
         echo '<p class="rhbp-field__desc">' . esc_html__('Pauschale Versandkosten pro Bestellung. Leer oder 0 = kostenloser Versand.', 'rh-shop') . '</p>';
         echo '</div>';
 
+        // Gratisversand ab Warenwert
+        $freeShippingCents = $this->config->freeShippingThresholdCents();
+        echo '<div class="rhbp-field">';
+        echo '<label class="rhbp-field__label" for="rhshop-free-shipping">' . esc_html__('Gratisversand ab', 'rh-shop') . '</label>';
+        printf(
+            '<input type="text" id="rhshop-free-shipping" name="free_shipping_cents" value="%s" placeholder="0,00" class="regular-text" style="max-width:140px" /> €',
+            esc_attr($freeShippingCents > 0 ? number_format($freeShippingCents / 100, 2, ',', '') : '')
+        );
+        echo '<p class="rhbp-field__desc">' . esc_html__('Ab diesem Warenwert (Zwischensumme) entfällt die Versandpauschale. Leer oder 0 = aus.', 'rh-shop') . '</p>';
+        echo '</div>';
+
         // AGB-Zustimmung im Checkout (optional, AGB sind nicht Pflicht)
         echo '<div class="rhbp-field">';
         echo '<label><input type="checkbox" name="agb_enabled" value="1" ' . checked($this->config->agbEnabled(), true, false) . ' /> '
@@ -304,6 +315,7 @@ final class ShopSettingsPage
             Config::FIELD_TAX_MODE => $this->sanitizeTaxMode($_POST['tax_mode'] ?? ''),
             Config::FIELD_TAX_RATE => max(0, min(100, (int) ($_POST['tax_rate'] ?? Config::VAT_RATE_PERCENT))),
             Config::FIELD_SHIPPING => Money::toCents(isset($_POST['shipping_cents']) ? sanitize_text_field(wp_unslash($_POST['shipping_cents'])) : ''),
+            Config::FIELD_FREE_SHIPPING => Money::toCents(isset($_POST['free_shipping_cents']) ? sanitize_text_field(wp_unslash($_POST['free_shipping_cents'])) : ''),
             Config::FIELD_WIDERRUF_BUTTON => isset($_POST['widerruf_button']),
             Config::FIELD_INVOICE => isset($_POST['invoice_enabled']),
             Config::FIELD_AGB_ENABLED => isset($_POST['agb_enabled']),

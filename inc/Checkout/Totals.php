@@ -27,19 +27,41 @@ final class Totals
         public readonly int $totalCents,
         public readonly string $taxMode,
         public readonly int $taxRatePercent,
+        public readonly int $freeShippingThresholdCents,
     ) {
     }
 
     public static function forCart(Cart $cart, Config $config): self
     {
         $subtotal = $cart->totalCents();
-        $shipping = $subtotal > 0 ? $config->shippingCents() : 0;
+        $threshold = $config->freeShippingThresholdCents();
+        $shipping = self::shippingFor($subtotal, $config->shippingCents(), $threshold);
         $total = $subtotal + $shipping;
         $mode = $config->taxMode();
         $rate = $config->taxRatePercent();
         $tax = self::includedTax($total, $mode, $rate);
 
-        return new self($subtotal, $shipping, $tax, $total, $mode, $rate);
+        return new self($subtotal, $shipping, $tax, $total, $mode, $rate, $threshold);
+    }
+
+    /**
+     * Versandkosten für einen Warenkorb-Wert. Leerer Warenkorb kostet nichts. Ist eine
+     * Gratis-Schwelle gesetzt (> 0) und der Warenwert erreicht sie, entfällt der Versand,
+     * sonst gilt die Pauschale. Reine Rechnung ohne WordPress, damit testbar und als eine
+     * Quelle nutzbar. Schwelle wird gegen den Warenwert (Zwischensumme) geprüft, nicht
+     * gegen den Gesamtpreis.
+     */
+    public static function shippingFor(int $subtotalCents, int $flatCents, int $freeThresholdCents): int
+    {
+        if ($subtotalCents <= 0) {
+            return 0;
+        }
+
+        if ($freeThresholdCents > 0 && $subtotalCents >= $freeThresholdCents) {
+            return 0;
+        }
+
+        return $flatCents;
     }
 
     /**
@@ -70,6 +92,19 @@ final class Totals
     }
 
     /**
+     * Wie viel Warenwert noch bis zum Gratisversand fehlt (0 = Schwelle aus oder
+     * bereits erreicht). Für den "noch X bis Gratisversand"-Hinweis.
+     */
+    public function freeShippingRemainingCents(): int
+    {
+        if ($this->freeShippingThresholdCents <= 0) {
+            return 0;
+        }
+
+        return max(0, $this->freeShippingThresholdCents - $this->subtotalCents);
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function toState(string $symbol): array
@@ -86,6 +121,7 @@ final class Totals
             'tax_mode' => $this->taxMode,
             'kleinunternehmer' => $this->isKleinunternehmer(),
             'vat_rate' => $this->taxRatePercent,
+            'free_shipping_remaining_cents' => $this->freeShippingRemainingCents(),
         ];
     }
 }

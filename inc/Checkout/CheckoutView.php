@@ -90,6 +90,15 @@ final class CheckoutView
         $rows .= '<div class="rhshop-checkout__row"><span>' . esc_html__('Versand', 'rh-shop') . '</span><span>'
             . esc_html($shippingLabel) . '</span></div>';
 
+        $remaining = $totals->freeShippingRemainingCents();
+        if ($remaining > 0) {
+            $rows .= '<p class="rhshop-checkout__freeship">' . esc_html(sprintf(
+                /* translators: %s: noch fehlender Warenwert bis zum Gratisversand */
+                __('Noch %s bis zum Gratisversand.', 'rh-shop'),
+                Money::format($remaining, $symbol)
+            )) . '</p>';
+        }
+
         if ($totals->isKleinunternehmer()) {
             $rows .= '<div class="rhshop-checkout__row rhshop-checkout__total"><span>' . esc_html__('Gesamt', 'rh-shop') . '</span><span>'
                 . esc_html(Money::format($totals->totalCents, $symbol)) . '</span></div>';

@@ -26,6 +26,7 @@ final class Config
     public const FIELD_TAX_MODE = 'tax_mode';
     public const FIELD_TAX_RATE = 'tax_rate';
     public const FIELD_SHIPPING = 'shipping_cents';
+    public const FIELD_FREE_SHIPPING = 'free_shipping_cents';
     public const FIELD_WEBHOOK_ENDPOINT = 'webhook_endpoint_id';
     public const FIELD_WIDERRUF_BUTTON = 'widerruf_button';
     public const FIELD_INVOICE = 'invoice_enabled';
@@ -133,6 +134,15 @@ final class Config
     public function shippingCents(): int
     {
         return max(0, (int) rhbp_setting(self::GROUP, self::FIELD_SHIPPING, 0));
+    }
+
+    /**
+     * Warenwert-Schwelle in Cent, ab der der Versand gratis ist (0 = kein Gratisversand).
+     * Geprüft gegen die Zwischensumme, siehe Totals::shippingFor.
+     */
+    public function freeShippingThresholdCents(): int
+    {
+        return max(0, (int) rhbp_setting(self::GROUP, self::FIELD_FREE_SHIPPING, 0));
     }
 
     /**

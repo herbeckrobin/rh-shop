@@ -20,3 +20,18 @@ eq(Totals::includedTax(11900, Order::TAX_VAT, 0), 0, 'Satz 0 keine USt');
 
 // Anderer Satz (z.B. Schweiz 8 %) rechnet korrekt.
 eq(Totals::includedTax(10800, Order::TAX_VAT, 8), 800, '108,00 brutto bei 8% -> 8,00 USt');
+
+// Versand: leerer Warenkorb kostet nichts, egal welche Pauschale.
+eq(Totals::shippingFor(0, 499, 0), 0, 'leerer Warenkorb -> kein Versand');
+eq(Totals::shippingFor(0, 499, 5000), 0, 'leerer Warenkorb -> kein Versand, auch mit Schwelle');
+
+// Ohne Gratis-Schwelle (0) gilt die Pauschale.
+eq(Totals::shippingFor(2490, 499, 0), 499, 'Schwelle aus -> Pauschale');
+
+// Mit Schwelle: unter der Schwelle Pauschale, ab der Schwelle gratis.
+eq(Totals::shippingFor(4999, 499, 5000), 499, 'unter der Schwelle -> Pauschale');
+eq(Totals::shippingFor(5000, 499, 5000), 0, 'genau auf der Schwelle -> gratis');
+eq(Totals::shippingFor(9900, 499, 5000), 0, 'über der Schwelle -> gratis');
+
+// Pauschale 0 bleibt 0 (kostenloser Versand generell).
+eq(Totals::shippingFor(2490, 0, 5000), 0, 'Pauschale 0 -> immer gratis');
