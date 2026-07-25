@@ -107,7 +107,7 @@ final class VariantRepository
     {
         $unit = (string) get_post_meta($productId, self::META_GP_UNIT, true);
 
-        return in_array($unit, ['g', 'kg', 'ml', 'l', 'cm', 'm', 'm2'], true) ? $unit : '';
+        return GrundpreisUnit::isValid($unit) ? $unit : '';
     }
 
     public function isSoldOut(int $productId): bool

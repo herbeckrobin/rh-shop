@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace RhShop\Frontend;
 
+use RhShop\Catalog\GrundpreisUnit;
 use RhShop\Catalog\VariantRepository;
 use RhShop\Orders\Order;
 use RhShop\Stripe\Config;
@@ -89,26 +90,12 @@ final class Render
      */
     public function grundpreisText(?float $amount, string $unit, int $priceCents): string
     {
-        $map = [
-            'g' => ['kg', 0.001], 'kg' => ['kg', 1.0],
-            'ml' => ['l', 0.001], 'l' => ['l', 1.0],
-            'cm' => ['m', 0.01], 'm' => ['m', 1.0],
-            'm2' => ['m²', 1.0],
-        ];
-
-        if ($amount === null || $amount <= 0 || $priceCents <= 0 || ! isset($map[$unit])) {
+        $perBaseCents = GrundpreisUnit::basePriceCents($amount, $priceCents, $unit);
+        if ($perBaseCents === null) {
             return '';
         }
 
-        [$base, $factor] = $map[$unit];
-        $contentInBase = $amount * $factor;
-        if ($contentInBase <= 0) {
-            return '';
-        }
-
-        $perBaseCents = (int) round($priceCents / $contentInBase);
-
-        return '(' . Money::format($perBaseCents, $this->config->currencySymbol()) . '/' . $base . ')';
+        return '(' . Money::format($perBaseCents, $this->config->currencySymbol()) . '/' . GrundpreisUnit::baseLabel($unit) . ')';
     }
 
     /**

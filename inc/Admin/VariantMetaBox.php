@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace RhShop\Admin;
 
+use RhShop\Catalog\GrundpreisUnit;
 use RhShop\Catalog\ProductType;
 use RhShop\Catalog\Variant;
 use RhShop\Catalog\VariantRepository;
@@ -131,7 +132,7 @@ final class VariantMetaBox
 
         echo '<p><label><strong>' . esc_html__('Einheit', 'rh-shop') . '</strong><br>';
         echo '<select name="rhshop_gp_unit">';
-        foreach ($this->unitOptions() as $value => $label) {
+        foreach (GrundpreisUnit::options() as $value => $label) {
             printf(
                 '<option value="%s"%s>%s</option>',
                 esc_attr($value),
@@ -147,21 +148,6 @@ final class VariantMetaBox
             esc_attr($amount === '' || $amount === false ? '' : (string) $amount)
         );
         echo '<span class="description">' . esc_html__('Nur relevant, wenn das Produkt keine Varianten hat.', 'rh-shop') . '</span></p>';
-    }
-
-    /**
-     * Auswahl der Grundpreis-Einheiten. "" = Stückware.
-     *
-     * @return array<string, string>
-     */
-    private function unitOptions(): array
-    {
-        return [
-            '' => __('keine (Stückware)', 'rh-shop'),
-            'g' => 'g', 'kg' => 'kg',
-            'ml' => 'ml', 'l' => 'l',
-            'cm' => 'cm', 'm' => 'm', 'm2' => 'm²',
-        ];
     }
 
     private function renderRow(Variant $variant): void
@@ -257,7 +243,7 @@ final class VariantMetaBox
     private function saveGrundpreis(int $postId): void
     {
         $unitRaw = isset($_POST['rhshop_gp_unit']) ? sanitize_text_field(wp_unslash($_POST['rhshop_gp_unit'])) : '';
-        $unit = in_array($unitRaw, ['g', 'kg', 'ml', 'l', 'cm', 'm', 'm2'], true) ? $unitRaw : '';
+        $unit = GrundpreisUnit::isValid($unitRaw) ? $unitRaw : '';
 
         // Ohne Einheit gibt es keinen Grundpreis: Einheit + einfache Nennmenge löschen.
         // Die Varianten-Nennmengen bleiben stehen (schaden ohne Einheit nicht, greifen
