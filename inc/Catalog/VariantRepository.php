@@ -19,6 +19,11 @@ namespace RhShop\Catalog;
  */
 final class VariantRepository
 {
+    public function __construct(
+        private readonly StockRepository $stock = new StockRepository(),
+    ) {
+    }
+
     public const META_VARIANTS = '_rhshop_variants';
     public const META_SIMPLE_PRICE = '_rhshop_price_cents';
     public const META_SIMPLE_STOCK = '_rhshop_stock';
@@ -36,7 +41,7 @@ final class VariantRepository
     public const META_AXIS1_LABEL = '_rhshop_axis1_label';
     public const META_AXIS2_LABEL = '_rhshop_axis2_label';
 
-    private const SIMPLE_VARIANT_ID = 'default';
+    public const SIMPLE_VARIANT_ID = 'default';
 
     /**
      * Die verkaufbaren Einheiten eines Produkts. Entweder die gepflegten Varianten
@@ -49,8 +54,15 @@ final class VariantRepository
         $rows = get_post_meta($productId, self::META_VARIANTS, true);
 
         if (is_array($rows) && $rows !== []) {
+            // Bestand kommt aus der Tabelle (nicht mehr aus dem Post-Meta), ein Query.
+            $stockMap = $this->stock->forProduct($productId);
+
             return array_values(array_map(
-                static fn (array $row): Variant => Variant::fromArray($row),
+                function (array $row) use ($stockMap): Variant {
+                    $variant = Variant::fromArray($row);
+
+                    return $variant->withStock($stockMap[$variant->id] ?? null);
+                },
                 array_filter($rows, 'is_array')
             ));
         }
@@ -175,58 +187,38 @@ final class VariantRepository
         );
 
         update_post_meta($productId, self::META_VARIANTS, array_values($rows));
+
+        // Bestand in die Tabelle spiegeln (die eine Quelle) und Waisen entfernen.
+        $keep = [];
+        foreach ($rows as $row) {
+            $keep[] = (string) $row['id'];
+            $this->stock->set($productId, (string) $row['id'], $row['stock'] === null || $row['stock'] === '' ? null : (int) $row['stock']);
+        }
+        $this->stock->pruneOrphans($productId, $keep);
     }
 
     public function saveSimple(int $productId, int $priceCents, ?int $stock): void
     {
         update_post_meta($productId, self::META_SIMPLE_PRICE, $priceCents);
-        update_post_meta($productId, self::META_SIMPLE_STOCK, $stock === null ? '' : $stock);
+        // Bestand wohnt in der Tabelle, nicht mehr im Post-Meta.
+        $this->stock->set($productId, self::SIMPLE_VARIANT_ID, $stock);
     }
 
     /**
-     * Bestand einer Einheit reduzieren (nach bestätigter Zahlung). Bei nicht
-     * verfolgtem Bestand (null) ein No-Op. Gibt false zurück, wenn die Einheit
-     * nicht gefunden wurde.
+     * Bestand einer Einheit reduzieren (nach bestätigter Zahlung). Atomar über die
+     * Bestand-Tabelle, bei nicht verfolgtem Bestand ein No-Op.
      */
     public function decrementStock(int $productId, string $variantId, int $qty): bool
     {
-        if ($variantId === self::SIMPLE_VARIANT_ID && ! $this->hasRealVariants($productId)) {
-            $stock = get_post_meta($productId, self::META_SIMPLE_STOCK, true);
-            if ($stock === '' || $stock === false) {
-                return true; // nicht verfolgt
-            }
-            update_post_meta($productId, self::META_SIMPLE_STOCK, max(0, (int) $stock - $qty));
+        $this->stock->decrement($productId, $variantId, $qty);
 
-            return true;
-        }
-
-        $rows = get_post_meta($productId, self::META_VARIANTS, true);
-        if (! is_array($rows)) {
-            return false;
-        }
-
-        $found = false;
-        foreach ($rows as $i => $row) {
-            if (! is_array($row) || (string) ($row['id'] ?? '') !== $variantId) {
-                continue;
-            }
-            $found = true;
-            if (($row['stock'] ?? null) !== null && $row['stock'] !== '') {
-                $rows[$i]['stock'] = max(0, (int) $row['stock'] - $qty);
-            }
-        }
-
-        if ($found) {
-            update_post_meta($productId, self::META_VARIANTS, $rows);
-        }
-
-        return $found;
+        return true;
     }
 
     private function simpleVariant(int $productId): Variant
     {
         $priceCents = (int) get_post_meta($productId, self::META_SIMPLE_PRICE, true);
-        $stockRaw = get_post_meta($productId, self::META_SIMPLE_STOCK, true);
+        $stockValue = $this->stock->physical($productId, self::SIMPLE_VARIANT_ID);
         $gpRaw = get_post_meta($productId, self::META_GP_AMOUNT, true);
 
         return new Variant(
@@ -235,7 +227,7 @@ final class VariantRepository
             option2: '',
             sku: '',
             priceCents: $priceCents,
-            stock: ($stockRaw === '' || $stockRaw === false) ? null : (int) $stockRaw,
+            stock: $stockValue,
             gpAmount: ($gpRaw === '' || $gpRaw === false || (float) $gpRaw <= 0) ? null : (float) $gpRaw,
         );
     }

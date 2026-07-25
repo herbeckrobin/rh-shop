@@ -6,6 +6,7 @@ namespace RhShop\Admin;
 
 use RhShop\Catalog\GrundpreisUnit;
 use RhShop\Catalog\ProductType;
+use RhShop\Catalog\StockRepository;
 use RhShop\Catalog\Variant;
 use RhShop\Catalog\VariantRepository;
 use RhShop\Support\Money;
@@ -58,7 +59,8 @@ final class VariantMetaBox
 
         $hasVariants = $this->variants->hasRealVariants($post->ID);
         $simplePrice = (int) get_post_meta($post->ID, VariantRepository::META_SIMPLE_PRICE, true);
-        $simpleStock = get_post_meta($post->ID, VariantRepository::META_SIMPLE_STOCK, true);
+        // Bestand kommt aus der Tabelle (nicht mehr aus dem Post-Meta).
+        $simpleStock = (new StockRepository())->physical($post->ID, VariantRepository::SIMPLE_VARIANT_ID);
         $rows = $hasVariants ? $this->variants->forProduct($post->ID) : [];
 
         echo '<div class="rhshop-metabox">';
@@ -77,7 +79,7 @@ final class VariantMetaBox
         echo '<p><label><strong>' . esc_html__('Bestand', 'rh-shop') . '</strong><br>';
         printf(
             '<input type="number" name="rhshop_simple_stock" value="%s" min="0" step="1" style="max-width:140px"></label>',
-            esc_attr($simpleStock === '' || $simpleStock === false ? '' : (string) (int) $simpleStock)
+            esc_attr($simpleStock === null ? '' : (string) $simpleStock)
         );
         echo '<br><span class="description">' . esc_html__('Leer lassen = Bestand nicht verfolgen (immer verfügbar).', 'rh-shop') . '</span></p>';
 

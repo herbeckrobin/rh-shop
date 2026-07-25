@@ -18,8 +18,9 @@ namespace RhShop\Orders;
  */
 final class Schema
 {
-    public const DB_VERSION = '3';
+    public const DB_VERSION = '4';
     public const OPTION_DB_VERSION = 'rhshop_orders_db_version';
+    public const OPTION_STOCK_MIGRATED = 'rhshop_stock_migrated';
 
     public static function ordersTable(): string
     {
@@ -33,6 +34,32 @@ final class Schema
         global $wpdb;
 
         return $wpdb->prefix . 'rhshop_withdrawals';
+    }
+
+    /**
+     * Physischer Variantenbestand, eine Zeile pro Variante. Bewusst raus aus dem
+     * serialisierten Post-Meta: Bestand ist transaktional und muss atomar (mit Zeilen-
+     * Lock, FOR UPDATE) reserviert und reduziert werden, was in einem serialisierten
+     * Blob nicht geht. Die Varianten-DEFINITION (Optionen, Preis, SKU) bleibt Config
+     * im Post-Meta, nur der Bestand wohnt hier.
+     */
+    public static function variantStockTable(): string
+    {
+        global $wpdb;
+
+        return $wpdb->prefix . 'rhshop_variant_stock';
+    }
+
+    /**
+     * Bestand-Reservierungen mit Ablaufzeit (gegen Überverkauf bei gleichzeitigem
+     * Zugriff). Verfügbar = Bestand − aktive Reservierungen. Reserviert wird beim
+     * Auslösen der Bestellung, abgelaufene Reservierungen zählen nicht mehr mit.
+     */
+    public static function reservationsTable(): string
+    {
+        global $wpdb;
+
+        return $wpdb->prefix . 'rhshop_stock_reservations';
     }
 
     public static function activate(): void
@@ -109,6 +136,104 @@ final class Schema
 
         dbDelta($sqlWithdrawals);
 
+        // Physischer Bestand pro Variante. tracked=0 bedeutet unbegrenzt (nicht
+        // verfolgt), dann greifen Reservierung und Abzug nicht. So ist die atomare
+        // Bedingung `stock >= qty` sauber, ohne NULL-Sonderfall.
+        $stock = self::variantStockTable();
+        $sqlStock = "CREATE TABLE {$stock} (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            product_id BIGINT UNSIGNED NOT NULL,
+            variant_id VARCHAR(64) NOT NULL DEFAULT '',
+            stock INT NOT NULL DEFAULT 0,
+            tracked TINYINT(1) NOT NULL DEFAULT 1,
+            updated_at DATETIME NOT NULL,
+            PRIMARY KEY  (id),
+            UNIQUE KEY product_variant (product_id, variant_id)
+        ) {$charset};";
+
+        dbDelta($sqlStock);
+
+        $reservations = self::reservationsTable();
+        $sqlReservations = "CREATE TABLE {$reservations} (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            order_id BIGINT UNSIGNED NOT NULL DEFAULT 0,
+            product_id BIGINT UNSIGNED NOT NULL,
+            variant_id VARCHAR(64) NOT NULL DEFAULT '',
+            qty INT UNSIGNED NOT NULL DEFAULT 0,
+            expires_at DATETIME NOT NULL,
+            created_at DATETIME NOT NULL,
+            PRIMARY KEY  (id),
+            UNIQUE KEY order_variant (order_id, variant_id),
+            KEY variant_expiry (product_id, variant_id, expires_at)
+        ) {$charset};";
+
+        dbDelta($sqlReservations);
+
+        self::migrateStockFromPostMeta();
+
         update_option(self::OPTION_DB_VERSION, self::DB_VERSION);
+    }
+
+    /**
+     * Einmaliger Umzug des Bestands aus dem Post-Meta in die Bestand-Tabelle. Läuft
+     * genau einmal (Flag), INSERT IGNORE schützt zusätzlich vorhandene Zeilen, damit
+     * ein erneuter Aufruf nie einen bereits gepflegten Tabellen-Bestand mit altem
+     * Post-Meta überschreibt.
+     */
+    private static function migrateStockFromPostMeta(): void
+    {
+        if (get_option(self::OPTION_STOCK_MIGRATED) === '1') {
+            return;
+        }
+
+        global $wpdb;
+        $table = self::variantStockTable();
+        $now = current_time('mysql', true);
+
+        $productIds = get_posts([
+            'post_type' => 'rh_product',
+            'post_status' => 'any',
+            'numberposts' => -1,
+            'fields' => 'ids',
+        ]);
+
+        foreach ($productIds as $productId) {
+            $productId = (int) $productId;
+
+            // Simple-Produkt: _rhshop_stock (leer/false = nicht verfolgt).
+            $simple = get_post_meta($productId, '_rhshop_stock', true);
+            $tracked = ! ($simple === '' || $simple === false) ? 1 : 0;
+            $wpdb->query($wpdb->prepare(
+                "INSERT IGNORE INTO {$table} (product_id, variant_id, stock, tracked, updated_at) VALUES (%d, %s, %d, %d, %s)",
+                $productId,
+                \RhShop\Catalog\VariantRepository::SIMPLE_VARIANT_ID,
+                $tracked === 1 ? max(0, (int) $simple) : 0,
+                $tracked,
+                $now
+            ));
+
+            // Echte Varianten: _rhshop_variants[].stock (null/'' = nicht verfolgt).
+            $rows = get_post_meta($productId, '_rhshop_variants', true);
+            if (! is_array($rows)) {
+                continue;
+            }
+            foreach ($rows as $row) {
+                if (! is_array($row) || ($row['id'] ?? '') === '') {
+                    continue;
+                }
+                $raw = $row['stock'] ?? null;
+                $isTracked = ! ($raw === null || $raw === '') ? 1 : 0;
+                $wpdb->query($wpdb->prepare(
+                    "INSERT IGNORE INTO {$table} (product_id, variant_id, stock, tracked, updated_at) VALUES (%d, %s, %d, %d, %s)",
+                    $productId,
+                    (string) $row['id'],
+                    $isTracked === 1 ? max(0, (int) $raw) : 0,
+                    $isTracked,
+                    $now
+                ));
+            }
+        }
+
+        update_option(self::OPTION_STOCK_MIGRATED, '1');
     }
 }

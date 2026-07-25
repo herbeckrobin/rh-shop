@@ -41,6 +41,16 @@ final class Variant
     }
 
     /**
+     * Kopie mit anderem Bestand. Der Bestand lebt in der eigenen Tabelle
+     * (StockRepository), die Varianten-Definition kommt aus dem Post-Meta; forProduct
+     * setzt den echten Bestand hiermit ein.
+     */
+    public function withStock(?int $stock): self
+    {
+        return new self($this->id, $this->option1, $this->option2, $this->sku, $this->priceCents, $stock, $this->gpAmount);
+    }
+
+    /**
      * Höchste kaufbare Menge dieser Variante. null = unbegrenzt (Bestand nicht
      * verfolgt). Die eine Wahrheit, an der Kauf-Box, Warenkorb und Checkout die
      * Menge deckeln.
