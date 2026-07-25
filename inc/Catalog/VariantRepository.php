@@ -30,6 +30,12 @@ final class VariantRepository
     public const META_GP_AMOUNT = '_rhshop_gp_amount';
     public const META_GP_UNIT = '_rhshop_gp_unit';
 
+    // Bezeichnung der zwei Varianten-Achsen (option1/option2) pro Produkt. Nicht jedes
+    // Sortiment unterscheidet nach Größe/Farbe: ein Produkt kann nach Material/Länge
+    // oder Duft/Menge variieren. Leer = der übersetzte Default (Größe/Farbe).
+    public const META_AXIS1_LABEL = '_rhshop_axis1_label';
+    public const META_AXIS2_LABEL = '_rhshop_axis2_label';
+
     private const SIMPLE_VARIANT_ID = 'default';
 
     /**
@@ -108,6 +114,24 @@ final class VariantRepository
         $unit = (string) get_post_meta($productId, self::META_GP_UNIT, true);
 
         return GrundpreisUnit::isValid($unit) ? $unit : '';
+    }
+
+    /**
+     * Die Bezeichnungen der zwei Varianten-Achsen eines Produkts, mit übersetztem
+     * Default (Größe/Farbe), wenn nicht gepflegt. Eine Quelle für Meta-Box und
+     * Frontend, damit die Achsen-Namen nicht auseinanderlaufen.
+     *
+     * @return array{0: string, 1: string}
+     */
+    public function axisLabels(int $productId): array
+    {
+        $one = trim((string) get_post_meta($productId, self::META_AXIS1_LABEL, true));
+        $two = trim((string) get_post_meta($productId, self::META_AXIS2_LABEL, true));
+
+        return [
+            $one !== '' ? $one : __('Größe', 'rh-shop'),
+            $two !== '' ? $two : __('Farbe', 'rh-shop'),
+        ];
     }
 
     public function isSoldOut(int $productId): bool

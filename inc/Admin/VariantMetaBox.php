@@ -84,10 +84,34 @@ final class VariantMetaBox
         $this->renderGrundpreis($post->ID);
 
         echo '<hr><h4>' . esc_html__('Varianten', 'rh-shop') . '</h4>';
+        echo '<p class="rhshop-hint">' . esc_html__(
+            'Wenn dein Produkt in Varianten kommt, benenne die zwei Eigenschaften und trag darunter die Kombinationen ein. Nicht jedes Produkt braucht beide Eigenschaften.',
+            'rh-shop'
+        ) . '</p>';
+
+        [$axis1, $axis2] = $this->variants->axisLabels($post->ID);
+        $rawAxis1 = trim((string) get_post_meta($post->ID, VariantRepository::META_AXIS1_LABEL, true));
+        $rawAxis2 = trim((string) get_post_meta($post->ID, VariantRepository::META_AXIS2_LABEL, true));
+
+        echo '<p class="rhshop-axis-labels">';
+        printf(
+            '<label><strong>%s</strong><br><input type="text" name="rhshop_axis1_label" value="%s" placeholder="%s" data-rhshop-axis-input="1"></label>',
+            esc_html__('1. Eigenschaft', 'rh-shop'),
+            esc_attr($rawAxis1),
+            esc_attr__('Größe', 'rh-shop')
+        );
+        printf(
+            '<label><strong>%s</strong><br><input type="text" name="rhshop_axis2_label" value="%s" placeholder="%s" data-rhshop-axis-input="2"></label>',
+            esc_html__('2. Eigenschaft', 'rh-shop'),
+            esc_attr($rawAxis2),
+            esc_attr__('Farbe', 'rh-shop')
+        );
+        echo '</p>';
+
         echo '<table class="widefat rhshop-variants"><thead><tr>';
+        printf('<th data-rhshop-axis-header="1">%s</th>', esc_html($axis1));
+        printf('<th data-rhshop-axis-header="2">%s</th>', esc_html($axis2));
         foreach ([
-            __('Größe', 'rh-shop'),
-            __('Farbe', 'rh-shop'),
             __('SKU', 'rh-shop'),
             __('Preis (€)', 'rh-shop'),
             __('Bestand', 'rh-shop'),
@@ -204,11 +228,21 @@ final class VariantMetaBox
                     if ( tr ) { tr.remove(); }
                 }
             } );
+            // Spalten-Header spiegelt den Achsen-Namen live beim Tippen (Fallback: Default).
+            box.addEventListener( 'input', function ( e ) {
+                var inp = e.target.closest( '[data-rhshop-axis-input]' );
+                if ( ! inp ) { return; }
+                var head = box.querySelector( '[data-rhshop-axis-header="' + inp.getAttribute( 'data-rhshop-axis-input' ) + '"]' );
+                if ( head ) { head.textContent = inp.value.trim() || inp.placeholder; }
+            } );
         } )();
         </script>
         <style>
         .rhshop-metabox .rhshop-variants input[type="text"] { width: 100%; }
         .rhshop-metabox .rhshop-hint { color: #646970; }
+        .rhshop-metabox .rhshop-axis-labels { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+        .rhshop-metabox .rhshop-axis-labels label { flex: 1; min-width: 160px; }
+        .rhshop-metabox .rhshop-axis-labels input { width: 100%; }
         </style>
         <?php
     }
@@ -232,6 +266,17 @@ final class VariantMetaBox
         );
 
         $this->saveGrundpreis($postId);
+
+        update_post_meta(
+            $postId,
+            VariantRepository::META_AXIS1_LABEL,
+            isset($_POST['rhshop_axis1_label']) ? sanitize_text_field(wp_unslash($_POST['rhshop_axis1_label'])) : ''
+        );
+        update_post_meta(
+            $postId,
+            VariantRepository::META_AXIS2_LABEL,
+            isset($_POST['rhshop_axis2_label']) ? sanitize_text_field(wp_unslash($_POST['rhshop_axis2_label'])) : ''
+        );
 
         $this->variants->save($postId, $this->collectVariants());
     }

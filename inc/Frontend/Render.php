@@ -181,11 +181,14 @@ final class Render
 
         $selects = '';
         if ($hasRealVariants) {
+            [$axis1, $axis2] = $this->variants->axisLabels($productId);
             if ($sizes !== []) {
-                $selects .= $this->select('1', __('Größe wählen', 'rh-shop'), $sizes);
+                /* translators: %s: Name der Varianten-Achse, z.B. Größe */
+                $selects .= $this->select('1', sprintf(__('%s wählen', 'rh-shop'), $axis1), $sizes);
             }
             if ($colors !== []) {
-                $selects .= $this->select('2', __('Farbe wählen', 'rh-shop'), $colors);
+                /* translators: %s: Name der Varianten-Achse, z.B. Farbe */
+                $selects .= $this->select('2', sprintf(__('%s wählen', 'rh-shop'), $axis2), $colors);
             }
         }
 
