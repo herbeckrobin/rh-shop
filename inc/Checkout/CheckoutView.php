@@ -99,7 +99,7 @@ final class CheckoutView
         } else {
             $rows .= sprintf(
                 '<div class="rhshop-checkout__row rhshop-checkout__row--muted"><span>%s</span><span>%s</span></div>',
-                esc_html(sprintf(/* translators: %d: Steuersatz */ __('enthaltene USt (%d %%)', 'rh-shop'), Config::VAT_RATE_PERCENT)),
+                esc_html(sprintf(/* translators: %d: Steuersatz */ __('enthaltene USt (%d %%)', 'rh-shop'), $totals->taxRatePercent)),
                 esc_html(Money::format($totals->taxCents, $symbol))
             );
             $rows .= '<div class="rhshop-checkout__row rhshop-checkout__total"><span>' . esc_html__('Gesamt (inkl. MwSt.)', 'rh-shop') . '</span><span>'

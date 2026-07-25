@@ -24,13 +24,14 @@ final class Config
     public const FIELD_WEBHOOK_ENC = 'webhook_secret_enc';
     public const FIELD_CURRENCY = 'currency';
     public const FIELD_TAX_MODE = 'tax_mode';
+    public const FIELD_TAX_RATE = 'tax_rate';
     public const FIELD_SHIPPING = 'shipping_cents';
     public const FIELD_WEBHOOK_ENDPOINT = 'webhook_endpoint_id';
     public const FIELD_WIDERRUF_BUTTON = 'widerruf_button';
     public const FIELD_INVOICE = 'invoice_enabled';
     public const FIELD_AGB_ENABLED = 'agb_enabled';
 
-    /** Enthaltene USt bei Regelbesteuerung (Deutschland, Standardsatz). */
+    /** Default-USt-Satz (Deutschland, Standardsatz). Der echte Satz ist konfigurierbar. */
     public const VAT_RATE_PERCENT = 19;
 
     public const CONST_SECRET = 'RH_STRIPE_SECRET';
@@ -112,6 +113,17 @@ final class Config
         $mode = (string) rhbp_setting(self::GROUP, self::FIELD_TAX_MODE, Order::TAX_KLEINUNTERNEHMER);
 
         return in_array($mode, [Order::TAX_VAT, Order::TAX_KLEINUNTERNEHMER], true) ? $mode : Order::TAX_KLEINUNTERNEHMER;
+    }
+
+    /**
+     * USt-Satz in Prozent bei Regelbesteuerung. Konfigurierbar (Deutschland 19 oder
+     * ermäßigt 7, andere Märkte anders), auf 0 bis 100 begrenzt.
+     */
+    public function taxRatePercent(): int
+    {
+        $rate = (int) rhbp_setting(self::GROUP, self::FIELD_TAX_RATE, self::VAT_RATE_PERCENT);
+
+        return max(0, min(100, $rate));
     }
 
     /**

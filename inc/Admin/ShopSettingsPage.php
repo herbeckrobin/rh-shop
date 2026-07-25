@@ -134,13 +134,23 @@ final class ShopSettingsPage
         $mode = $this->config->taxMode();
         $modes = [
             Order::TAX_KLEINUNTERNEHMER => __('Kleinunternehmer (§ 19 UStG, keine USt)', 'rh-shop'),
-            Order::TAX_VAT => __('Regelbesteuerung (19 % USt im Preis enthalten)', 'rh-shop'),
+            Order::TAX_VAT => __('Regelbesteuerung (USt im Preis enthalten)', 'rh-shop'),
         ];
         foreach ($modes as $value => $label) {
             printf('<option value="%s" %s>%s</option>', esc_attr($value), selected($mode, $value, false), esc_html($label));
         }
         echo '</select>';
         echo '<p class="rhbp-field__desc">' . esc_html__('Kleinunternehmer weist keine USt aus (§19-Hinweis auf der Kasse). Regelbesteuerung rechnet die enthaltene USt aus dem Bruttopreis heraus.', 'rh-shop') . '</p>';
+        echo '</div>';
+
+        // USt-Satz (nur bei Regelbesteuerung relevant)
+        echo '<div class="rhbp-field">';
+        echo '<label class="rhbp-field__label" for="rhshop-tax-rate">' . esc_html__('USt-Satz (%)', 'rh-shop') . '</label>';
+        printf(
+            '<input type="number" id="rhshop-tax-rate" name="tax_rate" value="%d" min="0" max="100" step="1" style="max-width:100px">',
+            $this->config->taxRatePercent()
+        );
+        echo '<p class="rhbp-field__desc">' . esc_html__('Prozentsatz für die Regelbesteuerung. Deutschland 19, ermäßigt 7. Bei Kleinunternehmer ohne Wirkung.', 'rh-shop') . '</p>';
         echo '</div>';
 
         // Versandpauschale
@@ -292,6 +302,7 @@ final class ShopSettingsPage
             Config::FIELD_PUBLISHABLE => isset($_POST['publishable_key']) ? sanitize_text_field(wp_unslash($_POST['publishable_key'])) : '',
             Config::FIELD_CURRENCY => $this->sanitizeCurrency($_POST['currency'] ?? 'eur'),
             Config::FIELD_TAX_MODE => $this->sanitizeTaxMode($_POST['tax_mode'] ?? ''),
+            Config::FIELD_TAX_RATE => max(0, min(100, (int) ($_POST['tax_rate'] ?? Config::VAT_RATE_PERCENT))),
             Config::FIELD_SHIPPING => Money::toCents(isset($_POST['shipping_cents']) ? sanitize_text_field(wp_unslash($_POST['shipping_cents'])) : ''),
             Config::FIELD_WIDERRUF_BUTTON => isset($_POST['widerruf_button']),
             Config::FIELD_INVOICE => isset($_POST['invoice_enabled']),

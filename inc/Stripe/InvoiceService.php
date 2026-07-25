@@ -139,8 +139,9 @@ final class InvoiceService
     }
 
     /**
-     * Bei Regelbesteuerung eine inklusive 19%-USt (get-or-create, ID gecacht).
-     * Bei Kleinunternehmer keine Steuer.
+     * Bei Regelbesteuerung eine inklusive USt (get-or-create, ID gecacht). Der Cache
+     * ist pro Satz (Option-Key mit Prozentwert), damit ein geänderter Steuersatz nicht
+     * die alte Stripe-Steuerrate weiterverwendet. Bei Kleinunternehmer keine Steuer.
      *
      * @return array<int, string>
      */
@@ -150,7 +151,13 @@ final class InvoiceService
             return [];
         }
 
-        $stored = (string) get_option(self::OPTION_VAT_RATE, '');
+        $percent = $this->config->taxRatePercent();
+        if ($percent <= 0) {
+            return [];
+        }
+
+        $optionKey = self::OPTION_VAT_RATE . '_' . $percent;
+        $stored = (string) get_option($optionKey, '');
         if ($stored !== '') {
             return [$stored];
         }
@@ -158,16 +165,15 @@ final class InvoiceService
         try {
             $rate = $client->taxRates->create([
                 'display_name' => 'USt',
-                'description' => 'Umsatzsteuer Deutschland',
-                'percentage' => Config::VAT_RATE_PERCENT,
+                'description' => sprintf('Umsatzsteuer %d %%', $percent),
+                'percentage' => $percent,
                 'inclusive' => true,
-                'country' => 'DE',
             ]);
         } catch (ApiErrorException $e) {
             return [];
         }
 
-        update_option(self::OPTION_VAT_RATE, (string) $rate->id);
+        update_option($optionKey, (string) $rate->id);
 
         return [(string) $rate->id];
     }

@@ -26,6 +26,7 @@ final class Totals
         public readonly int $taxCents,
         public readonly int $totalCents,
         public readonly string $taxMode,
+        public readonly int $taxRatePercent,
     ) {
     }
 
@@ -35,9 +36,10 @@ final class Totals
         $shipping = $subtotal > 0 ? $config->shippingCents() : 0;
         $total = $subtotal + $shipping;
         $mode = $config->taxMode();
-        $tax = self::includedTax($total, $mode, Config::VAT_RATE_PERCENT);
+        $rate = $config->taxRatePercent();
+        $tax = self::includedTax($total, $mode, $rate);
 
-        return new self($subtotal, $shipping, $tax, $total, $mode);
+        return new self($subtotal, $shipping, $tax, $total, $mode, $rate);
     }
 
     /**
@@ -83,7 +85,7 @@ final class Totals
             'total_cents' => $this->totalCents,
             'tax_mode' => $this->taxMode,
             'kleinunternehmer' => $this->isKleinunternehmer(),
-            'vat_rate' => Config::VAT_RATE_PERCENT,
+            'vat_rate' => $this->taxRatePercent,
         ];
     }
 }
