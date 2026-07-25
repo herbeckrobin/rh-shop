@@ -181,6 +181,11 @@ final class CheckoutView
         $checkboxes .= $this->checkbox('revocation', __('Widerrufsbelehrung', 'rh-shop'), 'widerrufsbelehrung', __('Ich habe die %s zur Kenntnis genommen.', 'rh-shop'))
             . $this->checkbox('privacy', __('Datenschutzerklärung', 'rh-shop'), 'datenschutz', __('Ich habe die %s gelesen.', 'rh-shop'));
 
+        // Skeleton-Platzhalter in den Stripe-Mounts: bis Stripe.js geladen ist und das
+        // Element rendert (1-2s), zeigt der Bereich die Form der Felder statt leer.
+        // checkout.js leert den Mount vor dem Mounten. Fällt weg, sobald das Element steht.
+        $skeleton = str_repeat('<div class="rhshop-skeleton" style="height:2.6rem"></div>', 3);
+
         // Reihenfolge: Kontakt, Lieferadresse (Stripe Address Element), Zahlart (Stripe
         // Payment Element), Pflicht-Checkboxen, dann die §312j-Gesamtzeile direkt über
         // dem Bestell-Button. Name und Adresse sammelt das Address Element (kein Doppel).
@@ -188,9 +193,9 @@ final class CheckoutView
             . '<div class="rhshop-field"><label for="rhshop-email">' . esc_html__('E-Mail', 'rh-shop') . '</label>'
             . '<input type="email" id="rhshop-email" data-rhshop-email required autocomplete="email" /></div>'
             . '<div class="rhshop-checkout__section"><span class="rhshop-checkout__section-title">' . esc_html__('Lieferadresse', 'rh-shop') . '</span>'
-            . '<div data-rhshop-address-element></div></div>'
+            . '<div data-rhshop-address-element>' . $skeleton . '</div></div>'
             . '<div class="rhshop-checkout__section"><span class="rhshop-checkout__section-title">' . esc_html__('Zahlung', 'rh-shop') . '</span>'
-            . '<div data-rhshop-payment-element></div></div>'
+            . '<div data-rhshop-payment-element>' . $skeleton . '</div></div>'
             . '<div class="rhshop-checkout__consents">' . $checkboxes . '</div>'
             . $this->payLine($totals, $symbol)
             . '<button type="button" class="rhshop-btn-order" data-rhshop-order>' . esc_html__('Zahlungspflichtig bestellen', 'rh-shop') . '</button>'

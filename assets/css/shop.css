@@ -500,3 +500,35 @@
 }
 .rhshop-danke__invoice a:hover { opacity: 0.7; }
 .rhshop-danke__invoice-wait { opacity: 0.55; font-size: 0.9rem; }
+
+/* --- Loading-States (Spinner für Aktionen, Skeleton für ladenden Inhalt) --- */
+@keyframes rhshop-spin { to { transform: rotate(360deg); } }
+.rhshop-spinner {
+	display: inline-block;
+	width: 1em;
+	height: 1em;
+	vertical-align: -0.15em;
+	margin-right: 0.4em;
+	border: 2px solid currentColor;
+	border-right-color: transparent;
+	border-radius: 50%;
+	animation: rhshop-spin 0.7s linear infinite;
+}
+
+@keyframes rhshop-pulse { 50% { opacity: 0.45; } }
+.rhshop-skeleton {
+	background: var(--rhshop-surface-2-fallback);
+	background: var(--rhshop-surface-2);
+	border-radius: var(--rhshop-radius);
+	animation: rhshop-pulse 1.4s ease-in-out infinite;
+}
+.rhshop-skeleton + .rhshop-skeleton { margin-top: 0.7rem; }
+
+/* Ladender Button: leicht gedimmt, Cursor signalisiert warten. */
+.rhshop-btn-order:disabled,
+.rhshop-btn-add:disabled { cursor: progress; }
+
+@media (prefers-reduced-motion: reduce) {
+	.rhshop-spinner { animation-duration: 1.6s; }
+	.rhshop-skeleton { animation: none; opacity: 0.7; }
+}

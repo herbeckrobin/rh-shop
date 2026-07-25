@@ -19,6 +19,11 @@
 		error: 'Etwas ist schiefgelaufen. Bitte nochmal versuchen.',
 	};
 
+	// Spinner + Text für Lade-Meldungen (LABELS sind statisch, kein User-Input).
+	function spin( text ) {
+		return '<span class="rhshop-spinner" aria-hidden="true"></span>' + text;
+	}
+
 	function loadStripe() {
 		return new Promise( function ( resolve, reject ) {
 			if ( window.Stripe ) {
@@ -56,8 +61,11 @@
 					currency: cfg.currency || 'eur',
 					appearance: cfg.appearance || {},
 				} );
+				// Skeleton-Platzhalter entfernen, bevor Stripe seine iframes einhängt.
+				payMount.innerHTML = '';
 				elements.create( 'payment' ).mount( payMount );
 				if ( addrMount ) {
+					addrMount.innerHTML = '';
 					elements
 						.create( 'address', {
 							mode: 'shipping',
@@ -87,7 +95,7 @@
 
 					submitting = true;
 					btn.disabled = true;
-					msg.textContent = LABELS.ordering;
+					msg.innerHTML = spin( LABELS.ordering );
 
 					// 1) Stripe-Felder validieren.
 					elements
@@ -119,7 +127,7 @@
 							if ( ! out.ok || ! out.d.client_secret ) {
 								throw new Error( out.d && out.d.message ? out.d.message : LABELS.error );
 							}
-							msg.textContent = LABELS.paying;
+							msg.innerHTML = spin( LABELS.paying );
 							// 3) Zahlung bestätigen -> Stripe leitet auf /danke weiter.
 							return stripe.confirmPayment( {
 								elements: elements,

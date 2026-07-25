@@ -165,7 +165,8 @@ final class DankeView
         ]);
 
         return '<p class="rhshop-danke__invoice" data-rhshop-invoice-slot>'
-            . '<span class="rhshop-danke__invoice-wait">' . esc_html__('Rechnung wird erstellt …', 'rh-shop') . '</span></p>'
+            . '<span class="rhshop-danke__invoice-wait"><span class="rhshop-spinner" aria-hidden="true"></span>'
+            . esc_html__('Rechnung wird erstellt …', 'rh-shop') . '</span></p>'
             . '<script>(' . $this->pollScript() . ')(' . $config . ');</script>';
     }
 
