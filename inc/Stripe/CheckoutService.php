@@ -87,7 +87,14 @@ final class CheckoutService
         try {
             $intent = $client->paymentIntents->create($params);
         } catch (ApiErrorException $e) {
-            return new WP_Error('rhshop_stripe_error', $e->getMessage(), ['status' => 502]);
+            // Erwartbarer externer Fehlschlag: dem Kunden eine generische, saubere
+            // Meldung geben (kein roher Stripe-Text nach aussen). Der Prozess bricht
+            // sauber ab, es wurde nichts belastet.
+            return new WP_Error(
+                'rhshop_stripe_error',
+                __('Die Zahlung konnte gerade nicht gestartet werden. Bitte versuche es in einem Moment erneut.', 'rh-shop'),
+                ['status' => 502]
+            );
         }
 
         $this->orders->attachPaymentIntent($orderId, (string) $intent->id);

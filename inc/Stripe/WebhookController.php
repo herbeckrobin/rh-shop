@@ -85,7 +85,13 @@ final class WebhookController
 
         $order = $this->orders->markPaidByPaymentIntent($intentId, $this->buyer($intent));
 
-        // Nur wenn frisch auf bezahlt umgestellt (Idempotenz), Bestand + Mail.
+        // Nur wenn frisch auf bezahlt umgestellt (Idempotenz), Bestand + Mail. Ein
+        // unbekannter/fremder PaymentIntent ergibt null -> sauberes 200, kein Retry.
+        //
+        // Fulfillment-Fehler werden bewusst NICHT gefangen: eine unerwartete Exception
+        // propagiert (WP gibt 500, Stripe wiederholt den Webhook, rh-monitor erfasst sie).
+        // Beim Retry blockt der paid-Guard oben ein zweites Fulfillment. rh-shop loggt
+        // selbst nichts, die Sichtbarkeit erledigen WP und das Monitoring-Plugin.
         if ($order !== null) {
             $this->fulfillment->fulfill($order);
         }

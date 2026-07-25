@@ -22,15 +22,68 @@
 		error: 'Etwas ist schiefgelaufen. Bitte nochmal versuchen.',
 	};
 
-	function post( path, body ) {
+	var NET_ERROR = 'Verbindung fehlgeschlagen. Bitte nochmal versuchen.';
+
+	// Eine Request-Schicht für alle Cart-Aktionen: prüft response.ok, liest bei einem
+	// Fehler die WP_Error-Meldung ({code, message}) für die Anzeige, wirft sonst einen
+	// freundlichen Netzwerkfehler. Kein stilles Weiterverarbeiten eines 4xx/5xx als State.
+	function request( path, body ) {
 		return fetch( cfg.restUrl + path, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
 			credentials: 'same-origin',
 			body: JSON.stringify( body || {} ),
-		} ).then( function ( r ) {
-			return r.json();
-		} );
+		} ).then(
+			function ( r ) {
+				return r
+					.json()
+					.catch( function () {
+						return {};
+					} )
+					.then( function ( d ) {
+						if ( ! r.ok ) {
+							throw new Error( ( d && d.message ) || NET_ERROR );
+						}
+						return d;
+					} );
+			},
+			function () {
+				// fetch selbst gescheitert (offline, DNS, abgebrochen).
+				throw new Error( NET_ERROR );
+			}
+		);
+	}
+
+	// Einheitlicher Ladezustand: Element sperren + Spinner (.is-pending) während das
+	// Promise läuft, danach zurücksetzen. Gibt das Promise durch (Fehler propagiert).
+	function withPending( el, promise ) {
+		if ( ! el ) {
+			return promise;
+		}
+		var wasDisabled = el.disabled;
+		el.disabled = true;
+		el.classList.add( 'is-pending' );
+		var settle = function () {
+			el.disabled = wasDisabled;
+			el.classList.remove( 'is-pending' );
+		};
+		return promise.then(
+			function ( v ) {
+				settle();
+				return v;
+			},
+			function ( e ) {
+				settle();
+				throw e;
+			}
+		);
+	}
+
+	// Einheitlicher Fehler-Slot: Meldung setzen (role="alert" am Element) oder leeren.
+	function showError( el, message ) {
+		if ( el ) {
+			el.textContent = message || '';
+		}
 	}
 
 	function esc( value ) {
@@ -251,8 +304,8 @@
 				return;
 			}
 			var qty = Math.max( 1, parseInt( qtyInput.value, 10 ) || 1 );
-			addBtn.disabled = true;
-			post( 'cart/add', { product_id: productId, variant_id: selected.id, qty: qty } )
+			showError( msgEl, '' );
+			withPending( addBtn, request( 'cart/add', { product_id: productId, variant_id: selected.id, qty: qty } ) )
 				.then( function ( state ) {
 					// Alle Ansichten (auch das Nav-Widget-Overlay) synchron ziehen.
 					applyCartState( state );
@@ -261,11 +314,9 @@
 					// Hat der Server wegen Bestand gedeckelt, seine Warnung zeigen,
 					// sonst die Erfolgsmeldung.
 					msgEl.textContent = state.notice || LABELS.added;
-					addBtn.disabled = false;
 				} )
-				.catch( function () {
-					addBtn.disabled = false;
-					msgEl.textContent = LABELS.error;
+				.catch( function ( e ) {
+					showError( msgEl, ( e && e.message ) || LABELS.error );
 				} );
 		} );
 
@@ -358,10 +409,21 @@
 			var v = line.getAttribute( 'data-v' );
 			var path = remove ? 'cart/remove' : 'cart/update';
 			var body = remove ? { product_id: p, variant_id: v } : { product_id: p, variant_id: v, qty: qty };
-			post( path, body ).then( function ( state ) {
-				applyCartState( state );
-				emitUpdated( state );
-			} );
+			// Zeile als "läuft" markieren; bei Erfolg wird sie eh neu gerendert.
+			line.classList.add( 'is-pending' );
+			request( path, body )
+				.then( function ( state ) {
+					applyCartState( state );
+					emitUpdated( state );
+				} )
+				.catch( function ( e ) {
+					// Kein stiller Fehlschlag mehr: Zeile freigeben, Fehler in allen
+					// Warenkorb-Notice-Slots (Seite und Widget) zeigen.
+					line.classList.remove( 'is-pending' );
+					document.querySelectorAll( '[data-rhshop-cart-notice]' ).forEach( function ( el ) {
+						el.textContent = ( e && e.message ) || NET_ERROR;
+					} );
+				} );
 		}
 	}
 
