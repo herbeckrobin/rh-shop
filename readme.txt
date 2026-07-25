@@ -4,7 +4,7 @@ Tags: shop, ecommerce, stripe, products
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 0.2.0
+Stable tag: 0.3.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -17,6 +17,18 @@ RH Shop ist der leichte Weg, ein kleines Sortiment (Merch, ein paar Produkte) zu
 Teil der rh-blueprint Kollektion.
 
 == Changelog ==
+
+= 0.3.0 =
+* Kasse auf das Stripe Payment Element umgestellt: die Zahlung ist jetzt in die Seite integriert und im Design des Themes (Schrift, Farben), statt einer eingebetteten Stripe-Kasse mit doppelter Übersicht. Adresse und Zahlart als getheme'te Stripe-Elemente, unser Layout und der „Zahlungspflichtig bestellen"-Button bleiben unsere.
+* WICHTIG beim Update: Der Webhook hört jetzt auf „payment_intent.succeeded" statt „checkout.session.completed". Nach dem Update einmal unter Einstellungen → Status den Webhook neu einrichten, sonst werden Bestellungen nicht automatisch auf bezahlt gesetzt.
+* Kasse und Warenkorb in getrennte Blöcke aufgeteilt (Übersicht/Formular bzw. Positionen/Summe), das Layout bestimmst du frei über Core-Spalten (z.B. zweispaltig).
+* Neuer Landing-Screen „Shop → Übersicht": Bestellungen, Umsatz, Produkte und „Zu erledigen" auf einen Blick, plus Schnellaktionen und deine Shop-Seiten.
+* Einstellungs-Seite in Tabs geordnet (Status, Zahlung, Preise & Steuer, Versand, E-Mail, Rechtliches) mit Cross-Links und einem Startklar-Status.
+* Bestellstatus im Admin setzbar; beim Wechsel auf „versendet" bekommt der Kunde automatisch eine Versandbestätigung (optional mit Sendungsnummer).
+* E-Mail-Einstellungen: Absender, Benachrichtigungs-Adresse für neue Bestellungen, optionaler Zusatztext in der Bestätigungsmail.
+* Gratisversand ab einem konfigurierbaren Warenwert.
+* Editor: Warenkorb, Kasse, Kauf-Box und Widerruf zeigen eine Beispielansicht mit echten Produkten statt leerer Platzhalter.
+* Aktivierungs-Hinweis „Shop einrichten", native Hilfe-Register auf den Shop-Seiten, Loading-Anzeigen (Skeleton/Spinner) an den wartenden Stellen.
 
 = 0.2.0 =
 * Danke-Seite überarbeitet: zeigt den echten Zahlungsstatus, eine Bestellübersicht mit Positionen und Summen und lädt den Rechnungslink automatisch nach (kein Neuladen). Styling passt sich hellen wie dunklen Themes an.
