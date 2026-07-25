@@ -75,16 +75,16 @@ final class OrderStore
         return $this->fetch('order_number = %s', $number);
     }
 
-    public function findBySessionId(string $sessionId): ?Order
+    public function findByPaymentIntent(string $paymentIntentId): ?Order
     {
-        if ($sessionId === '') {
+        if ($paymentIntentId === '') {
             return null;
         }
 
-        return $this->fetch('stripe_session_id = %s', $sessionId);
+        return $this->fetch('stripe_payment_intent_id = %s', $paymentIntentId);
     }
 
-    public function attachSession(int $id, string $sessionId): void
+    public function attachPaymentIntent(int $id, string $paymentIntentId): void
     {
         global $wpdb;
 
@@ -92,7 +92,7 @@ final class OrderStore
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
         $wpdb->update(
             $table,
-            ['stripe_session_id' => $sessionId, 'updated_at' => current_time('mysql')],
+            ['stripe_payment_intent_id' => $paymentIntentId, 'updated_at' => current_time('mysql')],
             ['id' => $id],
             ['%s', '%s'],
             ['%d']
@@ -109,11 +109,11 @@ final class OrderStore
      * @return Order|null Die frisch bezahlte Bestellung, oder null wenn nicht
      *                    gefunden bzw. bereits bezahlt.
      */
-    public function markPaid(string $sessionId, string $paymentIntentId, array $buyer = []): ?Order
+    public function markPaidByPaymentIntent(string $paymentIntentId, array $buyer = []): ?Order
     {
         global $wpdb;
 
-        $order = $this->findBySessionId($sessionId);
+        $order = $this->findByPaymentIntent($paymentIntentId);
         if ($order === null || $order->isPaid()) {
             return null;
         }
@@ -121,11 +121,10 @@ final class OrderStore
         $now = current_time('mysql');
         $data = [
             'status' => Order::STATUS_PAID,
-            'stripe_payment_intent_id' => $paymentIntentId,
             'paid_at' => $now,
             'updated_at' => $now,
         ];
-        $formats = ['%s', '%s', '%s', '%s'];
+        $formats = ['%s', '%s', '%s'];
 
         if (! empty($buyer['email'])) {
             $data['email'] = sanitize_email((string) $buyer['email']);

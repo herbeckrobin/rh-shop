@@ -340,6 +340,9 @@
 	font-size: 1rem;
 }
 
+.rhshop-checkout__section { margin: 1.3rem 0; }
+.rhshop-checkout__section-title { display: block; font-weight: 500; margin-bottom: 0.5rem; }
+
 .rhshop-checkout__consents { margin: 1rem 0; display: flex; flex-direction: column; gap: 0.6rem; }
 .rhshop-consent { display: flex; gap: 0.6rem; align-items: flex-start; font-size: 0.92rem; line-height: 1.4; }
 .rhshop-consent input { margin-top: 0.2rem; flex: none; }

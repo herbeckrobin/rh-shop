@@ -75,9 +75,7 @@ final class CheckoutView
         $symbol = $this->config->currencySymbol();
 
         return '<div class="rhshop-checkout" data-rhshop-checkout>'
-            . $this->payLine($totals, $symbol)
-            . $this->form()
-            . '<div class="rhshop-checkout__payment" data-rhshop-stripe-mount hidden></div>'
+            . $this->form($totals, $symbol)
             . '</div>';
     }
 
@@ -172,7 +170,7 @@ final class CheckoutView
     /**
      * Kontaktfeld + Pflicht-Checkboxen + der §312j-Button.
      */
-    private function form(): string
+    private function form(Totals $totals, string $symbol): string
     {
         // AGB sind nicht Pflicht: die Checkbox erscheint nur, wenn der Betreiber sie
         // eingeschaltet hat. Widerruf + Datenschutz sind immer da.
@@ -183,12 +181,18 @@ final class CheckoutView
         $checkboxes .= $this->checkbox('revocation', __('Widerrufsbelehrung', 'rh-shop'), 'widerrufsbelehrung', __('Ich habe die %s zur Kenntnis genommen.', 'rh-shop'))
             . $this->checkbox('privacy', __('Datenschutzerklärung', 'rh-shop'), 'datenschutz', __('Ich habe die %s gelesen.', 'rh-shop'));
 
+        // Reihenfolge: Kontakt, Lieferadresse (Stripe Address Element), Zahlart (Stripe
+        // Payment Element), Pflicht-Checkboxen, dann die §312j-Gesamtzeile direkt über
+        // dem Bestell-Button. Name und Adresse sammelt das Address Element (kein Doppel).
         return '<div class="rhshop-checkout__form" data-rhshop-checkout-form>'
             . '<div class="rhshop-field"><label for="rhshop-email">' . esc_html__('E-Mail', 'rh-shop') . '</label>'
             . '<input type="email" id="rhshop-email" data-rhshop-email required autocomplete="email" /></div>'
-            . '<div class="rhshop-field"><label for="rhshop-name">' . esc_html__('Name (optional)', 'rh-shop') . '</label>'
-            . '<input type="text" id="rhshop-name" data-rhshop-name autocomplete="name" /></div>'
+            . '<div class="rhshop-checkout__section"><span class="rhshop-checkout__section-title">' . esc_html__('Lieferadresse', 'rh-shop') . '</span>'
+            . '<div data-rhshop-address-element></div></div>'
+            . '<div class="rhshop-checkout__section"><span class="rhshop-checkout__section-title">' . esc_html__('Zahlung', 'rh-shop') . '</span>'
+            . '<div data-rhshop-payment-element></div></div>'
             . '<div class="rhshop-checkout__consents">' . $checkboxes . '</div>'
+            . $this->payLine($totals, $symbol)
             . '<button type="button" class="rhshop-btn-order" data-rhshop-order>' . esc_html__('Zahlungspflichtig bestellen', 'rh-shop') . '</button>'
             . '<p class="rhshop-checkout__msg" data-rhshop-checkout-msg role="alert" aria-live="assertive"></p>'
             . '</div>';

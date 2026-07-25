@@ -82,12 +82,38 @@ final class Blocks
         wp_register_script('rh-shop-widerruf', RHSHOP_PLUGIN_URL . 'assets/js/widerruf.js', ['rh-shop-view'], $this->assetVersion('assets/js/widerruf.js'), true);
 
         // Kasse: eigenes Script (lädt Stripe.js erst dort nach) + Publishable Key.
-        wp_register_script('rh-shop-checkout', RHSHOP_PLUGIN_URL . 'assets/js/checkout.js', [], $this->assetVersion('assets/js/checkout.js'), true);
-        wp_localize_script('rh-shop-checkout', 'rhShopCheckout', [
-            'pk' => (new \RhShop\Stripe\Config())->publishableKey(),
+        // Payment Element braucht Betrag + Währung vorab (deferred Elements), den Total
+        // rechnen wir serverseitig aus dem aktuellen Warenkorb. Das Appearance-Theming
+        // ist per Filter überschreibbar, damit es pro Projekt zum Design passt.
+        $config = new \RhShop\Stripe\Config();
+        $totals = \RhShop\Checkout\Totals::forCart(new \RhShop\Cart\Cart(new \RhShop\Catalog\VariantRepository()), $config);
+
+        $appearance = apply_filters('rh-blueprint/shop/stripe_appearance', [
+            'theme' => 'stripe',
+            'variables' => [
+                'borderRadius' => '8px',
+                'fontSizeBase' => '16px',
+                'colorPrimary' => '#1c2c2c',
+                'colorText' => '#1c2c2c',
+                'colorDanger' => '#b3261e',
+            ],
+        ]);
+
+        // Bewusst wp_add_inline_script + wp_json_encode statt wp_localize_script: Letzteres
+        // wandelt ALLE Werte in Strings um, dann käme der Betrag als "18900" an und das
+        // Stripe Payment Element lehnt den String ab (erwartet eine Zahl).
+        $data = [
+            'pk' => $config->publishableKey(),
             'restUrl' => esc_url_raw(rest_url(CartRestController::NAMESPACE . '/')),
             'nonce' => wp_create_nonce('wp_rest'),
-        ]);
+            'amount' => $totals->totalCents,
+            'currency' => $config->currency(),
+            'returnUrl' => (string) apply_filters('rh-blueprint/shop/return_url', home_url('/danke')),
+            'countries' => array_values((array) apply_filters('rh-blueprint/shop/shipping_countries', ['DE', 'AT', 'CH'])),
+            'appearance' => $appearance,
+        ];
+        wp_register_script('rh-shop-checkout', RHSHOP_PLUGIN_URL . 'assets/js/checkout.js', [], $this->assetVersion('assets/js/checkout.js'), true);
+        wp_add_inline_script('rh-shop-checkout', 'window.rhShopCheckout=' . wp_json_encode($data) . ';', 'before');
     }
 
     public function enqueueFrontend(): void

@@ -27,7 +27,7 @@ use WP_REST_Server;
 final class WebhookController
 {
     /** Events, die eine bezahlte Bestellung bestätigen (Karte sofort, SEPA verzögert). */
-    private const PAID_EVENTS = ['checkout.session.completed', 'checkout.session.async_payment_succeeded'];
+    private const PAID_EVENTS = ['payment_intent.succeeded'];
 
     public function __construct(
         private readonly Config $config,
@@ -67,30 +67,23 @@ final class WebhookController
         }
 
         if (in_array($event->type, self::PAID_EVENTS, true)) {
-            $this->fulfillSession($event->data->object);
+            $this->fulfillPaymentIntent($event->data->object);
         }
 
         return new WP_REST_Response(['received' => true], 200);
     }
 
     /**
-     * @param object $session Stripe Checkout Session aus dem Event.
+     * @param object $intent Stripe PaymentIntent aus dem Event.
      */
-    private function fulfillSession(object $session): void
+    private function fulfillPaymentIntent(object $intent): void
     {
-        if (($session->payment_status ?? '') !== 'paid') {
-            return; // verzögerte Zahlung: kommt später über async_payment_succeeded.
-        }
-
-        $sessionId = (string) ($session->id ?? '');
-        if ($sessionId === '') {
+        $intentId = (string) ($intent->id ?? '');
+        if ($intentId === '') {
             return;
         }
 
-        $paymentIntent = $session->payment_intent ?? '';
-        $paymentIntentId = is_string($paymentIntent) ? $paymentIntent : (string) ($paymentIntent->id ?? '');
-
-        $order = $this->orders->markPaid($sessionId, $paymentIntentId, $this->buyer($session));
+        $order = $this->orders->markPaidByPaymentIntent($intentId, $this->buyer($intent));
 
         // Nur wenn frisch auf bezahlt umgestellt (Idempotenz), Bestand + Mail.
         if ($order !== null) {
@@ -99,25 +92,28 @@ final class WebhookController
     }
 
     /**
-     * @param object $session
+     * Käuferdaten aus dem PaymentIntent: E-Mail aus receipt_email, Name und Anschrift
+     * aus shipping (liefert das Address Element beim confirmPayment).
+     *
+     * @param object $intent
      * @return array{email?:string, name?:string, address?:array<string, string>}
      */
-    private function buyer(object $session): array
+    private function buyer(object $intent): array
     {
-        $details = $session->customer_details ?? null;
+        $shipping = $intent->shipping ?? null;
 
         $address = [];
-        if ($details !== null && isset($details->address) && is_object($details->address)) {
+        if ($shipping !== null && isset($shipping->address) && is_object($shipping->address)) {
             foreach (['line1', 'line2', 'city', 'postal_code', 'state', 'country'] as $key) {
-                if (isset($details->address->$key) && $details->address->$key !== null) {
-                    $address[$key] = (string) $details->address->$key;
+                if (isset($shipping->address->$key) && $shipping->address->$key !== null) {
+                    $address[$key] = (string) $shipping->address->$key;
                 }
             }
         }
 
         return [
-            'email' => (string) ($details->email ?? $session->customer_email ?? ''),
-            'name' => (string) ($details->name ?? ''),
+            'email' => (string) ($intent->receipt_email ?? ''),
+            'name' => (string) ($shipping->name ?? ''),
             'address' => $address,
         ];
     }

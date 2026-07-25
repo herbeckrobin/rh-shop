@@ -12,7 +12,7 @@ use RhShop\Support\Money;
 use Stripe\Exception\ApiErrorException;
 
 /**
- * Die Bestätigungsseite nach der Zahlung (`/danke?session_id=…`), status-bewusst.
+ * Die Bestätigungsseite nach der Zahlung (`/danke?payment_intent=…`), status-bewusst.
  *
  * Der alte statische Text ("du bekommst gleich eine Mail") log: er versprach eine
  * Bestätigung, ohne die Zahlung zu prüfen. Hier wird der echte Stand gezeigt:
@@ -42,10 +42,10 @@ final class DankeView
     public function render(): string
     {
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Landing von Stripe, kein Formular; nur Anzeige.
-        $sessionId = isset($_GET['session_id']) ? sanitize_text_field(wp_unslash($_GET['session_id'])) : '';
+        $paymentIntent = isset($_GET['payment_intent']) ? sanitize_text_field(wp_unslash($_GET['payment_intent'])) : '';
 
-        $order = ($sessionId !== '' && str_starts_with($sessionId, 'cs_'))
-            ? $this->orders->findBySessionId($sessionId)
+        $order = ($paymentIntent !== '' && str_starts_with($paymentIntent, 'pi_'))
+            ? $this->orders->findByPaymentIntent($paymentIntent)
             : null;
 
         if ($order === null) {
@@ -57,7 +57,7 @@ final class DankeView
 
         $paid = $order->status === Order::STATUS_PAID
             || $order->status === Order::STATUS_SHIPPED
-            || $this->isPaidAtStripe($sessionId);
+            || $this->isPaidAtStripe($paymentIntent);
 
         return $paid ? $this->confirmed($order) : $this->processing($order);
     }
@@ -157,7 +157,7 @@ final class DankeView
 
         $config = wp_json_encode([
             'url' => $endpoint,
-            'sessionId' => $order->stripeSessionId,
+            'paymentIntent' => $order->stripePaymentIntentId,
             'label' => __('Rechnung ansehen', 'rh-shop'),
         ]);
 
@@ -176,7 +176,7 @@ final class DankeView
         return <<<'JS'
 function(c){
   var slot=document.querySelector('[data-rhshop-invoice-slot]');
-  if(!slot||!c.sessionId){return;}
+  if(!slot||!c.paymentIntent){return;}
   var tries=0;
   function fill(u){
     var a=document.createElement('a');
@@ -185,7 +185,7 @@ function(c){
   }
   function poll(){
     tries++;
-    fetch(c.url+'?session_id='+encodeURIComponent(c.sessionId),{credentials:'same-origin'})
+    fetch(c.url+'?payment_intent='+encodeURIComponent(c.paymentIntent),{credentials:'same-origin'})
       .then(function(r){return r.json();})
       .then(function(d){
         if(d&&d.invoice_url){fill(d.invoice_url);return;}
@@ -215,7 +215,7 @@ JS;
      * (Webhook-Verzögerung überbrücken). Fehlschlag/keine Konfiguration -> false, dann
      * greift der ehrliche "wird verarbeitet"-Text.
      */
-    private function isPaidAtStripe(string $sessionId): bool
+    private function isPaidAtStripe(string $paymentIntentId): bool
     {
         $client = $this->stripe->client();
         if ($client === null) {
@@ -223,12 +223,12 @@ JS;
         }
 
         try {
-            $session = $client->checkout->sessions->retrieve($sessionId);
+            $intent = $client->paymentIntents->retrieve($paymentIntentId);
         } catch (ApiErrorException) {
             return false;
         }
 
-        return ($session->payment_status ?? '') === 'paid';
+        return ($intent->status ?? '') === 'succeeded';
     }
 
     private function shell(string $variant, string $inner): string

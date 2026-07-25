@@ -12,7 +12,7 @@ use Stripe\Exception\ApiErrorException;
 use WP_Error;
 
 /**
- * Legt die Bestellung an und erzeugt die embedded Stripe Checkout Session.
+ * Legt die Bestellung an und erzeugt den Stripe PaymentIntent für das Payment Element.
  *
  * Reihenfolge ist bewusst: ZUERST die verbindliche Bestellung (pending) in unserer
  * DB, DANN die Stripe-Session. Das erfüllt die §312j-Auflage "Bestellung wird am
@@ -32,7 +32,7 @@ final class CheckoutService
 
     /**
      * @param array{email?:string, name?:string} $buyer
-     * @return array{client_secret:string, order_id:int, order_number:string, session_id:string}|WP_Error
+     * @return array{client_secret:string, order_id:int, order_number:string, payment_intent_id:string}|WP_Error
      */
     public function createSession(Cart $cart, array $buyer): array|WP_Error
     {
@@ -69,58 +69,34 @@ final class CheckoutService
         $order = $this->orders->find($orderId);
         $orderNumber = $order?->orderNumber ?? '';
 
+        // Payment Element: ein PaymentIntent über den Warenkorb-Total (Bruttopreis,
+        // Versand + enthaltene Steuer schon eingerechnet). Die Zahlarten wählt Stripe
+        // automatisch, die Felder rendert das Frontend über die Elements. Die
+        // Lieferadresse liefert das Address Element beim confirmPayment.
         $params = [
-            'mode' => 'payment',
-            'ui_mode' => 'embedded',
-            'line_items' => array_map(
-                fn (CartLine $l): array => [
-                    'quantity' => $l->qty,
-                    'price_data' => [
-                        'currency' => $currency,
-                        'unit_amount' => $l->unitPriceCents,
-                        'product_data' => [
-                            'name' => $l->optionsLabel !== '' ? $l->productTitle . ' (' . $l->optionsLabel . ')' : $l->productTitle,
-                        ],
-                    ],
-                ],
-                $lines
-            ),
-            'return_url' => $this->returnUrl(),
+            'amount' => $totals->totalCents,
+            'currency' => $currency,
+            'automatic_payment_methods' => ['enabled' => true],
             'metadata' => ['order_id' => (string) $orderId, 'order_number' => $orderNumber],
-            'payment_intent_data' => ['metadata' => ['order_id' => (string) $orderId, 'order_number' => $orderNumber]],
         ];
 
         if (! empty($buyer['email'])) {
-            $params['customer_email'] = $buyer['email'];
+            $params['receipt_email'] = sanitize_email((string) $buyer['email']);
         }
-
-        if ($totals->shippingCents > 0) {
-            $params['shipping_options'] = [[
-                'shipping_rate_data' => [
-                    'type' => 'fixed_amount',
-                    'fixed_amount' => ['amount' => $totals->shippingCents, 'currency' => $currency],
-                    'display_name' => __('Versand', 'rh-shop'),
-                ],
-            ]];
-        }
-
-        $params['shipping_address_collection'] = [
-            'allowed_countries' => (array) apply_filters('rh-blueprint/shop/shipping_countries', ['DE', 'AT', 'CH']),
-        ];
 
         try {
-            $session = $client->checkout->sessions->create($params);
+            $intent = $client->paymentIntents->create($params);
         } catch (ApiErrorException $e) {
             return new WP_Error('rhshop_stripe_error', $e->getMessage(), ['status' => 502]);
         }
 
-        $this->orders->attachSession($orderId, (string) $session->id);
+        $this->orders->attachPaymentIntent($orderId, (string) $intent->id);
 
         return [
-            'client_secret' => (string) $session->client_secret,
+            'client_secret' => (string) $intent->client_secret,
             'order_id' => $orderId,
             'order_number' => $orderNumber,
-            'session_id' => (string) $session->id,
+            'payment_intent_id' => (string) $intent->id,
         ];
     }
 
@@ -141,18 +117,5 @@ final class CheckoutService
             'qty' => $line->qty,
             'line_total_cents' => $line->lineTotalCents(),
         ];
-    }
-
-    /**
-     * Rück-URL nach abgeschlossener Zahlung. Stripe ersetzt {CHECKOUT_SESSION_ID}.
-     * Manuell zusammengesetzt, weil add_query_arg die geschweiften Klammern encoden
-     * würde.
-     */
-    private function returnUrl(): string
-    {
-        $base = (string) apply_filters('rh-blueprint/shop/return_url', home_url('/danke'));
-        $sep = str_contains($base, '?') ? '&' : '?';
-
-        return $base . $sep . 'session_id={CHECKOUT_SESSION_ID}';
     }
 }

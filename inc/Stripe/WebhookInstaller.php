@@ -24,7 +24,7 @@ use WP_Error;
  */
 final class WebhookInstaller
 {
-    private const EVENTS = ['checkout.session.completed', 'checkout.session.async_payment_succeeded'];
+    private const EVENTS = ['payment_intent.succeeded'];
 
     public function __construct(
         private readonly Config $config,

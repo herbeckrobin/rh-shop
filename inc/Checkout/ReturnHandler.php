@@ -13,11 +13,11 @@ use RhShop\Orders\OrderStore;
  *
  * Der Webhook läuft serverseitig OHNE die Session/den Cookie des Käufers, kann den
  * Warenkorb-Cookie also nicht anfassen. Das Leeren muss darum in einem Request im
- * Browser des Käufers passieren: genau das ist der Rücksprung auf `/danke?session_id=…`
+ * Browser des Käufers passieren: genau das ist der Rücksprung auf `/danke?payment_intent=…`
  * nach abgeschlossener Zahlung.
  *
  * Läuft auf `template_redirect` (vor jeder Ausgabe, damit setcookie greift). Geleert
- * wird nur, wenn die session_id zu einer echten Bestellung gehört (embedded Checkout
+ * wird nur, wenn der payment_intent zu einer echten Bestellung gehört (Stripe Payment Element
  * leitet erst nach abgeschlossener Zahlung auf die Rück-URL, ein Rücksprung ist also
  * ein abgeschlossener Kauf).
  */
@@ -35,13 +35,13 @@ final class ReturnHandler
         }
 
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Landing von Stripe, kein Formular; leert nur den eigenen Cookie.
-        $sessionId = isset($_GET['session_id']) ? sanitize_text_field(wp_unslash($_GET['session_id'])) : '';
-        if ($sessionId === '' || ! str_starts_with($sessionId, 'cs_')) {
+        $paymentIntent = isset($_GET['payment_intent']) ? sanitize_text_field(wp_unslash($_GET['payment_intent'])) : '';
+        if ($paymentIntent === '' || ! str_starts_with($paymentIntent, 'pi_')) {
             return;
         }
 
-        // Nur leeren, wenn die Session zu einer bei uns angelegten Bestellung gehört.
-        if ((new OrderStore())->findBySessionId($sessionId) === null) {
+        // Nur leeren, wenn der PaymentIntent zu einer bei uns angelegten Bestellung gehört.
+        if ((new OrderStore())->findByPaymentIntent($paymentIntent) === null) {
             return;
         }
 

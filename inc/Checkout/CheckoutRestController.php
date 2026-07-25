@@ -40,20 +40,20 @@ final class CheckoutRestController
         ]);
 
         // Öffentlicher Read: der Käufer fragt auf der Danke-Seite den Rechnungsstatus
-        // zu SEINER Session ab (die Session-ID ist die Zugangsberechtigung). Liefert nur
+        // zu SEINEM PaymentIntent ab (die PI-ID ist die Zugangsberechtigung). Liefert nur
         // paid-Status und die Stripe-Rechnungs-URL, keine Kundendaten.
         register_rest_route(CartRestController::NAMESPACE, '/checkout/invoice', [
             'methods' => WP_REST_Server::READABLE,
             'callback' => [$this, 'invoiceStatus'],
             'permission_callback' => '__return_true',
-            'args' => ['session_id' => ['type' => 'string', 'required' => true]],
+            'args' => ['payment_intent' => ['type' => 'string', 'required' => true]],
         ]);
     }
 
     public function invoiceStatus(WP_REST_Request $request): WP_REST_Response
     {
-        $sessionId = sanitize_text_field((string) $request->get_param('session_id'));
-        $order = str_starts_with($sessionId, 'cs_') ? (new OrderStore())->findBySessionId($sessionId) : null;
+        $paymentIntent = sanitize_text_field((string) $request->get_param('payment_intent'));
+        $order = str_starts_with($paymentIntent, 'pi_') ? (new OrderStore())->findByPaymentIntent($paymentIntent) : null;
 
         if ($order === null) {
             return new WP_REST_Response(['paid' => false, 'invoice_url' => '']);
