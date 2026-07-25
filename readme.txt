@@ -4,7 +4,7 @@ Tags: shop, ecommerce, stripe, products
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 0.4.0
+Stable tag: 0.5.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -17,6 +17,12 @@ RH Shop ist der leichte Weg, ein kleines Sortiment (Merch, ein paar Produkte) zu
 Teil der rh-blueprint Kollektion.
 
 == Changelog ==
+
+= 0.5.0 =
+* Neuer Block „Warenkorb-Widget" für die Navigation: ein Warenkorb-Symbol (Tasche, Wagen oder Korb) oder ein Wort mit Anzahl-Badge. Ein Klick öffnet ein Overlay (Drawer von rechts) mit dem Warenkorb, Mengen änderbar, direkt zur Kasse.
+* Das Overlay öffnet sich automatisch beim In-den-Warenkorb-Legen (abschaltbar) und bleibt mit der Warenkorb-Seite synchron.
+* Einstellungen im Block: Anzeige (Symbol/Wort/beides), Symbol, Wort, Anzahl-Badge an/aus, Badge bei 0 verstecken, beim Hinzufügen öffnen.
+* Das Overlay ist gegen Theme-Styles isoliert (eigener Namespace, Reset, an den Seitenkörper gehängt), damit es in jedem Theme sauber aussieht. Ohne JavaScript führt der Trigger als normaler Link zur Warenkorb-Seite.
 
 = 0.4.0 =
 * Bestell-Detailansicht im Admin: ein Klick auf die Bestellnummer öffnet Kunde, Lieferadresse, Positionen mit Summen, den Rechnungslink und die Stripe-Zahlungsreferenz. Der Status lässt sich direkt dort setzen.
