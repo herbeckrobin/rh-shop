@@ -71,15 +71,91 @@ final class ShopSettingsPage
             return;
         }
 
-        echo '<div class="rhbp-card" style="max-width:640px">';
-
-        // Status-Pill
-        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- statusPill() liefert bereits escaptes Markup.
-        echo '<p>' . $this->statusPill() . '</p>';
+        // Klare Linie: oben auf einen Blick der Stand, dann die Felder in vier
+        // benannten Abschnitten in der Reihenfolge, in der man sie braucht.
+        $this->renderStatusCard();
 
         echo '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '">';
         wp_nonce_field(self::NONCE);
         echo '<input type="hidden" name="action" value="rhshop_settings_save" />';
+
+        $this->renderPaymentSection();
+        $this->renderPricingSection();
+        $this->renderShippingSection();
+        $this->renderLegalSection();
+
+        echo '<p style="max-width:640px"><button type="submit" class="rhbp-btn rhbp-btn--primary">' . esc_html__('Speichern', 'rh-shop') . '</button></p>';
+        echo '</form>';
+
+        $this->renderWebhookCard();
+    }
+
+    /**
+     * "Erste Schritte": Checkliste, die auf einen Blick zeigt, was noch offen ist,
+     * damit der Shop startklar wird. Die grosse Orientierung für jemanden, der sich
+     * nicht auskennt: oben sehen was fehlt, dann in den Abschnitten darunter erledigen.
+     */
+    private function renderStatusCard(): void
+    {
+        $stripeOk = $this->config->isConfigured();
+        $webhookOk = $this->config->webhookEndpointId() !== '' || $this->config->hasStoredWebhookSecret();
+        $anbieterOk = trim((string) rhbp_setting(Config::GROUP, \RhShop\Legal\Anbieter::SETTING_ADDRESS, '')) !== '';
+
+        echo '<div class="rhbp-card" style="max-width:640px">';
+        echo '<h3 style="margin-top:0">' . esc_html__('Erste Schritte', 'rh-shop') . '</h3>';
+        echo '<p class="rhbp-field__desc">' . esc_html__('So wird dein Shop startklar. Was hier offen ist, erledigst du in den Abschnitten darunter.', 'rh-shop') . '</p>';
+
+        echo '<ul style="list-style:none;margin:0.8rem 0 0;padding:0">';
+        $this->checkItem($stripeOk, __('Stripe verbunden', 'rh-shop'), __('Trage im Abschnitt „Zahlung" deine Stripe-Schlüssel ein.', 'rh-shop'));
+        $this->checkItem($webhookOk, __('Zahlungsbestätigung (Webhook) eingerichtet', 'rh-shop'), __('Weiter unten mit einem Klick einrichtbar, sobald Stripe verbunden ist.', 'rh-shop'));
+        $this->checkItem($anbieterOk, __('Anbieter-Anschrift hinterlegt', 'rh-shop'), __('Für das Muster-Widerrufsformular, im Abschnitt „Rechtliches".', 'rh-shop'));
+        echo '</ul>';
+
+        if ($stripeOk) {
+            $mode = $this->config->isTestMode() ? __('Test-Modus', 'rh-shop') : __('Live-Modus', 'rh-shop');
+            echo '<p style="margin:0.9rem 0 0">' . esc_html__('Aktueller Modus:', 'rh-shop')
+                . ' <span class="rhbp-pill rhbp-pill--ok"><span class="rhbp-pill__dot" aria-hidden="true"></span> ' . esc_html($mode) . '</span></p>';
+        }
+
+        echo '</div>';
+    }
+
+    private function checkItem(bool $done, string $label, string $openHint): void
+    {
+        echo '<li style="margin:0 0 0.7rem">';
+        echo '<span style="font-weight:600">' . esc_html($label) . '</span> ';
+        if ($done) {
+            echo '<span class="rhbp-pill rhbp-pill--ok"><span class="rhbp-pill__dot" aria-hidden="true"></span> ' . esc_html__('erledigt', 'rh-shop') . '</span>';
+        } else {
+            echo '<span class="rhbp-pill rhbp-pill--warn">' . esc_html__('offen', 'rh-shop') . '</span>';
+            echo '<p class="rhbp-field__desc" style="margin:0.15rem 0 0">' . esc_html($openHint) . '</p>';
+        }
+        echo '</li>';
+    }
+
+    private function sectionOpen(string $title, string $intro): void
+    {
+        echo '<div class="rhbp-card" style="max-width:640px;margin-top:1rem">';
+        echo '<h3 style="margin-top:0">' . esc_html($title) . '</h3>';
+        if ($intro !== '') {
+            echo '<p class="rhbp-field__desc" style="margin:-0.2rem 0 1rem">' . esc_html($intro) . '</p>';
+        }
+    }
+
+    private function sectionClose(): void
+    {
+        echo '</div>';
+    }
+
+    /**
+     * Abschnitt 1: Zahlung. Ohne Stripe geht nichts, darum zuerst.
+     */
+    private function renderPaymentSection(): void
+    {
+        $this->sectionOpen(
+            __('Zahlung', 'rh-shop'),
+            __('Verbinde deinen Stripe-Account. Die Schlüssel findest du im Stripe-Dashboard unter „Entwickler".', 'rh-shop')
+        );
 
         // Publishable Key (öffentlich)
         echo '<div class="rhbp-field">';
@@ -106,9 +182,22 @@ final class ShopSettingsPage
             'webhook_secret',
             __('Webhook Signing Secret', 'rh-shop'),
             'whsec_...',
-            __('Signatur-Geheimnis aus dem Stripe-Webhook. Verifiziert, dass Zahlungs-Events wirklich von Stripe kommen.', 'rh-shop'),
+            __('Signatur-Geheimnis aus dem Stripe-Webhook. Verifiziert, dass Zahlungs-Events wirklich von Stripe kommen. Auf einer Live-Seite füllt das der Webhook-Knopf unten automatisch.', 'rh-shop'),
             $this->config->hasStoredWebhookSecret(),
             defined(Config::CONST_WEBHOOK) && constant(Config::CONST_WEBHOOK) !== ''
+        );
+
+        $this->sectionClose();
+    }
+
+    /**
+     * Abschnitt 2: Preise & Steuer.
+     */
+    private function renderPricingSection(): void
+    {
+        $this->sectionOpen(
+            __('Preise & Steuer', 'rh-shop'),
+            __('Währung und wie die Steuer berechnet wird. Produktpreise pflegst du am Produkt selbst.', 'rh-shop')
         );
 
         // Währung
@@ -153,6 +242,19 @@ final class ShopSettingsPage
         echo '<p class="rhbp-field__desc">' . esc_html__('Prozentsatz für die Regelbesteuerung. Deutschland 19, ermäßigt 7. Bei Kleinunternehmer ohne Wirkung.', 'rh-shop') . '</p>';
         echo '</div>';
 
+        $this->sectionClose();
+    }
+
+    /**
+     * Abschnitt 3: Versand.
+     */
+    private function renderShippingSection(): void
+    {
+        $this->sectionOpen(
+            __('Versand', 'rh-shop'),
+            __('Was der Versand kostet und ab wann er gratis ist.', 'rh-shop')
+        );
+
         // Versandpauschale
         $shippingCents = $this->config->shippingCents();
         echo '<div class="rhbp-field">';
@@ -174,6 +276,19 @@ final class ShopSettingsPage
         );
         echo '<p class="rhbp-field__desc">' . esc_html__('Ab diesem Warenwert (Zwischensumme) entfällt die Versandpauschale. Leer oder 0 = aus.', 'rh-shop') . '</p>';
         echo '</div>';
+
+        $this->sectionClose();
+    }
+
+    /**
+     * Abschnitt 4: Rechtliches (Pflichtangaben, Widerruf, Beleg).
+     */
+    private function renderLegalSection(): void
+    {
+        $this->sectionOpen(
+            __('Rechtliches', 'rh-shop'),
+            __('Pflichtangaben für einen B2C-Shop. Im Zweifel eingeschaltet lassen.', 'rh-shop')
+        );
 
         // AGB-Zustimmung im Checkout (optional, AGB sind nicht Pflicht)
         echo '<div class="rhbp-field">';
@@ -206,11 +321,7 @@ final class ShopSettingsPage
         echo '<p class="rhbp-field__desc">' . esc_html__('Vollständige Anschrift (Straße, PLZ, Ort). Wird ins Muster-Widerrufsformular eingesetzt. Name und E-Mail kommen aus den WordPress-Stammdaten. Pflegst du Stammdaten schon in rh-seo, kann eine Suite-Integration das automatisch liefern.', 'rh-shop') . '</p>';
         echo '</div>';
 
-        echo '<p><button type="submit" class="rhbp-btn rhbp-btn--primary">' . esc_html__('Speichern', 'rh-shop') . '</button></p>';
-        echo '</form>';
-        echo '</div>';
-
-        $this->renderWebhookCard();
+        $this->sectionClose();
     }
 
     /**
@@ -287,19 +398,6 @@ final class ShopSettingsPage
 
         echo '<p class="rhbp-field__desc">' . esc_html($desc) . '</p>';
         echo '</div>';
-    }
-
-    private function statusPill(): string
-    {
-        if (! $this->config->isConfigured()) {
-            return '<span class="rhbp-pill rhbp-pill--warn">' . esc_html__('Nicht konfiguriert', 'rh-shop') . '</span>';
-        }
-
-        $mode = $this->config->isTestMode()
-            ? __('Verbunden (Test-Modus)', 'rh-shop')
-            : __('Verbunden (Live-Modus)', 'rh-shop');
-
-        return '<span class="rhbp-pill rhbp-pill--ok"><span class="rhbp-pill__dot" aria-hidden="true"></span> ' . esc_html($mode) . '</span>';
     }
 
     public function handleSave(): void
