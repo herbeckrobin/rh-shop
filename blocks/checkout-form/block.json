@@ -1,0 +1,15 @@
+{
+    "$schema": "https://schemas.wp.org/trunk/block.json",
+    "apiVersion": 3,
+    "name": "rh-shop/checkout-form",
+    "title": "Kasse: Formular & Zahlung",
+    "category": "rh-shop",
+    "icon": "money-alt",
+    "description": "Kontakt, Pflicht-Checkboxen, Gesamtpreis und der Zahlungspflichtig-bestellen-Button mit Stripe-Zahlung.",
+    "textdomain": "rh-shop",
+    "attributes": {},
+    "supports": { "align": ["wide"], "html": false },
+    "editorScript": "rh-shop-blocks-editor",
+    "style": "rh-shop",
+    "render": "file:./render.php"
+}

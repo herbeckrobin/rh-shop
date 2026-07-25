@@ -1,0 +1,15 @@
+{
+    "$schema": "https://schemas.wp.org/trunk/block.json",
+    "apiVersion": 3,
+    "name": "rh-shop/checkout-summary",
+    "title": "Kasse: Bestellübersicht",
+    "category": "rh-shop",
+    "icon": "list-view",
+    "description": "Die Bestellübersicht der Kasse: Positionen und Preisaufschlüsselung. Reine Anzeige, frei neben dem Kassen-Formular platzierbar.",
+    "textdomain": "rh-shop",
+    "attributes": {},
+    "supports": { "align": ["wide"], "html": false },
+    "editorScript": "rh-shop-blocks-editor",
+    "style": "rh-shop",
+    "render": "file:./render.php"
+}

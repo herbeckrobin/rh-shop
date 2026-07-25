@@ -133,13 +133,21 @@
 			'rh-shop/buy-box',
 			__( 'Beispielansicht mit einem deiner Produkte. Im Frontend zeigt der Block das Produkt der jeweiligen Detailseite.', 'rh-shop' )
 		),
-		'rh-shop/cart': previewWithNote(
-			'rh-shop/cart',
-			__( 'Beispielansicht. Im Frontend zeigt der Warenkorb die Artikel des Besuchers.', 'rh-shop' )
+		'rh-shop/cart-items': previewWithNote(
+			'rh-shop/cart-items',
+			__( 'Beispielansicht der Warenkorb-Positionen. Im Frontend die Artikel des Besuchers.', 'rh-shop' )
 		),
-		'rh-shop/checkout': previewWithNote(
-			'rh-shop/checkout',
-			__( 'Beispielansicht der Kasse. Im Frontend mit den echten Artikeln des Besuchers und der Stripe-Zahlung.', 'rh-shop' )
+		'rh-shop/cart-summary': previewWithNote(
+			'rh-shop/cart-summary',
+			__( 'Beispielansicht der Warenkorb-Summe mit Zur-Kasse-Button.', 'rh-shop' )
+		),
+		'rh-shop/checkout-summary': previewWithNote(
+			'rh-shop/checkout-summary',
+			__( 'Beispielansicht der Bestellübersicht. Im Frontend die echten Artikel des Besuchers.', 'rh-shop' )
+		),
+		'rh-shop/checkout-form': previewWithNote(
+			'rh-shop/checkout-form',
+			__( 'Beispielansicht des Kassen-Formulars mit Gesamtpreis, Pflichtangaben und Stripe-Zahlung.', 'rh-shop' )
 		),
 		'rh-shop/widerruf': previewWithNote(
 			'rh-shop/widerruf',

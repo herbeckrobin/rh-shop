@@ -1,0 +1,15 @@
+{
+    "$schema": "https://schemas.wp.org/trunk/block.json",
+    "apiVersion": 3,
+    "name": "rh-shop/cart-items",
+    "title": "Warenkorb: Positionen",
+    "category": "rh-shop",
+    "icon": "list-view",
+    "description": "Die Artikel im Warenkorb mit Menge und Entfernen. Frei neben der Warenkorb-Summe platzierbar.",
+    "textdomain": "rh-shop",
+    "attributes": {},
+    "supports": { "align": ["wide"], "html": false },
+    "editorScript": "rh-shop-blocks-editor",
+    "style": "rh-shop",
+    "render": "file:./render.php"
+}

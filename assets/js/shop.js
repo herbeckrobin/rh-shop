@@ -152,11 +152,18 @@
 	}
 
 	// --- Warenkorb ---
-	function initCart( cartEl ) {
-		var linesEl = cartEl.querySelector( '[data-rhshop-cart-lines]' );
-		var emptyEl = cartEl.querySelector( '[data-rhshop-cart-empty]' );
-		var footEl = cartEl.querySelector( '[data-rhshop-cart-foot]' );
-		var totalEl = cartEl.querySelector( '[data-rhshop-cart-total]' );
+	// Seiten-weit statt pro Root: Positionen (data-rhshop-cart-lines) und Summe
+	// (data-rhshop-cart-total) dürfen in getrennten Blöcken liegen. Die Aktualisierung
+	// findet sie über die data-Attribute, egal in welchem Block sie stehen.
+	function initCart() {
+		var linesEl = document.querySelector( '[data-rhshop-cart-lines]' );
+		var emptyEl = document.querySelector( '[data-rhshop-cart-empty]' );
+		var footEl = document.querySelector( '[data-rhshop-cart-foot]' );
+		var totalEl = document.querySelector( '[data-rhshop-cart-total]' );
+
+		if ( ! linesEl ) {
+			return;
+		}
 
 		function lineHtml( l ) {
 			var media = l.thumbnail
@@ -203,7 +210,7 @@
 			} );
 		}
 
-		cartEl.addEventListener( 'click', function ( e ) {
+		document.addEventListener( 'click', function ( e ) {
 			var line = e.target.closest( '.rhshop-cart__line' );
 			if ( ! line ) {
 				return;
@@ -221,7 +228,7 @@
 			}
 		} );
 
-		cartEl.addEventListener( 'change', function ( e ) {
+		document.addEventListener( 'change', function ( e ) {
 			var input = e.target.closest( '[data-rhshop-cart-qty-input]' );
 			var line = e.target.closest( '.rhshop-cart__line' );
 			if ( input && line ) {
@@ -232,7 +239,7 @@
 
 	function init() {
 		document.querySelectorAll( '[data-rhshop-buy]' ).forEach( initBuyBox );
-		document.querySelectorAll( '[data-rhshop-cart]' ).forEach( initCart );
+		initCart();
 	}
 
 	if ( document.readyState === 'loading' ) {

@@ -18,7 +18,7 @@ use RhShop\Catalog\ProductType;
  */
 final class Blocks
 {
-    private const BLOCKS = ['product-grid', 'product-single', 'buy-box', 'cart', 'checkout', 'widerruf'];
+    private const BLOCKS = ['product-grid', 'product-single', 'buy-box', 'cart-items', 'cart-summary', 'checkout-summary', 'checkout-form', 'widerruf'];
 
     public function boot(): void
     {

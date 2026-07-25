@@ -261,8 +261,24 @@
 }
 
 /* Kasse */
-.rhshop-checkout { max-width: 560px; margin-inline: auto; }
+/* Keine feste Breite mehr: das Layout (z.B. zweispaltig via Core-Spalten) bestimmt der
+   Betreiber selbst über die getrennten Kassen-Blöcke. Der Block füllt seinen Container. */
 .rhshop-checkout__title { margin: 0 0 0.8rem; font-size: 1.3rem; }
+
+/* §312j-Gesamtzeile direkt über dem Bestell-Button (im Formular-Block). */
+.rhshop-checkout__payline {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 0.2rem 0.6rem;
+	margin: 0 0 1rem;
+	padding-bottom: 0.8rem;
+	border-bottom: 1px solid var(--rhshop-line-fallback);
+	border-bottom: 1px solid var(--rhshop-line);
+}
+.rhshop-checkout__payline-label { font-weight: 600; }
+.rhshop-checkout__payline-total { font-size: 1.35rem; font-weight: 700; margin-left: auto; }
+.rhshop-checkout__payline-note { flex-basis: 100%; font-size: 0.82rem; opacity: 0.65; }
 .rhshop-checkout__items { list-style: none; margin: 0 0 1.2rem; padding: 0; }
 .rhshop-checkout__item {
 	display: grid;
@@ -366,17 +382,16 @@
    Viewport-Rand. Nutzt die Layout-Breiten des Themes (theme.json), zentriert und
    gibt seitliches Padding. Auf constrained-Themes weitgehend ein No-op. Die Kauf-Box
    ist bewusst NICHT dabei (sitzt im Produkt-Template in einer Spalte). */
-.wp-block-rh-shop-product-grid,
-.wp-block-rh-shop-cart,
-.wp-block-rh-shop-checkout {
+/* Das Produkt-Raster begrenzt sich selbst (steht meist allein auf der Shop-Seite). Die
+   Warenkorb- und Kassen-Blöcke NICHT: die ordnet der Betreiber selbst über Core-Layout
+   (Spalten/Gruppen) an, ein eigener Constraint würde damit kollidieren. */
+.wp-block-rh-shop-product-grid {
 	margin-inline: auto;
 	margin-block: clamp(2rem, 5vw, 4rem);
 	padding-inline: clamp(1rem, 4vw, 2rem);
 	box-sizing: border-box;
+	max-width: var(--wp--style--global--wide-size, 1200px);
 }
-.wp-block-rh-shop-product-grid { max-width: var(--wp--style--global--wide-size, 1200px); }
-.wp-block-rh-shop-cart { max-width: 60rem; }
-.wp-block-rh-shop-checkout { max-width: var(--wp--style--global--content-size, 720px); }
 
 .rhshop-danke {
 	max-width: var(--wp--style--global--content-size, 720px);

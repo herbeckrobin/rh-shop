@@ -1,17 +1,14 @@
 {
     "$schema": "https://schemas.wp.org/trunk/block.json",
     "apiVersion": 3,
-    "name": "rh-shop/checkout",
-    "title": "Kasse",
+    "name": "rh-shop/cart-summary",
+    "title": "Warenkorb: Summe",
     "category": "rh-shop",
-    "icon": "money-alt",
-    "description": "Die Bestellseite: Übersicht, Pflichtangaben, Checkboxen und Zahlung über Stripe.",
+    "icon": "cart",
+    "description": "Die Warenkorb-Summe und der Zur-Kasse-Button. Frei neben den Positionen platzierbar.",
     "textdomain": "rh-shop",
     "attributes": {},
-    "supports": {
-        "align": ["wide"],
-        "html": false
-    },
+    "supports": { "align": ["wide"], "html": false },
     "editorScript": "rh-shop-blocks-editor",
     "style": "rh-shop",
     "render": "file:./render.php"

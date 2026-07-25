@@ -28,7 +28,41 @@ final class CheckoutView
     ) {
     }
 
+    /**
+     * Gesamte Kasse (Übersicht + Formular) gestapelt. Bequemlichkeit; die getrennten
+     * Blöcke nutzen summaryHtml() und formHtml() einzeln, um das Layout frei zu setzen.
+     */
     public function render(): string
+    {
+        return $this->summaryHtml() . $this->formHtml();
+    }
+
+    /**
+     * Bestellübersicht (Positionen + Preisaufschlüsselung), reine Anzeige, kein JS.
+     * Leer, wenn der Warenkorb leer ist (dann übernimmt der Formular-Block die Meldung).
+     */
+    public function summaryHtml(): string
+    {
+        if ($this->cart->isEmpty()) {
+            return '';
+        }
+
+        $totals = Totals::forCart($this->cart, $this->config);
+        $symbol = $this->config->currencySymbol();
+
+        return '<div class="rhshop-checkout-summary">'
+            . $this->summary($this->cart->lines(), $symbol)
+            . $this->breakdown($totals, $symbol)
+            . '</div>';
+    }
+
+    /**
+     * Kontakt + Pflicht-Checkboxen + Zahlungspflichtig-Button + Stripe-Mount, im
+     * `data-rhshop-checkout`-Wrapper (hier hängt das JS). Direkt über dem Button steht
+     * die Gesamtpreis-Zeile (§312j: der Preis muss beim Bestell-Button stehen, egal wie
+     * die Blöcke im Layout angeordnet sind).
+     */
+    public function formHtml(): string
     {
         if ($this->cart->isEmpty()) {
             return '<div class="rhshop-checkout rhshop-checkout--empty"><p>'
@@ -40,14 +74,31 @@ final class CheckoutView
         $totals = Totals::forCart($this->cart, $this->config);
         $symbol = $this->config->currencySymbol();
 
-        $html = '<div class="rhshop-checkout" data-rhshop-checkout>';
-        $html .= $this->summary($this->cart->lines(), $symbol);
-        $html .= $this->breakdown($totals, $symbol);
-        $html .= $this->form();
-        $html .= '<div class="rhshop-checkout__payment" data-rhshop-stripe-mount hidden></div>';
-        $html .= '</div>';
+        return '<div class="rhshop-checkout" data-rhshop-checkout>'
+            . $this->payLine($totals, $symbol)
+            . $this->form()
+            . '<div class="rhshop-checkout__payment" data-rhshop-stripe-mount hidden></div>'
+            . '</div>';
+    }
 
-        return $html;
+    /**
+     * Kompakte Gesamtpreis-Zeile über dem Bestell-Button (§312j).
+     */
+    private function payLine(Totals $totals, string $symbol): string
+    {
+        $label = $totals->isKleinunternehmer()
+            ? __('Gesamt', 'rh-shop')
+            : __('Gesamt (inkl. MwSt.)', 'rh-shop');
+
+        $note = $totals->shippingCents > 0
+            ? sprintf(/* translators: %s: Versandkosten */ __('inkl. %s Versand', 'rh-shop'), Money::format($totals->shippingCents, $symbol))
+            : __('inkl. kostenlosem Versand', 'rh-shop');
+
+        return '<div class="rhshop-checkout__payline">'
+            . '<span class="rhshop-checkout__payline-label">' . esc_html($label) . '</span>'
+            . '<span class="rhshop-checkout__payline-total">' . esc_html(Money::format($totals->totalCents, $symbol)) . '</span>'
+            . '<span class="rhshop-checkout__payline-note">' . esc_html($note) . '</span>'
+            . '</div>';
     }
 
     /**
