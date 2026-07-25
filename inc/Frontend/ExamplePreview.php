@@ -59,12 +59,15 @@ final class ExamplePreview
      */
     private static function products(int $count): array
     {
+        // Deterministisch nach ID sortieren: die getrennten Kassen-/Warenkorb-Blöcke
+        // ziehen jeweils eigenständig ihre Beispiel-Produkte, sie müssen dieselben in
+        // derselben Reihenfolge treffen, sonst passen Positionen und Summe nicht zusammen.
         $posts = get_posts([
             'post_type' => ProductType::POST_TYPE,
             'post_status' => 'publish',
             'numberposts' => $count,
-            'orderby' => 'date',
-            'order' => 'DESC',
+            'orderby' => 'ID',
+            'order' => 'ASC',
         ]);
 
         return is_array($posts) ? $posts : [];
