@@ -21,7 +21,40 @@ final class VariantRepository
 {
     public function __construct(
         private readonly StockRepository $stock = new StockRepository(),
+        private readonly ReservationRepository $reservations = new ReservationRepository(),
     ) {
+    }
+
+    /**
+     * Wie forProduct, aber der Bestand ist der VERFÜGBARE (physischer Bestand minus
+     * aktive Reservierungen). Fürs Frontend: ein reservierter letzter Artikel zeigt
+     * sofort "vergriffen". Der Admin nutzt forProduct (physischer Bestand).
+     *
+     * @return array<int, Variant>
+     */
+    public function availableForProduct(int $productId): array
+    {
+        $reserved = $this->reservations->activeReservedForProduct($productId);
+
+        return array_map(
+            static function (Variant $v) use ($reserved): Variant {
+                if ($v->stock === null) {
+                    return $v; // unbegrenzt
+                }
+
+                return $v->withStock(max(0, $v->stock - ($reserved[$v->id] ?? 0)));
+            },
+            $this->forProduct($productId)
+        );
+    }
+
+    /**
+     * Bestands-Zusammenfassung auf Basis des verfügbaren Bestands (fürs Frontend-Badge
+     * und die Zusammenfassungszeile).
+     */
+    public function availableStockSummary(int $productId, int $threshold): StockSummary
+    {
+        return StockSummary::fromVariants($this->availableForProduct($productId), $threshold);
     }
 
     public const META_VARIANTS = '_rhshop_variants';

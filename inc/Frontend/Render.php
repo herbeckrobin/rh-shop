@@ -120,7 +120,7 @@ final class Render
      */
     public function card(int $productId): string
     {
-        $summary = $this->variants->stockSummary($productId, $this->config->lowStockThreshold());
+        $summary = $this->variants->availableStockSummary($productId, $this->config->lowStockThreshold());
         $soldOut = $summary->soldOut;
         $title = get_the_title($productId);
         $thumb = get_the_post_thumbnail_url($productId, 'medium_large');
@@ -168,10 +168,12 @@ final class Render
      */
     public function controls(int $productId): string
     {
-        $units = $this->variants->forProduct($productId);
+        // Verfügbarer Bestand (physisch minus Reservierungen), damit ein reservierter
+        // letzter Artikel im Frontend sofort als vergriffen erscheint.
+        $units = $this->variants->availableForProduct($productId);
         $hasRealVariants = $this->variants->hasRealVariants($productId);
         $lowStock = $this->config->lowStockThreshold();
-        $summary = $this->variants->stockSummary($productId, $lowStock);
+        $summary = $this->variants->availableStockSummary($productId, $lowStock);
         $soldOut = $summary->soldOut;
         $symbol = $this->config->currencySymbol();
         $unit = $this->variants->unit($productId);
@@ -219,8 +221,9 @@ final class Render
         // Bei Produkten ohne echte Varianten ist die eine Einheit vorausgewählt, darum
         // schon serverseitig den Bestandshinweis rendern (kein Flackern). Bei echten
         // Varianten füllt shop.js ihn erst nach der Auswahl.
-        $stockInitial = ! $hasRealVariants && $cheapest !== null
-            ? $this->lowStockText($cheapest->stock, $lowStock)
+        // Verfügbaren Bestand der Einheit nehmen ($units ist reservierungs-bereinigt).
+        $stockInitial = ! $hasRealVariants && isset($units[0])
+            ? $this->lowStockText($units[0]->stock, $lowStock)
             : '';
 
         // Zusammenfassungszeile über dem Dropdown (nur bei echten Varianten): der

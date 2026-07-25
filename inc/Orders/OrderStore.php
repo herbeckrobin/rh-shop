@@ -186,6 +186,27 @@ final class OrderStore
     }
 
     /**
+     * Unbezahlte Bestellungen stornieren, die älter als $minutes sind (Reservierung
+     * abgelaufen, keine Zahlung). Cutoff über current_datetime() = dieselbe Zeitbasis
+     * wie created_at (WP-lokal), timezone-sicher. Gibt die Zahl der stornierten zurück.
+     */
+    public function cancelAbandonedPending(int $minutes): int
+    {
+        global $wpdb;
+        $table = Schema::ordersTable();
+        $cutoff = current_datetime()->modify('-' . max(1, $minutes) . ' minutes')->format('Y-m-d H:i:s');
+
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+        return (int) $wpdb->query($wpdb->prepare(
+            "UPDATE {$table} SET status = %s, updated_at = %s WHERE status = %s AND created_at < %s",
+            Order::STATUS_CANCELLED,
+            current_time('mysql'),
+            Order::STATUS_PENDING,
+            $cutoff
+        ));
+    }
+
+    /**
      * @return array<int, Order>
      */
     public function recent(int $limit = 50): array

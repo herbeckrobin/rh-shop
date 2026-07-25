@@ -332,6 +332,16 @@ final class ShopSettingsPage
         echo '<p class="rhbp-field__desc">' . esc_html__('Ab diesem Restbestand zeigt das Produkt "Nur noch X verfügbar". 0 = aus (nur Ausverkauft). Gilt nur für Varianten mit verfolgtem Bestand.', 'rh-shop') . '</p>';
         echo '</div>';
 
+        // Reservierungs-Haltedauer
+        echo '<div class="rhbp-field">';
+        echo '<label class="rhbp-field__label" for="rhshop-hold-minutes">' . esc_html__('Bestand reservieren (Minuten)', 'rh-shop') . '</label>';
+        printf(
+            '<input type="number" id="rhshop-hold-minutes" name="reservation_hold_minutes" value="%d" min="1" max="1440" step="1" style="max-width:100px">',
+            $this->config->reservationHoldMinutes()
+        );
+        echo '<p class="rhbp-field__desc">' . esc_html__('Wie lange der Bestand beim Bestellen reserviert wird, damit zwei Kunden nicht denselben letzten Artikel kaufen. Bleibt die Zahlung aus, wird er danach wieder frei. Standard 30.', 'rh-shop') . '</p>';
+        echo '</div>';
+
         $this->sectionClose();
     }
 
@@ -570,6 +580,7 @@ final class ShopSettingsPage
             Config::FIELD_SHIPPING => Money::toCents(isset($_POST['shipping_cents']) ? sanitize_text_field(wp_unslash($_POST['shipping_cents'])) : ''),
             Config::FIELD_FREE_SHIPPING => Money::toCents(isset($_POST['free_shipping_cents']) ? sanitize_text_field(wp_unslash($_POST['free_shipping_cents'])) : ''),
             Config::FIELD_LOW_STOCK => max(0, min(999, (int) ($_POST['low_stock_threshold'] ?? 5))),
+            Config::FIELD_HOLD_MINUTES => max(1, min(1440, (int) ($_POST['reservation_hold_minutes'] ?? 30))),
             Config::FIELD_WIDERRUF_BUTTON => isset($_POST['widerruf_button']),
             Config::FIELD_INVOICE => isset($_POST['invoice_enabled']),
             Config::FIELD_AGB_ENABLED => isset($_POST['agb_enabled']),

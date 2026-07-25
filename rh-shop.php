@@ -44,4 +44,7 @@ register_activation_hook(__FILE__, ['RhShop\\Orders\\Schema', 'activate']);
 // Versand-Seite (PAngV) anlegen, idempotent (überschreibt eine vorhandene nicht).
 register_activation_hook(__FILE__, ['RhShop\\Setup\\Pages', 'install']);
 
+// Aufräum-Cron beim Deaktivieren abbestellen.
+register_deactivation_hook(__FILE__, ['RhShop\\Orders\\ReservationCron', 'unschedule']);
+
 RhShop\Plugin::boot();

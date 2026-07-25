@@ -25,6 +25,7 @@ use RhShop\Withdrawal\WithdrawalRestController;
 use RhShop\Orders\Fulfillment;
 use RhShop\Orders\OrderMailer;
 use RhShop\Orders\OrderStore;
+use RhShop\Orders\ReservationCron;
 use RhShop\Orders\Schema;
 use RhShop\Stripe\Config;
 use RhShop\Stripe\InvoiceService;
@@ -100,6 +101,10 @@ final class Plugin
                 $config->invoiceEnabled()
             )
         ))->boot();
+
+        // Aufräum-Cron: abgelaufene Bestand-Reservierungen + verwaiste unbezahlte
+        // Bestellungen. Läuft überall (nicht nur Admin), damit wp-cron ihn auslöst.
+        (new ReservationCron(new Config()))->boot();
 
         $core->settings()->registerTab('shop', __('Shop', 'rh-shop'), 70);
 
