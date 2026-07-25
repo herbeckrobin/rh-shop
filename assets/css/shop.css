@@ -1,5 +1,34 @@
 /* rh-shop Frontend. Zurückhaltend und theme-neutral, erbt Farben/Fonts wo möglich. */
 
+/*
+ * Design-Tokens an einer Stelle. Radien und Palette sind feste Werte, die Tinten
+ * (Kanten, Trennlinien, Flächen) erben die Textfarbe des Themes über color-mix,
+ * damit sie hell wie dunkel funktionieren. Jede Tinte hat einen rgba-Fallback für
+ * Browser ohne color-mix: am Einsatzort steht der Fallback als erste, das Token als
+ * zweite Deklaration (Progressive Enhancement).
+ */
+:root {
+	--rhshop-radius: 8px;
+	--rhshop-radius-lg: 12px;
+	--rhshop-radius-pill: 999px;
+
+	--rhshop-accent: #141414;
+	--rhshop-on-accent: #fff;
+	--rhshop-ok: #1a7f37;
+	--rhshop-error: #b3261e;
+
+	--rhshop-border-fallback: rgba(128, 128, 128, 0.48);
+	--rhshop-border: color-mix(in srgb, currentColor 34%, transparent);
+	--rhshop-line-fallback: rgba(128, 128, 128, 0.26);
+	--rhshop-line: color-mix(in srgb, currentColor 14%, transparent);
+	--rhshop-line-strong-fallback: rgba(128, 128, 128, 0.4);
+	--rhshop-line-strong: color-mix(in srgb, currentColor 26%, transparent);
+	--rhshop-surface-fallback: rgba(128, 128, 128, 0.1);
+	--rhshop-surface: color-mix(in srgb, currentColor 6%, transparent);
+	--rhshop-surface-2-fallback: rgba(128, 128, 128, 0.18);
+	--rhshop-surface-2: color-mix(in srgb, currentColor 11%, transparent);
+}
+
 .rhshop-grid {
 	display: grid;
 	grid-template-columns: repeat(var(--rhshop-cols, 3), 1fr);
@@ -28,8 +57,9 @@
 	display: block;
 	aspect-ratio: 4 / 5;
 	overflow: hidden;
-	border-radius: 10px;
-	background: rgba(0, 0, 0, 0.04);
+	border-radius: var(--rhshop-radius-lg);
+	background: var(--rhshop-surface-fallback);
+	background: var(--rhshop-surface);
 }
 
 .rhshop-card__media img {
@@ -45,7 +75,8 @@
 	display: block;
 	width: 100%;
 	height: 100%;
-	background: linear-gradient(135deg, rgba(0, 0, 0, 0.05), rgba(0, 0, 0, 0.09));
+	background: var(--rhshop-surface-2-fallback);
+	background: var(--rhshop-surface-2);
 }
 
 .rhshop-card__title { margin-top: 0.7rem; font-weight: 600; }
@@ -67,9 +98,10 @@
 	font-size: 0.72rem;
 	font-weight: 600;
 	letter-spacing: 0.02em;
-	border-radius: 999px;
+	border-radius: var(--rhshop-radius-pill);
+	/* Dunkles Overlay auf dem Produktbild, bewusst themen-unabhängig. */
 	background: rgba(20, 20, 20, 0.85);
-	color: #fff;
+	color: var(--rhshop-on-accent);
 }
 
 /* Einzelprodukt-Block */
@@ -83,7 +115,7 @@
 	.rhshop-single { grid-template-columns: 1fr; }
 }
 
-.rhshop-single__media img { width: 100%; height: auto; border-radius: 12px; }
+.rhshop-single__media img { width: 100%; height: auto; border-radius: var(--rhshop-radius-lg); }
 .rhshop-single__title { margin: 0 0 0.5rem; }
 .rhshop-single__excerpt { opacity: 0.8; margin: 0 0 1.2rem; }
 
@@ -104,9 +136,9 @@
 	max-width: 260px;
 	padding: 0.6rem 0.7rem;
 	margin-bottom: 0.7rem;
-	border: 1px solid rgba(128, 128, 128, 0.45);
-	border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
-	border-radius: 8px;
+	border: 1px solid var(--rhshop-border-fallback);
+	border: 1px solid var(--rhshop-border);
+	border-radius: var(--rhshop-radius);
 	background: transparent;
 	color: inherit;
 	font-size: 1rem;
@@ -123,8 +155,9 @@
 .rhshop-qty {
 	display: inline-flex;
 	align-items: stretch;
-	border: 1px solid rgba(0, 0, 0, 0.2);
-	border-radius: 8px;
+	border: 1px solid var(--rhshop-border-fallback);
+	border: 1px solid var(--rhshop-border);
+	border-radius: var(--rhshop-radius);
 	overflow: hidden;
 }
 .rhshop-qty button {
@@ -138,8 +171,10 @@
 .rhshop-qty input {
 	width: 3rem;
 	border: 0;
-	border-left: 1px solid rgba(0, 0, 0, 0.12);
-	border-right: 1px solid rgba(0, 0, 0, 0.12);
+	border-left: 1px solid var(--rhshop-line-fallback);
+	border-left: 1px solid var(--rhshop-line);
+	border-right: 1px solid var(--rhshop-line-fallback);
+	border-right: 1px solid var(--rhshop-line);
 	text-align: center;
 	font-size: 1rem;
 	-moz-appearance: textfield;
@@ -151,13 +186,13 @@
 .rhshop-btn-checkout {
 	appearance: none;
 	border: 0;
-	border-radius: 8px;
+	border-radius: var(--rhshop-radius);
 	padding: 0.7rem 1.4rem;
 	font-size: 1rem;
 	font-weight: 600;
 	cursor: pointer;
-	background: #141414;
-	color: #fff;
+	background: var(--rhshop-accent);
+	color: var(--rhshop-on-accent);
 	transition: opacity 0.2s ease, transform 0.1s ease;
 	text-decoration: none;
 	display: inline-block;
@@ -179,14 +214,15 @@
 	gap: 1rem;
 	align-items: center;
 	padding: 0.9rem 0;
-	border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+	border-bottom: 1px solid var(--rhshop-line-fallback);
+	border-bottom: 1px solid var(--rhshop-line);
 }
 @media (max-width: 600px) {
 	.rhshop-cart__line { grid-template-columns: 56px 1fr auto; grid-row-gap: 0.5rem; }
 }
 
 .rhshop-cart__media img,
-.rhshop-cart__media .rhshop-card__ph { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; display: block; }
+.rhshop-cart__media .rhshop-card__ph { width: 64px; height: 64px; object-fit: cover; border-radius: var(--rhshop-radius); display: block; }
 .rhshop-cart__info { display: flex; flex-direction: column; }
 .rhshop-cart__title { font-weight: 600; }
 .rhshop-cart__opts { font-size: 0.85rem; opacity: 0.7; }
@@ -195,10 +231,14 @@
 .rhshop-cart__remove {
 	width: 2rem; height: 2rem;
 	border: 0; border-radius: 50%;
-	background: rgba(0, 0, 0, 0.06);
+	background: var(--rhshop-surface-fallback);
+	background: var(--rhshop-surface);
 	font-size: 1.1rem; cursor: pointer; line-height: 1;
 }
-.rhshop-cart__remove:hover { background: rgba(0, 0, 0, 0.12); }
+.rhshop-cart__remove:hover {
+	background: var(--rhshop-surface-2-fallback);
+	background: var(--rhshop-surface-2);
+}
 
 .rhshop-cart__foot {
 	display: flex;
@@ -213,8 +253,9 @@
 
 .rhshop-editor-hint {
 	padding: 1.5rem;
-	border: 1px dashed rgba(0, 0, 0, 0.2);
-	border-radius: 8px;
+	border: 1px dashed var(--rhshop-border-fallback);
+	border: 1px dashed var(--rhshop-border);
+	border-radius: var(--rhshop-radius);
 	text-align: center;
 	opacity: 0.7;
 }
@@ -228,7 +269,8 @@
 	grid-template-columns: 1fr auto auto;
 	gap: 0.8rem;
 	padding: 0.5rem 0;
-	border-bottom: 1px solid rgba(0, 0, 0, 0.07);
+	border-bottom: 1px solid var(--rhshop-line-fallback);
+	border-bottom: 1px solid var(--rhshop-line);
 }
 .rhshop-checkout__item-qty { opacity: 0.6; font-size: 0.9rem; }
 .rhshop-checkout__item-total { font-weight: 600; white-space: nowrap; }
@@ -240,8 +282,10 @@
 	padding: 0.3rem 0;
 }
 .rhshop-checkout__row--muted { opacity: 0.65; font-size: 0.9rem; }
+.rhshop-checkout__freeship { margin: 0.2rem 0 0; font-size: 0.85rem; opacity: 0.75; }
 .rhshop-checkout__total {
-	border-top: 2px solid rgba(0, 0, 0, 0.12);
+	border-top: 2px solid var(--rhshop-line-strong-fallback);
+	border-top: 2px solid var(--rhshop-line-strong);
 	margin-top: 0.4rem;
 	padding-top: 0.7rem;
 	font-size: 1.25rem;
@@ -254,9 +298,9 @@
 .rhshop-checkout__form input[type="email"],
 .rhshop-checkout__form input[type="text"] {
 	padding: 0.6rem 0.7rem;
-	border: 1px solid rgba(128, 128, 128, 0.5);
-	border: 1px solid color-mix(in srgb, currentColor 38%, transparent);
-	border-radius: 8px;
+	border: 1px solid var(--rhshop-border-fallback);
+	border: 1px solid var(--rhshop-border);
+	border-radius: var(--rhshop-radius);
 	background: transparent;
 	color: inherit;
 	font-size: 1rem;
@@ -269,20 +313,20 @@
 .rhshop-btn-order {
 	appearance: none;
 	border: 0;
-	border-radius: 8px;
+	border-radius: var(--rhshop-radius);
 	padding: 0.9rem 1.6rem;
 	width: 100%;
 	font-size: 1.05rem;
 	font-weight: 700;
 	cursor: pointer;
-	background: #141414;
-	color: #fff;
+	background: var(--rhshop-accent);
+	color: var(--rhshop-on-accent);
 	transition: opacity 0.2s ease;
 }
 .rhshop-btn-order:hover:not(:disabled) { opacity: 0.88; }
 .rhshop-btn-order:disabled { opacity: 0.5; cursor: progress; }
 
-.rhshop-checkout__msg { min-height: 1.2em; margin: 0.7rem 0 0; color: #b3261e; font-size: 0.9rem; }
+.rhshop-checkout__msg { min-height: 1.2em; margin: 0.7rem 0 0; color: var(--rhshop-error); font-size: 0.9rem; }
 .rhshop-checkout__payment { margin-top: 1.5rem; }
 
 /* Widerruf (§356a) */
@@ -294,9 +338,9 @@
 .rhshop-widerruf textarea {
 	width: 100%;
 	padding: 0.6rem 0.7rem;
-	border: 1px solid rgba(128, 128, 128, 0.5);
-	border: 1px solid color-mix(in srgb, currentColor 38%, transparent);
-	border-radius: 8px;
+	border: 1px solid var(--rhshop-border-fallback);
+	border: 1px solid var(--rhshop-border);
+	border-radius: var(--rhshop-radius);
 	background: transparent;
 	color: inherit;
 	font-size: 1rem;
@@ -310,8 +354,8 @@
 .rhshop-widerrufsformular__list { list-style: none; margin: 0; padding: 0; }
 .rhshop-widerrufsformular__list li {
 	padding: 0.55rem 0;
-	border-bottom: 1px solid rgba(128, 128, 128, 0.28);
-	border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+	border-bottom: 1px solid var(--rhshop-line-fallback);
+	border-bottom: 1px solid var(--rhshop-line);
 }
 .rhshop-widerrufsformular__note { margin-top: 0.75rem; font-size: 0.85rem; opacity: 0.75; }
 
@@ -353,10 +397,10 @@
 	font-size: 1.2rem;
 	line-height: 1;
 }
-.rhshop-danke__badge--ok { background: #1a7f37; color: #fff; }
+.rhshop-danke__badge--ok { background: var(--rhshop-ok); color: var(--rhshop-on-accent); }
 .rhshop-danke__badge--wait {
-	background: rgba(128, 128, 128, 0.18);
-	background: color-mix(in srgb, currentColor 12%, transparent);
+	background: var(--rhshop-surface-2-fallback);
+	background: var(--rhshop-surface-2);
 }
 .rhshop-danke__status-text { padding-top: 0.15rem; }
 .rhshop-danke__lead { margin: 0; font-size: 1.3rem; font-weight: 700; line-height: 1.25; }
@@ -364,12 +408,12 @@
 .rhshop-danke__note { margin: 0 0 1.6rem; max-width: 46ch; }
 
 .rhshop-danke__order {
-	border: 1px solid rgba(128, 128, 128, 0.32);
-	border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
-	border-radius: 12px;
+	border: 1px solid var(--rhshop-line-strong-fallback);
+	border: 1px solid var(--rhshop-line-strong);
+	border-radius: var(--rhshop-radius-lg);
 	padding: clamp(1.1rem, 3vw, 1.5rem);
-	background: rgba(128, 128, 128, 0.08);
-	background: color-mix(in srgb, currentColor 5%, transparent);
+	background: var(--rhshop-surface-fallback);
+	background: var(--rhshop-surface);
 	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 .rhshop-danke__order-title {
@@ -387,8 +431,8 @@
 	gap: 0.9rem;
 	align-items: baseline;
 	padding: 0.55rem 0;
-	border-bottom: 1px solid rgba(128, 128, 128, 0.22);
-	border-bottom: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+	border-bottom: 1px solid var(--rhshop-line-fallback);
+	border-bottom: 1px solid var(--rhshop-line);
 }
 .rhshop-danke__item-qty { opacity: 0.55; font-size: 0.9rem; white-space: nowrap; }
 .rhshop-danke__item-total { font-weight: 600; white-space: nowrap; }
@@ -396,8 +440,8 @@
 .rhshop-danke__row { display: flex; justify-content: space-between; gap: 1rem; padding: 0.28rem 0; }
 .rhshop-danke__row--muted { opacity: 0.6; font-size: 0.9rem; }
 .rhshop-danke__row--total {
-	border-top: 2px solid rgba(128, 128, 128, 0.4);
-	border-top: 2px solid color-mix(in srgb, currentColor 28%, transparent);
+	border-top: 2px solid var(--rhshop-line-strong-fallback);
+	border-top: 2px solid var(--rhshop-line-strong);
 	margin-top: 0.45rem;
 	padding-top: 0.6rem;
 	font-size: 1.15rem;
@@ -410,7 +454,7 @@
 	display: inline-block;
 	padding: 0.6rem 1.3rem;
 	border: 1px solid currentColor;
-	border-radius: 8px;
+	border-radius: var(--rhshop-radius);
 	font-weight: 600;
 	text-decoration: none;
 	color: inherit;
