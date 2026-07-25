@@ -41,6 +41,25 @@ final class Variant
     }
 
     /**
+     * Höchste kaufbare Menge dieser Variante. null = unbegrenzt (Bestand nicht
+     * verfolgt). Die eine Wahrheit, an der Kauf-Box, Warenkorb und Checkout die
+     * Menge deckeln.
+     */
+    public function maxQty(): ?int
+    {
+        return $this->stock === null ? null : max(0, $this->stock);
+    }
+
+    /**
+     * Knapper Bestand: verfolgt, noch verfügbar und auf/unter der Schwelle. Schwelle
+     * 0 schaltet den Hinweis ab. Spiegelt die Logik in shop.js (stockText).
+     */
+    public function isLowStock(int $threshold): bool
+    {
+        return $this->stock !== null && $this->stock > 0 && $threshold > 0 && $this->stock <= $threshold;
+    }
+
+    /**
      * Lesbare Bezeichnung der Optionen ("L / Schwarz"), leer bei einem Produkt
      * ohne Varianten.
      */

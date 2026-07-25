@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace RhShop\Frontend;
 
 use RhShop\Catalog\GrundpreisUnit;
+use RhShop\Catalog\StockSummary;
 use RhShop\Catalog\VariantRepository;
 use RhShop\Orders\Order;
 use RhShop\Stripe\Config;
@@ -119,7 +120,8 @@ final class Render
      */
     public function card(int $productId): string
     {
-        $soldOut = $this->variants->isSoldOut($productId);
+        $summary = $this->variants->stockSummary($productId, $this->config->lowStockThreshold());
+        $soldOut = $summary->soldOut;
         $title = get_the_title($productId);
         $thumb = get_the_post_thumbnail_url($productId, 'medium_large');
 
@@ -127,9 +129,14 @@ final class Render
             ? sprintf('<img src="%s" alt="%s" loading="lazy" />', esc_url($thumb), esc_attr($title))
             : '<span class="rhshop-card__ph" aria-hidden="true"></span>';
 
-        $badge = $soldOut
-            ? '<span class="rhshop-badge rhshop-badge--out">' . esc_html__('Ausverkauft', 'rh-shop') . '</span>'
-            : '';
+        // Ausverkauft schlägt den Knappheits-Hinweis; sonst "Fast ausverkauft", wenn
+        // mindestens eine Variante knapp ist.
+        $badge = '';
+        if ($soldOut) {
+            $badge = '<span class="rhshop-badge rhshop-badge--out">' . esc_html__('Ausverkauft', 'rh-shop') . '</span>';
+        } elseif ($summary->anyLow) {
+            $badge = '<span class="rhshop-badge rhshop-badge--low">' . esc_html__('Fast ausverkauft', 'rh-shop') . '</span>';
+        }
 
         // Grundpreis der günstigsten Variante (passt zur "ab X €"-Anzeige),
         // Preishinweis ohne Link (die Karte ist selbst ein Link, kein Link-im-Link).
@@ -163,11 +170,11 @@ final class Render
     {
         $units = $this->variants->forProduct($productId);
         $hasRealVariants = $this->variants->hasRealVariants($productId);
-        $soldOut = $this->variants->isSoldOut($productId);
+        $lowStock = $this->config->lowStockThreshold();
+        $summary = $this->variants->stockSummary($productId, $lowStock);
+        $soldOut = $summary->soldOut;
         $symbol = $this->config->currencySymbol();
         $unit = $this->variants->unit($productId);
-
-        $lowStock = $this->config->lowStockThreshold();
 
         $data = array_map(fn ($u): array => [
             'id' => $u->id,
@@ -216,10 +223,15 @@ final class Render
             ? $this->lowStockText($cheapest->stock, $lowStock)
             : '';
 
+        // Zusammenfassungszeile über dem Dropdown (nur bei echten Varianten): der
+        // Vor-Auswahl-Blick, bevor der Kunde eine Variante wählt.
+        $summaryText = $hasRealVariants ? $this->stockSummaryText($summary) : '';
+
         return sprintf(
             '<div class="rhshop-buy" data-rhshop-buy data-rhshop-product="%1$d" data-rhshop-variants="%2$s" data-rhshop-has-variants="%3$s" data-rhshop-low-stock="%12$d">'
             . '<div class="rhshop-buy__price"><span data-rhshop-price>%4$s</span><span class="rhshop-grundpreis" data-rhshop-grundpreis>%10$s</span></div>'
             . '%11$s'
+            . '<p class="rhshop-buy__summary" data-rhshop-stock-summary>%14$s</p>'
             . '%5$s'
             . '<p class="rhshop-buy__stock" data-rhshop-stock aria-live="polite">%13$s</p>'
             . '<div class="rhshop-buy__row">'
@@ -242,7 +254,26 @@ final class Render
             esc_html($gpInitial),
             $this->priceNote(true),
             $lowStock,
-            esc_html($stockInitial)
+            esc_html($stockInitial),
+            esc_html($summaryText)
+        );
+    }
+
+    /**
+     * Vor-Auswahl-Zusammenfassung über alle Varianten. Leer, wenn nichts knapp ist
+     * (ausverkauft zeigt schon der Button). Nennt den kleinsten knappen Bestand,
+     * damit der Kunde die Dringlichkeit vor der Auswahl sieht.
+     */
+    private function stockSummaryText(StockSummary $summary): string
+    {
+        if ($summary->soldOut || ! $summary->anyLow || $summary->lowest === null) {
+            return '';
+        }
+
+        return sprintf(
+            /* translators: %d: kleinster verbleibender Bestand unter den knappen Varianten */
+            __('Einige Varianten nur noch %d Stück verfügbar.', 'rh-shop'),
+            $summary->lowest
         );
     }
 

@@ -58,25 +58,25 @@ final class CartRestController
     public function add(WP_REST_Request $request): WP_REST_Response
     {
         $cart = $this->cart();
-        $cart->add(
+        $capped = $cart->add(
             (int) $request->get_param('product_id'),
             sanitize_text_field((string) $request->get_param('variant_id')),
             (int) ($request->get_param('qty') ?? 1)
         );
 
-        return $this->respond($cart);
+        return $this->respond($cart, $capped);
     }
 
     public function update(WP_REST_Request $request): WP_REST_Response
     {
         $cart = $this->cart();
-        $cart->setQty(
+        $capped = $cart->setQty(
             (int) $request->get_param('product_id'),
             sanitize_text_field((string) $request->get_param('variant_id')),
             (int) $request->get_param('qty')
         );
 
-        return $this->respond($cart);
+        return $this->respond($cart, $capped);
     }
 
     public function remove(WP_REST_Request $request): WP_REST_Response
@@ -95,10 +95,22 @@ final class CartRestController
         return new Cart(new VariantRepository());
     }
 
-    private function respond(Cart $cart): WP_REST_Response
+    private function respond(Cart $cart, ?int $capped = null): WP_REST_Response
     {
         $cart->persist();
 
-        return new WP_REST_Response($cart->toState(new Config()));
+        $state = $cart->toState(new Config());
+
+        // Wurde die Menge wegen Bestand gedeckelt, eine Warnung mitgeben (die UI
+        // zeigt sie an). Die Zahl kommt aus dem Domain-Ergebnis, der Text ist Anzeige.
+        if ($capped !== null) {
+            $state['notice'] = sprintf(
+                /* translators: %d: verbleibender Bestand */
+                _n('Nur noch %d verfügbar, die Menge wurde angepasst.', 'Nur noch %d verfügbar, die Menge wurde angepasst.', $capped, 'rh-shop'),
+                $capped
+            );
+        }
+
+        return new WP_REST_Response($state);
     }
 }

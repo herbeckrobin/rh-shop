@@ -38,6 +38,7 @@ final class CartView
         return '<div class="rhshop-cart-items" data-rhshop-cart-items>'
             . '<p class="rhshop-cart__empty" data-rhshop-cart-empty' . ($state['empty'] ? '' : ' hidden') . '>'
             . esc_html__('Dein Warenkorb ist leer.', 'rh-shop') . '</p>'
+            . '<p class="rhshop-cart__notice" data-rhshop-cart-notice role="status" aria-live="polite"></p>'
             . '<ul class="rhshop-cart__lines" data-rhshop-cart-lines' . ($state['empty'] ? ' hidden' : '') . '>'
             . $lines // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- line() escapt intern.
             . '</ul></div>';
@@ -72,7 +73,7 @@ final class CartView
             . '<span class="rhshop-cart__opts">%5$s</span>'
             . '<span class="rhshop-cart__unit">%6$s</span></div>'
             . '<div class="rhshop-qty"><button type="button" data-rhshop-cart-qty="-">−</button>'
-            . '<input type="number" value="%7$d" min="1" max="99" data-rhshop-cart-qty-input inputmode="numeric" />'
+            . '<input type="number" value="%7$d" min="1" max="%10$d" data-rhshop-cart-qty-input inputmode="numeric" />'
             . '<button type="button" data-rhshop-cart-qty="+">+</button></div>'
             . '<span class="rhshop-cart__lt" data-rhshop-line-total>%8$s</span>'
             . '<button type="button" class="rhshop-cart__remove" data-rhshop-cart-remove aria-label="%9$s">×</button>'
@@ -85,7 +86,9 @@ final class CartView
             esc_html((string) $line['unit_price']),
             (int) $line['qty'],
             esc_html((string) $line['line_total']),
-            esc_attr__('Entfernen', 'rh-shop')
+            esc_attr__('Entfernen', 'rh-shop'),
+            // max: Bestand der Variante (null = unbegrenzt -> 99, die MAX_QTY-Grenze).
+            $line['max'] !== null ? min(99, (int) $line['max']) : 99
         );
     }
 }

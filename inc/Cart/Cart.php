@@ -32,37 +32,65 @@ final class Cart
         $this->items = $this->read();
     }
 
-    public function add(int $productId, string $variantId, int $qty = 1): void
+    /**
+     * @return int|null Der Bestand, auf den gedeckelt wurde, wenn die gewünschte Menge
+     *                  den Bestand überschritt (für eine Warnung); sonst null.
+     */
+    public function add(int $productId, string $variantId, int $qty = 1): ?int
     {
         $qty = max(1, $qty);
 
         if (! $this->isPurchasable($productId, $variantId)) {
-            return;
+            return null;
         }
 
         foreach ($this->items as $i => $item) {
             if ($item['p'] === $productId && $item['v'] === $variantId) {
-                $this->items[$i]['q'] = $this->clampQty($productId, $variantId, $item['q'] + $qty);
-                return;
+                $requested = $item['q'] + $qty;
+                $this->items[$i]['q'] = $this->clampQty($productId, $variantId, $requested);
+
+                return $this->cappedTo($productId, $variantId, $requested);
             }
         }
 
         $this->items[] = ['p' => $productId, 'v' => $variantId, 'q' => $this->clampQty($productId, $variantId, $qty)];
+
+        return $this->cappedTo($productId, $variantId, $qty);
     }
 
-    public function setQty(int $productId, string $variantId, int $qty): void
+    /**
+     * @return int|null Bestand, auf den gedeckelt wurde (falls überschritten), sonst null.
+     */
+    public function setQty(int $productId, string $variantId, int $qty): ?int
     {
         if ($qty <= 0) {
             $this->remove($productId, $variantId);
-            return;
+
+            return null;
         }
 
         foreach ($this->items as $i => $item) {
             if ($item['p'] === $productId && $item['v'] === $variantId) {
                 $this->items[$i]['q'] = $this->clampQty($productId, $variantId, $qty);
-                return;
+
+                return $this->cappedTo($productId, $variantId, $qty);
             }
         }
+
+        return null;
+    }
+
+    /**
+     * Meldet den Bestand, wenn die gewünschte Menge ihn überschreitet (für die
+     * Warnung), sonst null. MAX_QTY-Deckelung zählt hier bewusst nicht, nur echter
+     * Bestandsmangel löst die "nur noch X"-Warnung aus.
+     */
+    private function cappedTo(int $productId, string $variantId, int $requested): ?int
+    {
+        $variant = $this->variants->find($productId, $variantId);
+        $max = $variant?->maxQty();
+
+        return ($max !== null && $requested > $max) ? $max : null;
     }
 
     public function remove(int $productId, string $variantId): void
@@ -108,6 +136,7 @@ final class Cart
                 qty: $item['q'],
                 permalink: (string) get_permalink($item['p']),
                 thumbnailUrl: is_string($thumb) ? $thumb : '',
+                maxQty: $variant->maxQty(),
             );
         }
 
@@ -147,6 +176,9 @@ final class Cart
             'line_total' => Money::format($l->lineTotalCents(), $symbol),
             'permalink' => $l->permalink,
             'thumbnail' => $l->thumbnailUrl,
+            // max: Bestand dieser Variante (null = unbegrenzt). Der Stepper im
+            // Warenkorb deckelt daran, gleiche Wahrheit wie Kauf-Box und Server.
+            'max' => $l->maxQty,
         ], $this->lines());
 
         return [

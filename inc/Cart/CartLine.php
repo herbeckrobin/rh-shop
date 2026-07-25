@@ -22,6 +22,8 @@ final class CartLine
         public readonly int $qty,
         public readonly string $permalink,
         public readonly string $thumbnailUrl,
+        /** Höchste kaufbare Menge (Bestand); null = unbegrenzt. Deckelt den Warenkorb-Stepper. */
+        public readonly ?int $maxQty = null,
     ) {
     }
 

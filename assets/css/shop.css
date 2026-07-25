@@ -105,6 +105,12 @@
 	color: var(--rhshop-on-accent);
 }
 
+/* "Fast ausverkauft" hebt sich vom schwarzen Ausverkauft-Badge ab (Amber). */
+.rhshop-badge--low {
+	background: var(--rhshop-warn);
+	color: #fff;
+}
+
 /* Einzelprodukt-Block */
 .rhshop-single {
 	display: grid;
@@ -208,6 +214,17 @@
 /* Bestandshinweis "Nur noch X verfügbar": leer -> kein Platz (:not(:empty)). */
 .rhshop-buy__stock { margin: 0; }
 .rhshop-buy__stock:not(:empty) { margin: 0.6rem 0 0; font-size: 0.9rem; font-weight: 600; color: var(--rhshop-warn); }
+
+/* Vor-Auswahl-Zusammenfassung über dem Dropdown ("Einige Varianten nur noch X"). */
+.rhshop-buy__summary { margin: 0; }
+.rhshop-buy__summary:not(:empty) { margin: 0.5rem 0 0; font-size: 0.85rem; color: var(--rhshop-warn); }
+
+/* Warenkorb-Warnung, wenn die Menge wegen Bestand gedeckelt wurde. */
+.rhshop-cart__notice { margin: 0; }
+.rhshop-cart__notice:not(:empty) { margin: 0 0 0.8rem; padding: 0.5rem 0.7rem; font-size: 0.88rem; font-weight: 600; color: var(--rhshop-warn); background: var(--rhshop-surface-fallback); background: var(--rhshop-surface); border-radius: var(--rhshop-radius); }
+
+/* Ausverkaufte Auswahl-Optionen (per JS deaktiviert) sichtbar abschwächen. */
+.rhshop-buy__select option:disabled { color: color-mix(in srgb, currentColor 45%, transparent); }
 
 /* Warenkorb */
 .rhshop-cart__lines { list-style: none; margin: 0; padding: 0; }

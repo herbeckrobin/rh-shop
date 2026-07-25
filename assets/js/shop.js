@@ -15,6 +15,9 @@
 		added: 'Im Warenkorb ✓',
 		soldOut: 'Ausverkauft',
 		lowStock: 'Nur noch {n} verfügbar',
+		optSoldOut: 'ausverkauft',
+		optLeft: 'nur noch {n}',
+		capped: 'Nur noch {n} verfügbar, die Menge wurde angepasst.',
 		chooseOptions: 'Bitte Auswahl treffen',
 		error: 'Etwas ist schiefgelaufen. Bitte nochmal versuchen.',
 	};
@@ -84,6 +87,63 @@
 			} );
 		}
 
+		// Kaufbare Höchstmenge der Variante (Bestand); Infinity = unbegrenzt. Die eine
+		// Deckel-Wahrheit, gleich wie Server (Cart::clampQty) und Warenkorb.
+		function maxFor( v ) {
+			return v && v.stock !== null && typeof v.stock !== 'undefined' ? Math.max( 0, v.stock ) : Infinity;
+		}
+
+		// Auswahl-Optionen mit Bestand beschriften: ausverkaufte deaktivieren, knappe
+		// markieren. Läuft über dieselben Varianten-Daten wie alles andere. Bei zwei
+		// Achsen richtet sich die Beschriftung nach der bereits getroffenen Gegen-Wahl.
+		function annotateOptions() {
+			selects.forEach( function ( s ) {
+				var axis = s.getAttribute( 'data-rhshop-opt' );
+				var otherAxis = axis === '1' ? '2' : '1';
+				var otherVal = '';
+				selects.forEach( function ( o ) {
+					if ( o.getAttribute( 'data-rhshop-opt' ) === otherAxis ) {
+						otherVal = o.value;
+					}
+				} );
+
+				Array.prototype.forEach.call( s.options, function ( opt ) {
+					if ( opt.value === '' ) {
+						return;
+					}
+					if ( ! opt.hasAttribute( 'data-base' ) ) {
+						opt.setAttribute( 'data-base', opt.textContent );
+					}
+					var base = opt.getAttribute( 'data-base' );
+					var matches = variants.filter( function ( v ) {
+						var mineOk = ( axis === '1' ? v.o1 : v.o2 ) === opt.value;
+						var otherOk = ! otherVal || ( otherAxis === '1' ? v.o1 : v.o2 ) === otherVal;
+						return mineOk && otherOk;
+					} );
+
+					var suffix = '';
+					var disable = false;
+					if ( matches.length ) {
+						var available = matches.filter( function ( v ) { return v.available; } );
+						if ( ! available.length ) {
+							disable = true;
+							suffix = ' (' + LABELS.optSoldOut + ')';
+						} else if ( available.length === 1 && maxFor( available[ 0 ] ) <= lowStock && lowStock > 0 ) {
+							// Eindeutige Variante hinter dieser Option -> exakter Bestand.
+							suffix = ' (' + LABELS.optLeft.replace( '{n}', maxFor( available[ 0 ] ) ) + ')';
+						}
+					}
+					opt.textContent = base + suffix;
+					opt.disabled = disable;
+				} );
+
+				// Wurde die aktuell gewählte Option gerade deaktiviert, Auswahl zurücksetzen.
+				if ( s.selectedOptions[ 0 ] && s.selectedOptions[ 0 ].disabled ) {
+					s.value = '';
+				}
+			} );
+		}
+
 		function selection() {
 			var out = { o1: '', o2: '' };
 			selects.forEach( function ( s ) {
@@ -112,6 +172,20 @@
 			} ) || null;
 		}
 
+		// Mengenfeld auf den Bestand der gewählten Variante deckeln. Gibt true zurück,
+		// wenn dabei nach unten korrigiert wurde (für die Warnung).
+		function capQty() {
+			var cap = Math.min( 99, selected ? maxFor( selected ) : 99 );
+			var val = Math.max( 1, parseInt( qtyInput.value, 10 ) || 1 );
+			qtyInput.setAttribute( 'max', isFinite( cap ) ? cap : 99 );
+			if ( val > cap ) {
+				qtyInput.value = Math.max( 1, cap );
+				return true;
+			}
+			qtyInput.value = val;
+			return false;
+		}
+
 		function refresh() {
 			selected = resolve();
 			if ( selected ) {
@@ -127,6 +201,7 @@
 				if ( stockEl ) {
 					stockEl.textContent = stockText( selected.stock );
 				}
+				capQty();
 			} else {
 				addBtn.disabled = true;
 				addBtn.textContent = LABELS.add;
@@ -138,14 +213,31 @@
 		}
 
 		selects.forEach( function ( s ) {
-			s.addEventListener( 'change', refresh );
+			s.addEventListener( 'change', function () {
+				annotateOptions();
+				refresh();
+			} );
 		} );
 
 		box.querySelectorAll( '[data-rhshop-qty]' ).forEach( function ( b ) {
 			b.addEventListener( 'click', function () {
 				var step = b.getAttribute( 'data-rhshop-qty' ) === '+' ? 1 : -1;
-				qtyInput.value = Math.max( 1, ( parseInt( qtyInput.value, 10 ) || 1 ) + step );
+				var cap = Math.min( 99, selected ? maxFor( selected ) : 99 );
+				var next = ( parseInt( qtyInput.value, 10 ) || 1 ) + step;
+				if ( next > cap ) {
+					msgEl.textContent = LABELS.capped.replace( '{n}', cap );
+					next = cap;
+				} else if ( step > 0 || next >= 1 ) {
+					msgEl.textContent = '';
+				}
+				qtyInput.value = Math.max( 1, next );
 			} );
+		} );
+
+		qtyInput.addEventListener( 'change', function () {
+			if ( capQty() ) {
+				msgEl.textContent = LABELS.capped.replace( '{n}', Math.min( 99, selected ? maxFor( selected ) : 99 ) );
+			}
 		} );
 
 		addBtn.addEventListener( 'click', function () {
@@ -158,7 +250,9 @@
 				.then( function ( state ) {
 					updateCartCount( state );
 					emitUpdated( state );
-					msgEl.textContent = LABELS.added;
+					// Hat der Server wegen Bestand gedeckelt, seine Warnung zeigen,
+					// sonst die Erfolgsmeldung.
+					msgEl.textContent = state.notice || LABELS.added;
 					addBtn.disabled = false;
 				} )
 				.catch( function () {
@@ -167,6 +261,7 @@
 				} );
 		} );
 
+		annotateOptions();
 		refresh();
 	}
 
@@ -179,6 +274,7 @@
 		var emptyEl = document.querySelector( '[data-rhshop-cart-empty]' );
 		var footEl = document.querySelector( '[data-rhshop-cart-foot]' );
 		var totalEl = document.querySelector( '[data-rhshop-cart-total]' );
+		var noticeEl = document.querySelector( '[data-rhshop-cart-notice]' );
 
 		if ( ! linesEl ) {
 			return;
@@ -194,7 +290,7 @@
 				'<span class="rhshop-cart__opts">' + esc( l.options ) + '</span>' +
 				'<span class="rhshop-cart__unit">' + esc( l.unit_price ) + '</span></div>' +
 				'<div class="rhshop-qty"><button type="button" data-rhshop-cart-qty="-">−</button>' +
-				'<input type="number" value="' + parseInt( l.qty, 10 ) + '" min="1" max="99" data-rhshop-cart-qty-input inputmode="numeric" />' +
+				'<input type="number" value="' + parseInt( l.qty, 10 ) + '" min="1" max="' + ( l.max != null ? Math.min( 99, l.max ) : 99 ) + '" data-rhshop-cart-qty-input inputmode="numeric" />' +
 				'<button type="button" data-rhshop-cart-qty="+">+</button></div>' +
 				'<span class="rhshop-cart__lt" data-rhshop-line-total>' + esc( l.line_total ) + '</span>' +
 				'<button type="button" class="rhshop-cart__remove" data-rhshop-cart-remove aria-label="Entfernen">×</button>' +
@@ -214,6 +310,10 @@
 			}
 			if ( totalEl ) {
 				totalEl.textContent = state.total;
+			}
+			if ( noticeEl ) {
+				// Bestands-Warnung des Servers (Menge gedeckelt) zeigen, sonst leeren.
+				noticeEl.textContent = state.notice || '';
 			}
 		}
 

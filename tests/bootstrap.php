@@ -12,6 +12,8 @@ $inc = dirname(__DIR__) . '/inc';
 
 require $inc . '/Support/Money.php';
 require $inc . '/Catalog/GrundpreisUnit.php';
+require $inc . '/Catalog/Variant.php';
+require $inc . '/Catalog/StockSummary.php';
 require $inc . '/Orders/Order.php';
 require $inc . '/Checkout/Totals.php';
 

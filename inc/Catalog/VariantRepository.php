@@ -146,6 +146,16 @@ final class VariantRepository
     }
 
     /**
+     * Bestands-Zusammenfassung über alle Varianten (die eine Quelle fürs Badge im
+     * Raster und die Zusammenfassungszeile auf der Produktseite). Berechnet, ob alles
+     * ausverkauft ist und ob/wie knapp die verfügbaren Varianten sind.
+     */
+    public function stockSummary(int $productId, int $threshold): StockSummary
+    {
+        return StockSummary::fromVariants($this->forProduct($productId), $threshold);
+    }
+
+    /**
      * Varianten speichern. Zeilen ohne stabile id bekommen eine (überlebt das
      * Umsortieren/Umbenennen, worauf der Warenkorb sich verlässt).
      *
