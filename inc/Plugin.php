@@ -6,6 +6,7 @@ namespace RhShop;
 
 use RhBlueprint\Core\Core;
 use RhBlueprint\Core\Settings\SettingsPage;
+use RhShop\Admin\DashboardPage;
 use RhShop\Admin\GoLiveCheck;
 use RhShop\Admin\OrdersPage;
 use RhShop\Admin\ShopSettingsPage;
@@ -102,6 +103,7 @@ final class Plugin
         $core->settings()->registerTab('shop', __('Shop', 'rh-shop'), 70);
 
         if (is_admin()) {
+            (new DashboardPage(new Config()))->boot();
             (new VariantMetaBox())->boot();
             (new ShopSettingsPage(new Config()))->boot();
             (new GoLiveCheck(new Config()))->boot();

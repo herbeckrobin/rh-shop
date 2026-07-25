@@ -204,6 +204,50 @@ final class OrderStore
     }
 
     /**
+     * Anzahl Bestellungen mit einem Status (z.B. 'paid' = bezahlt, wartet auf Versand).
+     */
+    public function countByStatus(string $status): int
+    {
+        global $wpdb;
+
+        $table = Schema::ordersTable();
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        return (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$table} WHERE status = %s", $status));
+    }
+
+    /**
+     * Umsatz (Summe der Gesamtbeträge in Cent) tatsächlich bezahlter Bestellungen der
+     * letzten N Tage. Bezahlt = Status paid oder shipped, gemessen an paid_at.
+     * Datumsgrenze rechnet MySQL (umgeht die WordPress-Zeitzonen-Falle).
+     */
+    public function revenueLastDays(int $days): int
+    {
+        global $wpdb;
+
+        $table = Schema::ordersTable();
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        return (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COALESCE(SUM(total_cents), 0) FROM {$table} WHERE paid_at >= (NOW() - INTERVAL %d DAY) AND status IN ('paid', 'shipped')",
+            max(1, $days)
+        ));
+    }
+
+    /**
+     * Anzahl bezahlter Bestellungen der letzten N Tage (paid_at).
+     */
+    public function paidCountLastDays(int $days): int
+    {
+        global $wpdb;
+
+        $table = Schema::ordersTable();
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        return (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$table} WHERE paid_at >= (NOW() - INTERVAL %d DAY) AND status IN ('paid', 'shipped')",
+            max(1, $days)
+        ));
+    }
+
+    /**
      * Gemeinsamer Einzel-Fetch mit prepared WHERE-Klausel.
      */
     private function fetch(string $where, int|string $value): ?Order

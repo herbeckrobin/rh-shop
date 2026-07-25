@@ -65,4 +65,17 @@ final class WithdrawalStore
 
         return array_map([Withdrawal::class, 'fromRow'], is_array($rows) ? $rows : []);
     }
+
+    /**
+     * Anzahl eingegangener Widerrufe (für die Übersicht). Es gibt kein "erledigt"-Flag,
+     * der Betreiber bearbeitet sie manuell, darum die Gesamtzahl.
+     */
+    public function count(): int
+    {
+        global $wpdb;
+
+        $table = Schema::withdrawalsTable();
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        return (int) $wpdb->get_var("SELECT COUNT(*) FROM {$table}");
+    }
 }
