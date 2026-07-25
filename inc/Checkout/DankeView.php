@@ -119,7 +119,7 @@ final class DankeView
             $rows .= '<p class="rhshop-danke__taxnote">' . esc_html__('Kleinunternehmer gemäß § 19 UStG. Im Preis ist keine Umsatzsteuer enthalten.', 'rh-shop') . '</p>';
         } else {
             $rows .= $this->row(
-                sprintf(/* translators: %d: Steuersatz */ __('enthaltene USt (%d %%)', 'rh-shop'), $this->config->taxRatePercent()),
+                sprintf(/* translators: %d: Steuersatz */ __('enthaltene MwSt. (%d %%)', 'rh-shop'), $this->config->taxRatePercent()),
                 Money::format($order->taxCents, $symbol),
                 'muted'
             );
