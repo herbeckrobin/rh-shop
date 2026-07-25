@@ -14,6 +14,7 @@
 		add: 'In den Warenkorb',
 		added: 'Im Warenkorb ✓',
 		soldOut: 'Ausverkauft',
+		lowStock: 'Nur noch {n} verfügbar',
 		chooseOptions: 'Bitte Auswahl treffen',
 		error: 'Etwas ist schiefgelaufen. Bitte nochmal versuchen.',
 	};
@@ -62,8 +63,20 @@
 		var addBtn = box.querySelector( '[data-rhshop-add]' );
 		var msgEl = box.querySelector( '[data-rhshop-msg]' );
 		var qtyInput = box.querySelector( '[data-rhshop-qty-input]' );
+		var stockEl = box.querySelector( '[data-rhshop-stock]' );
 		var selects = box.querySelectorAll( '[data-rhshop-opt]' );
+		var lowStock = parseInt( box.getAttribute( 'data-rhshop-low-stock' ), 10 ) || 0;
 		var selected = null;
+
+		// Bestandshinweis für eine Variante. Leer bei unbegrenztem Bestand (null),
+		// ausverkauft (0, das zeigt der Button) oder über der Schwelle. Spiegelt
+		// Render::lowStockText() in PHP.
+		function stockText( stock ) {
+			if ( stock === null || typeof stock === 'undefined' || stock <= 0 || lowStock <= 0 || stock > lowStock ) {
+				return '';
+			}
+			return LABELS.lowStock.replace( '{n}', stock );
+		}
 
 		function axisPresent( axis ) {
 			return variants.some( function ( v ) {
@@ -111,10 +124,16 @@
 				addBtn.disabled = ! selected.available;
 				addBtn.textContent = selected.available ? LABELS.add : LABELS.soldOut;
 				msgEl.textContent = '';
+				if ( stockEl ) {
+					stockEl.textContent = stockText( selected.stock );
+				}
 			} else {
 				addBtn.disabled = true;
 				addBtn.textContent = LABELS.add;
 				msgEl.textContent = '';
+				if ( stockEl ) {
+					stockEl.textContent = '';
+				}
 			}
 		}
 

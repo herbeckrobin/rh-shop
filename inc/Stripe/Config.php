@@ -35,6 +35,7 @@ final class Config
     public const FIELD_MAIL_FROM_ADDRESS = 'mail_from_address';
     public const FIELD_MAIL_NOTIFY = 'mail_notify';
     public const FIELD_MAIL_NOTE = 'mail_note';
+    public const FIELD_LOW_STOCK = 'low_stock_threshold';
 
     /** Default-USt-Satz (Deutschland, Standardsatz). Der echte Satz ist konfigurierbar. */
     public const VAT_RATE_PERCENT = 19;
@@ -147,6 +148,16 @@ final class Config
     public function freeShippingThresholdCents(): int
     {
         return max(0, (int) rhbp_setting(self::GROUP, self::FIELD_FREE_SHIPPING, 0));
+    }
+
+    /**
+     * Ab welchem Restbestand der Hinweis "Nur noch X verfügbar" erscheint (0 = aus,
+     * dann wird nur Ausverkauft angezeigt). Greift nur bei Varianten mit verfolgtem
+     * Bestand; unbegrenzte Varianten zeigen nie einen Bestandshinweis.
+     */
+    public function lowStockThreshold(): int
+    {
+        return max(0, min(999, (int) rhbp_setting(self::GROUP, self::FIELD_LOW_STOCK, 5)));
     }
 
     /**

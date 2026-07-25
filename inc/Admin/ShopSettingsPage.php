@@ -322,6 +322,16 @@ final class ShopSettingsPage
         echo '<p class="rhbp-field__desc">' . esc_html__('Prozentsatz für die Regelbesteuerung. Deutschland 19, ermäßigt 7. Bei Kleinunternehmer ohne Wirkung.', 'rh-shop') . '</p>';
         echo '</div>';
 
+        // Lager-Warnschwelle
+        echo '<div class="rhbp-field">';
+        echo '<label class="rhbp-field__label" for="rhshop-low-stock">' . esc_html__('Lager-Warnung ab', 'rh-shop') . '</label>';
+        printf(
+            '<input type="number" id="rhshop-low-stock" name="low_stock_threshold" value="%d" min="0" max="999" step="1" style="max-width:100px">',
+            $this->config->lowStockThreshold()
+        );
+        echo '<p class="rhbp-field__desc">' . esc_html__('Ab diesem Restbestand zeigt das Produkt "Nur noch X verfügbar". 0 = aus (nur Ausverkauft). Gilt nur für Varianten mit verfolgtem Bestand.', 'rh-shop') . '</p>';
+        echo '</div>';
+
         $this->sectionClose();
     }
 
@@ -559,6 +569,7 @@ final class ShopSettingsPage
             Config::FIELD_TAX_RATE => max(0, min(100, (int) ($_POST['tax_rate'] ?? Config::VAT_RATE_PERCENT))),
             Config::FIELD_SHIPPING => Money::toCents(isset($_POST['shipping_cents']) ? sanitize_text_field(wp_unslash($_POST['shipping_cents'])) : ''),
             Config::FIELD_FREE_SHIPPING => Money::toCents(isset($_POST['free_shipping_cents']) ? sanitize_text_field(wp_unslash($_POST['free_shipping_cents'])) : ''),
+            Config::FIELD_LOW_STOCK => max(0, min(999, (int) ($_POST['low_stock_threshold'] ?? 5))),
             Config::FIELD_WIDERRUF_BUTTON => isset($_POST['widerruf_button']),
             Config::FIELD_INVOICE => isset($_POST['invoice_enabled']),
             Config::FIELD_AGB_ENABLED => isset($_POST['agb_enabled']),

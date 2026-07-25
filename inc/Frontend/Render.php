@@ -167,12 +167,16 @@ final class Render
         $symbol = $this->config->currencySymbol();
         $unit = $this->variants->unit($productId);
 
+        $lowStock = $this->config->lowStockThreshold();
+
         $data = array_map(fn ($u): array => [
             'id' => $u->id,
             'o1' => $u->option1,
             'o2' => $u->option2,
             'price' => Money::format($u->priceCents, $symbol),
             'available' => $u->isAvailable(),
+            // stock: null = unbegrenzt (kein Hinweis), sonst der Restbestand fürs "Nur noch X".
+            'stock' => $u->stock,
             'gp' => $this->grundpreisText($u->gpAmount, $unit, $u->priceCents),
         ], $units);
 
@@ -205,11 +209,19 @@ final class Render
             ? $this->grundpreisText($cheapest->gpAmount, $unit, $cheapest->priceCents)
             : '';
 
+        // Bei Produkten ohne echte Varianten ist die eine Einheit vorausgewählt, darum
+        // schon serverseitig den Bestandshinweis rendern (kein Flackern). Bei echten
+        // Varianten füllt shop.js ihn erst nach der Auswahl.
+        $stockInitial = ! $hasRealVariants && $cheapest !== null
+            ? $this->lowStockText($cheapest->stock, $lowStock)
+            : '';
+
         return sprintf(
-            '<div class="rhshop-buy" data-rhshop-buy data-rhshop-product="%1$d" data-rhshop-variants="%2$s" data-rhshop-has-variants="%3$s">'
+            '<div class="rhshop-buy" data-rhshop-buy data-rhshop-product="%1$d" data-rhshop-variants="%2$s" data-rhshop-has-variants="%3$s" data-rhshop-low-stock="%12$d">'
             . '<div class="rhshop-buy__price"><span data-rhshop-price>%4$s</span><span class="rhshop-grundpreis" data-rhshop-grundpreis>%10$s</span></div>'
             . '%11$s'
             . '%5$s'
+            . '<p class="rhshop-buy__stock" data-rhshop-stock aria-live="polite">%13$s</p>'
             . '<div class="rhshop-buy__row">'
             . '<div class="rhshop-qty"><button type="button" data-rhshop-qty="-" aria-label="%6$s">−</button>'
             . '<input type="number" value="1" min="1" max="99" data-rhshop-qty-input inputmode="numeric" />'
@@ -228,8 +240,25 @@ final class Render
             $addDisabled,
             $soldOut ? esc_html__('Ausverkauft', 'rh-shop') : esc_html__('In den Warenkorb', 'rh-shop'),
             esc_html($gpInitial),
-            $this->priceNote(true)
+            $this->priceNote(true),
+            $lowStock,
+            esc_html($stockInitial)
         );
+    }
+
+    /**
+     * Bestandshinweis für eine Variante. Leer, wenn der Bestand nicht verfolgt wird
+     * (null), ausverkauft ist (0, das übernimmt der Button) oder über der Schwelle
+     * liegt. Sonst "Nur noch X verfügbar". Spiegelt die Logik in shop.js (refresh()).
+     */
+    private function lowStockText(?int $stock, int $threshold): string
+    {
+        if ($stock === null || $stock <= 0 || $threshold <= 0 || $stock > $threshold) {
+            return '';
+        }
+
+        /* translators: %d: verbleibender Bestand */
+        return sprintf(_n('Nur noch %d verfügbar', 'Nur noch %d verfügbar', $stock, 'rh-shop'), $stock);
     }
 
     /**

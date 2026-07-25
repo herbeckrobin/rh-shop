@@ -15,6 +15,7 @@
 	--rhshop-accent: #141414;
 	--rhshop-on-accent: #fff;
 	--rhshop-ok: #1a7f37;
+	--rhshop-warn: #9a6700;
 	--rhshop-error: #b3261e;
 
 	--rhshop-border-fallback: rgba(128, 128, 128, 0.48);
@@ -203,6 +204,10 @@
 .rhshop-btn-add:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .rhshop-buy__msg { min-height: 1.2em; margin: 0.6rem 0 0; font-size: 0.9rem; opacity: 0.8; }
+
+/* Bestandshinweis "Nur noch X verfügbar": leer -> kein Platz (:not(:empty)). */
+.rhshop-buy__stock { margin: 0; }
+.rhshop-buy__stock:not(:empty) { margin: 0.6rem 0 0; font-size: 0.9rem; font-weight: 600; color: var(--rhshop-warn); }
 
 /* Warenkorb */
 .rhshop-cart__lines { list-style: none; margin: 0; padding: 0; }
