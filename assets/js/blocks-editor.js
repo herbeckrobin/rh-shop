@@ -96,24 +96,54 @@
 				useBlockProps(),
 				a.productId
 					? preview( 'rh-shop/product-single', a )
-					: el( 'p', { className: 'rhshop-editor-hint' }, __( 'Wähle rechts ein Produkt.', 'rh-shop' ) )
+					: el( c.Placeholder, {
+						icon: 'products',
+						label: __( 'Einzelprodukt', 'rh-shop' ),
+						instructions: __( 'Wähle rechts in den Block-Einstellungen ein Produkt aus.', 'rh-shop' ),
+					} )
 			)
 		);
 	}
 
-	function hint( text ) {
+	/**
+	 * Instruktiver Platzhalter für die Blocks, die im Frontend automatisch gefüllt
+	 * werden (Warenkorb, Kasse, Widerruf, Kauf-Box). Statt eines kargen Textkastens
+	 * die native Placeholder-Komponente: Icon, Titel und ein Satz, was der Block tut
+	 * und dass hier nichts einzustellen ist.
+	 */
+	function placeholder( icon, label, instructions ) {
 		return function () {
-			return el( 'div', useBlockProps(), el( 'div', { className: 'rhshop-editor-hint' }, text ) );
+			return el(
+				'div',
+				useBlockProps(),
+				el( c.Placeholder, { icon: icon, label: label, instructions: instructions } )
+			);
 		};
 	}
 
 	var edits = {
 		'rh-shop/product-grid': editGrid,
 		'rh-shop/product-single': editSingle,
-		'rh-shop/buy-box': hint( __( 'Kauf-Box. Zeigt Preis, Varianten und In-den-Warenkorb des jeweiligen Produkts.', 'rh-shop' ) ),
-		'rh-shop/cart': hint( __( 'Warenkorb. Wird im Frontend mit den Artikeln des Besuchers gefüllt.', 'rh-shop' ) ),
-		'rh-shop/checkout': hint( __( 'Kasse. Bestellübersicht, Pflichtangaben und Stripe-Zahlung im Frontend.', 'rh-shop' ) ),
-		'rh-shop/widerruf': hint( __( 'Widerrufsseite (§356a). Formular mit Name, Bestellnummer und E-Mail.', 'rh-shop' ) ),
+		'rh-shop/buy-box': placeholder(
+			'cart',
+			__( 'Kauf-Box', 'rh-shop' ),
+			__( 'Zeigt Preis, Varianten-Auswahl und den In-den-Warenkorb-Button des Produkts. Gehört ins Produkt-Template und wird im Frontend automatisch gefüllt, hier ist nichts einzustellen.', 'rh-shop' )
+		),
+		'rh-shop/cart': placeholder(
+			'cart',
+			__( 'Warenkorb', 'rh-shop' ),
+			__( 'Diese Seite zeigt im Frontend automatisch den Warenkorb des Besuchers. Hier musst du nichts einstellen, die Vorschau siehst du erst im Frontend.', 'rh-shop' )
+		),
+		'rh-shop/checkout': placeholder(
+			'money-alt',
+			__( 'Kasse', 'rh-shop' ),
+			__( 'Diese Seite zeigt im Frontend automatisch die Bestellübersicht, die Pflichtangaben und die Stripe-Zahlung. Hier musst du nichts einstellen.', 'rh-shop' )
+		),
+		'rh-shop/widerruf': placeholder(
+			'edit-page',
+			__( 'Vertrag widerrufen', 'rh-shop' ),
+			__( 'Zeigt im Frontend das Widerrufs-Formular nach §356a (Name, Bestellnummer, E-Mail). Hier musst du nichts einstellen.', 'rh-shop' )
+		),
 	};
 
 	( data.meta || [] ).forEach( function ( meta ) {
