@@ -1,0 +1,7 @@
+/* Panes der Shop-Einstellungs-Sub-Tabs: nur der aktive ist sichtbar. Ohne JS sind
+   alle sichtbar (kein Inhalt geht verloren, graceful degradation). */
+.rhshop-settings-tabs.js [data-rhshop-pane] { display: none; }
+.rhshop-settings-tabs.js [data-rhshop-pane].is-active { display: block; }
+.rhshop-settings-tabs .rhbp-subtabs { margin-bottom: 1rem; }
+.rhshop-xlinks { margin: 0.2rem 0 1rem; display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; }
+.rhshop-xlinks a { font-size: 13px; }

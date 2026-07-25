@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace RhShop\Admin;
 
 use RhBlueprint\Core\Settings\SettingsPage;
+use RhShop\Catalog\ProductType;
 use RhShop\Orders\Order;
 use RhShop\Stripe\Config;
 use RhShop\Stripe\StripeClient;
@@ -39,6 +40,7 @@ final class ShopSettingsPage
         add_action('admin_post_rhshop_settings_save', [$this, 'handleSave']);
         add_action('admin_post_rhshop_webhook_install', [$this, 'handleWebhookInstall']);
         add_action('admin_post_rhshop_webhook_remove', [$this, 'handleWebhookRemove']);
+        add_action('admin_enqueue_scripts', [$this, 'enqueueAssets']);
     }
 
     public function renderMessage(string $tabId): void
@@ -65,73 +67,134 @@ final class ShopSettingsPage
         }
     }
 
+    /**
+     * Lädt CSS/JS für die Sub-Tabs, nur auf der Blueprint-Settings-Seite. Nutzt die
+     * Core-Settings-Assets als Abhängigkeit (gleiches Muster wie rh-seo).
+     */
+    public function enqueueAssets(string $hook): void
+    {
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reines Asset-Gate.
+        $page = isset($_GET['page']) ? sanitize_key((string) $_GET['page']) : '';
+        if ($page !== SettingsPage::MENU_SLUG) {
+            return;
+        }
+
+        wp_enqueue_style('rh-shop-settings-tabs', RHSHOP_PLUGIN_URL . 'assets/admin/settings-tabs.css', ['rh-blueprint-settings'], RHSHOP_VERSION);
+        wp_enqueue_script('rh-shop-settings-tabs', RHSHOP_PLUGIN_URL . 'assets/admin/settings-tabs.js', [], RHSHOP_VERSION, true);
+    }
+
     public function render(string $tabId): void
     {
         if ($tabId !== self::TAB_ID) {
             return;
         }
 
-        // Klare Linie: oben auf einen Blick der Stand, dann die Felder in vier
-        // benannten Abschnitten in der Reihenfolge, in der man sie braucht.
-        $this->renderStatusCard();
+        echo '<div class="rhshop-settings-tabs">';
 
+        echo '<p class="rhbp-field__desc" style="margin-top:0">'
+            . esc_html__('Alle Shop-Einstellungen an einem Ort. Was gerade los ist (Bestellungen, Umsatz), siehst du unter ', 'rh-shop')
+            . '<a href="' . esc_url($this->overviewUrl()) . '">' . esc_html__('Shop → Übersicht', 'rh-shop') . '</a>.</p>';
+
+        // Sub-Tab-Leiste. Reihenfolge = Einrichtungs-Reihenfolge: erst zahlen können.
+        echo '<div class="rhbp-subtabs">';
+        $this->tabButton('zahlung', __('Zahlung', 'rh-shop'), true);
+        $this->tabButton('preise', __('Preise & Steuer', 'rh-shop'), false);
+        $this->tabButton('versand', __('Versand', 'rh-shop'), false);
+        $this->tabButton('email', __('E-Mail', 'rh-shop'), false);
+        $this->tabButton('rechtlich', __('Rechtliches', 'rh-shop'), false);
+        echo '</div>';
+
+        // Ein Formular über alle Panes: alle Felder werden immer abgeschickt (auch
+        // versteckte), ein Speichern sichert alles. Die Tabs blenden nur ein/aus.
         echo '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '">';
         wp_nonce_field(self::NONCE);
         echo '<input type="hidden" name="action" value="rhshop_settings_save" />';
 
-        $this->renderPaymentSection();
-        $this->renderPricingSection();
-        $this->renderShippingSection();
-        $this->renderMailSection();
-        $this->renderLegalSection();
+        $this->pane('zahlung', [$this, 'renderPaymentSection'], true);
+        $this->pane('preise', [$this, 'renderPricingSection'], false);
+        $this->pane('versand', [$this, 'renderShippingSection'], false);
+        $this->pane('email', [$this, 'renderMailSection'], false);
+        $this->pane('rechtlich', [$this, 'renderLegalSection'], false);
 
         echo '<p style="max-width:640px"><button type="submit" class="rhbp-btn rhbp-btn--primary">' . esc_html__('Speichern', 'rh-shop') . '</button></p>';
         echo '</form>';
 
-        $this->renderWebhookCard();
-    }
-
-    /**
-     * "Erste Schritte": Checkliste, die auf einen Blick zeigt, was noch offen ist,
-     * damit der Shop startklar wird. Die grosse Orientierung für jemanden, der sich
-     * nicht auskennt: oben sehen was fehlt, dann in den Abschnitten darunter erledigen.
-     */
-    private function renderStatusCard(): void
-    {
-        $stripeOk = $this->config->isConfigured();
-        $webhookOk = $this->config->webhookEndpointId() !== '' || $this->config->hasStoredWebhookSecret();
-        $anbieterOk = trim((string) rhbp_setting(Config::GROUP, \RhShop\Legal\Anbieter::SETTING_ADDRESS, '')) !== '';
-
-        echo '<div class="rhbp-card" style="max-width:640px">';
-        echo '<h3 style="margin-top:0">' . esc_html__('Erste Schritte', 'rh-shop') . '</h3>';
-        echo '<p class="rhbp-field__desc">' . esc_html__('So wird dein Shop startklar. Was hier offen ist, erledigst du in den Abschnitten darunter.', 'rh-shop') . '</p>';
-
-        echo '<ul style="list-style:none;margin:0.8rem 0 0;padding:0">';
-        $this->checkItem($stripeOk, __('Stripe verbunden', 'rh-shop'), __('Trage im Abschnitt „Zahlung" deine Stripe-Schlüssel ein.', 'rh-shop'));
-        $this->checkItem($webhookOk, __('Zahlungsbestätigung (Webhook) eingerichtet', 'rh-shop'), __('Weiter unten mit einem Klick einrichtbar, sobald Stripe verbunden ist.', 'rh-shop'));
-        $this->checkItem($anbieterOk, __('Anbieter-Anschrift hinterlegt', 'rh-shop'), __('Für das Muster-Widerrufsformular, im Abschnitt „Rechtliches".', 'rh-shop'));
-        echo '</ul>';
-
-        if ($stripeOk) {
-            $mode = $this->config->isTestMode() ? __('Test-Modus', 'rh-shop') : __('Live-Modus', 'rh-shop');
-            echo '<p style="margin:0.9rem 0 0">' . esc_html__('Aktueller Modus:', 'rh-shop')
-                . ' <span class="rhbp-pill rhbp-pill--ok"><span class="rhbp-pill__dot" aria-hidden="true"></span> ' . esc_html($mode) . '</span></p>';
-        }
+        // Webhook-Karte gehört zum Zahlung-Tab, hat aber eigene Formulare, muss also
+        // ausserhalb des Hauptformulars stehen. Gleicher Tab-Schlüssel -> schaltet mit.
+        $this->pane('zahlung', [$this, 'renderWebhookCard'], true);
 
         echo '</div>';
     }
 
-    private function checkItem(bool $done, string $label, string $openHint): void
+    /**
+     * @param callable(): void $render
+     */
+    private function pane(string $key, callable $render, bool $active): void
     {
-        echo '<li style="margin:0 0 0.7rem">';
-        echo '<span style="font-weight:600">' . esc_html($label) . '</span> ';
-        if ($done) {
-            echo '<span class="rhbp-pill rhbp-pill--ok"><span class="rhbp-pill__dot" aria-hidden="true"></span> ' . esc_html__('erledigt', 'rh-shop') . '</span>';
-        } else {
-            echo '<span class="rhbp-pill rhbp-pill--warn">' . esc_html__('offen', 'rh-shop') . '</span>';
-            echo '<p class="rhbp-field__desc" style="margin:0.15rem 0 0">' . esc_html($openHint) . '</p>';
+        printf('<div class="rhshop-pane%s" data-rhshop-pane="%s">', $active ? ' is-active' : '', esc_attr($key));
+        $render();
+        echo '</div>';
+    }
+
+    private function tabButton(string $key, string $label, bool $active): void
+    {
+        printf(
+            '<button type="button" class="rhbp-subtab%s" data-rhshop-subtab="%s">%s</button>',
+            $active ? ' is-active' : '',
+            esc_attr($key),
+            esc_html($label)
+        );
+    }
+
+    /**
+     * Zeile von Cross-Links (Verweise zu Stripe, Produkten, Rechtstext-Seiten).
+     *
+     * @param array<int, array{0: string, 1: string, 2: bool}> $links [Label, URL, extern]
+     */
+    private function xlinks(array $links): void
+    {
+        echo '<div class="rhshop-xlinks">';
+        foreach ($links as [$label, $url, $external]) {
+            printf(
+                '<a href="%s"%s>%s%s</a>',
+                esc_url($url),
+                $external ? ' target="_blank" rel="noopener"' : '',
+                esc_html($label),
+                $external ? ' ↗' : ''
+            );
         }
-        echo '</li>';
+        echo '</div>';
+    }
+
+    private function overviewUrl(): string
+    {
+        return admin_url('edit.php?post_type=' . ProductType::POST_TYPE . '&page=rhshop-overview');
+    }
+
+    /**
+     * Bearbeiten- bzw. Anlegen-Link für eine Rechtstext-Seite: existiert sie, führt der
+     * Link zum Bearbeiten, sonst zum Anlegen (Titel vorbelegt).
+     *
+     * @return array{0: string, 1: string, 2: bool}
+     */
+    private function legalPageLink(string $slug, string $title): array
+    {
+        $page = get_page_by_path($slug);
+        if ($page instanceof \WP_Post) {
+            return [
+                /* translators: %s: Seitentitel */
+                sprintf(__('%s bearbeiten', 'rh-shop'), $title),
+                (string) get_edit_post_link($page->ID, 'url'),
+                false,
+            ];
+        }
+
+        return [
+            /* translators: %s: Seitentitel */
+            sprintf(__('%s anlegen', 'rh-shop'), $title),
+            admin_url('post-new.php?post_type=page&post_title=' . rawurlencode($title)),
+            false,
+        ];
     }
 
     private function sectionOpen(string $title, string $intro): void
@@ -157,6 +220,10 @@ final class ShopSettingsPage
             __('Zahlung', 'rh-shop'),
             __('Verbinde deinen Stripe-Account. Die Schlüssel findest du im Stripe-Dashboard unter „Entwickler".', 'rh-shop')
         );
+
+        $this->xlinks([
+            [__('Stripe-Dashboard öffnen', 'rh-shop'), 'https://dashboard.stripe.com/apikeys', true],
+        ]);
 
         // Publishable Key (öffentlich)
         echo '<div class="rhbp-field">';
@@ -200,6 +267,10 @@ final class ShopSettingsPage
             __('Preise & Steuer', 'rh-shop'),
             __('Währung und wie die Steuer berechnet wird. Produktpreise pflegst du am Produkt selbst.', 'rh-shop')
         );
+
+        $this->xlinks([
+            [__('Produkte verwalten', 'rh-shop'), admin_url('edit.php?post_type=' . ProductType::POST_TYPE), false],
+        ]);
 
         // Währung
         echo '<div class="rhbp-field">';
@@ -347,6 +418,14 @@ final class ShopSettingsPage
             __('Rechtliches', 'rh-shop'),
             __('Pflichtangaben für einen B2C-Shop. Im Zweifel eingeschaltet lassen.', 'rh-shop')
         );
+
+        // Direkter Weg zu den Rechtstext-Seiten (anlegen, falls noch nicht vorhanden).
+        $this->xlinks([
+            $this->legalPageLink('impressum', __('Impressum', 'rh-shop')),
+            $this->legalPageLink('datenschutz', __('Datenschutz', 'rh-shop')),
+            $this->legalPageLink('widerrufsbelehrung', __('Widerrufsbelehrung', 'rh-shop')),
+            $this->legalPageLink('agb', __('AGB', 'rh-shop')),
+        ]);
 
         // AGB-Zustimmung im Checkout (optional, AGB sind nicht Pflicht)
         echo '<div class="rhbp-field">';
