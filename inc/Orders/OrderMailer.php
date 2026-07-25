@@ -27,6 +27,14 @@ final class OrderMailer
         $symbol = $this->config->currencySymbol();
         $headers = ['Content-Type: text/html; charset=UTF-8'];
 
+        // Absender (From) nur setzen, wenn der Betreiber eine eigene Adresse gepflegt
+        // hat, sonst bleibt der WordPress-/rh-smtp-Default. Der Name ist optional.
+        $fromAddress = $this->config->mailFromAddress();
+        if ($fromAddress !== '') {
+            $fromName = $this->config->mailFromName();
+            $headers[] = 'From: ' . ($fromName !== '' ? sprintf('%s <%s>', $fromName, $fromAddress) : $fromAddress);
+        }
+
         if ($order->email !== '') {
             wp_mail(
                 $order->email,
@@ -36,10 +44,10 @@ final class OrderMailer
             );
         }
 
-        $admin = (string) get_option('admin_email');
-        if ($admin !== '') {
+        $notify = $this->config->notifyAddress();
+        if ($notify !== '') {
             wp_mail(
-                $admin,
+                $notify,
                 sprintf(/* translators: %s: Bestellnummer */ __('Neue Bestellung %s', 'rh-shop'), $order->orderNumber),
                 $this->adminBody($order, $symbol),
                 $headers
@@ -63,11 +71,15 @@ final class OrderMailer
             ) . '</p>'
             : '';
 
+        $note = $this->config->mailNote();
+        $noteHtml = $note !== '' ? '<p>' . nl2br(esc_html($note)) . '</p>' : '';
+
         return '<p>' . esc_html__('Hallo,', 'rh-shop') . '</p>'
             . '<p>' . esc_html($intro) . '</p>'
             . $this->itemsTable($order, $symbol)
             . $invoice
             . '<p>' . esc_html__('Wir melden uns, sobald deine Bestellung unterwegs ist.', 'rh-shop') . '</p>'
+            . $noteHtml
             . $this->widerrufBlock();
     }
 

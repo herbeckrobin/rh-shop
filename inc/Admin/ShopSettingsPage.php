@@ -82,6 +82,7 @@ final class ShopSettingsPage
         $this->renderPaymentSection();
         $this->renderPricingSection();
         $this->renderShippingSection();
+        $this->renderMailSection();
         $this->renderLegalSection();
 
         echo '<p style="max-width:640px"><button type="submit" class="rhbp-btn rhbp-btn--primary">' . esc_html__('Speichern', 'rh-shop') . '</button></p>';
@@ -281,6 +282,63 @@ final class ShopSettingsPage
     }
 
     /**
+     * Abschnitt: E-Mail. Wie Kunde und Betreiber über eine Bestellung informiert werden.
+     */
+    private function renderMailSection(): void
+    {
+        $this->sectionOpen(
+            __('E-Mail', 'rh-shop'),
+            __('Absender der Bestell-Mails und wohin die Benachrichtigung über neue Bestellungen geht.', 'rh-shop')
+        );
+
+        // Absender-Name
+        echo '<div class="rhbp-field">';
+        echo '<label class="rhbp-field__label" for="rhshop-from-name">' . esc_html__('Absender-Name', 'rh-shop') . '</label>';
+        printf(
+            '<input type="text" id="rhshop-from-name" name="mail_from_name" value="%s" placeholder="%s" class="regular-text" />',
+            esc_attr($this->config->mailFromName()),
+            esc_attr__('z.B. Michelberger Shop', 'rh-shop')
+        );
+        echo '<p class="rhbp-field__desc">' . esc_html__('Der Name, der beim Kunden als Absender steht. Leer = WordPress-Standard.', 'rh-shop') . '</p>';
+        echo '</div>';
+
+        // Absender-Adresse
+        echo '<div class="rhbp-field">';
+        echo '<label class="rhbp-field__label" for="rhshop-from-address">' . esc_html__('Absender-Adresse', 'rh-shop') . '</label>';
+        printf(
+            '<input type="email" id="rhshop-from-address" name="mail_from_address" value="%s" placeholder="shop@deine-domain.de" class="regular-text" />',
+            esc_attr($this->config->mailFromAddress())
+        );
+        echo '<p class="rhbp-field__desc">' . esc_html__('Von dieser Adresse gehen die Mails raus. Am besten eine Adresse deiner eigenen Domain. Leer = WordPress-Standard.', 'rh-shop') . '</p>';
+        echo '</div>';
+
+        // Benachrichtigungs-Adresse für neue Bestellungen
+        $notify = trim((string) rhbp_setting(Config::GROUP, Config::FIELD_MAIL_NOTIFY, ''));
+        echo '<div class="rhbp-field">';
+        echo '<label class="rhbp-field__label" for="rhshop-notify">' . esc_html__('Bestell-Benachrichtigung an', 'rh-shop') . '</label>';
+        printf(
+            '<input type="email" id="rhshop-notify" name="mail_notify" value="%s" placeholder="%s" class="regular-text" />',
+            esc_attr($notify),
+            esc_attr(sprintf(/* translators: %s: Admin-E-Mail */ __('leer = %s', 'rh-shop'), (string) get_option('admin_email')))
+        );
+        echo '<p class="rhbp-field__desc">' . esc_html__('Hierhin geht die Info über jede neue Bestellung. Leer = die Administrator-Adresse dieser Website.', 'rh-shop') . '</p>';
+        echo '</div>';
+
+        // Optionaler Zusatztext in der Kundenbestätigung
+        echo '<div class="rhbp-field">';
+        echo '<label class="rhbp-field__label" for="rhshop-mail-note">' . esc_html__('Zusatztext in der Bestätigungsmail', 'rh-shop') . '</label>';
+        printf(
+            '<textarea id="rhshop-mail-note" name="mail_note" rows="3" class="regular-text" style="max-width:420px" placeholder="%s">%s</textarea>',
+            esc_attr__('z.B. Bei Fragen erreichst du uns unter …', 'rh-shop'),
+            esc_textarea($this->config->mailNote())
+        );
+        echo '<p class="rhbp-field__desc">' . esc_html__('Wird dem Kunden unten in der Bestellbestätigung angezeigt. Optional.', 'rh-shop') . '</p>';
+        echo '</div>';
+
+        $this->sectionClose();
+    }
+
+    /**
      * Abschnitt 4: Rechtliches (Pflichtangaben, Widerruf, Beleg).
      */
     private function renderLegalSection(): void
@@ -417,6 +475,10 @@ final class ShopSettingsPage
             Config::FIELD_WIDERRUF_BUTTON => isset($_POST['widerruf_button']),
             Config::FIELD_INVOICE => isset($_POST['invoice_enabled']),
             Config::FIELD_AGB_ENABLED => isset($_POST['agb_enabled']),
+            Config::FIELD_MAIL_FROM_NAME => isset($_POST['mail_from_name']) ? sanitize_text_field(wp_unslash($_POST['mail_from_name'])) : '',
+            Config::FIELD_MAIL_FROM_ADDRESS => isset($_POST['mail_from_address']) ? sanitize_email(wp_unslash($_POST['mail_from_address'])) : '',
+            Config::FIELD_MAIL_NOTIFY => isset($_POST['mail_notify']) ? sanitize_email(wp_unslash($_POST['mail_notify'])) : '',
+            Config::FIELD_MAIL_NOTE => isset($_POST['mail_note']) ? sanitize_textarea_field(wp_unslash($_POST['mail_note'])) : '',
             \RhShop\Legal\Anbieter::SETTING_ADDRESS => isset($_POST['anbieter_adresse'])
                 ? sanitize_textarea_field(wp_unslash($_POST['anbieter_adresse']))
                 : '',

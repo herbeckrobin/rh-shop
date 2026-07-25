@@ -31,6 +31,10 @@ final class Config
     public const FIELD_WIDERRUF_BUTTON = 'widerruf_button';
     public const FIELD_INVOICE = 'invoice_enabled';
     public const FIELD_AGB_ENABLED = 'agb_enabled';
+    public const FIELD_MAIL_FROM_NAME = 'mail_from_name';
+    public const FIELD_MAIL_FROM_ADDRESS = 'mail_from_address';
+    public const FIELD_MAIL_NOTIFY = 'mail_notify';
+    public const FIELD_MAIL_NOTE = 'mail_note';
 
     /** Default-USt-Satz (Deutschland, Standardsatz). Der echte Satz ist konfigurierbar. */
     public const VAT_RATE_PERCENT = 19;
@@ -143,6 +147,44 @@ final class Config
     public function freeShippingThresholdCents(): int
     {
         return max(0, (int) rhbp_setting(self::GROUP, self::FIELD_FREE_SHIPPING, 0));
+    }
+
+    /**
+     * Absender-Name der Shop-Mails (From). Leer = WordPress-Default bzw. rh-smtp.
+     */
+    public function mailFromName(): string
+    {
+        return trim((string) rhbp_setting(self::GROUP, self::FIELD_MAIL_FROM_NAME, ''));
+    }
+
+    /**
+     * Absender-Adresse der Shop-Mails (From). Nur gültige E-Mail, sonst leer
+     * (dann greift der WordPress-/rh-smtp-Default).
+     */
+    public function mailFromAddress(): string
+    {
+        $value = trim((string) rhbp_setting(self::GROUP, self::FIELD_MAIL_FROM_ADDRESS, ''));
+
+        return is_email($value) ? $value : '';
+    }
+
+    /**
+     * Adresse, an die die Benachrichtigung über neue Bestellungen geht. Leer =
+     * Fallback auf die WordPress-Administrator-Adresse.
+     */
+    public function notifyAddress(): string
+    {
+        $value = trim((string) rhbp_setting(self::GROUP, self::FIELD_MAIL_NOTIFY, ''));
+
+        return is_email($value) ? $value : (string) get_option('admin_email');
+    }
+
+    /**
+     * Optionaler eigener Text in der Kundenbestätigung (z.B. Kontakt bei Fragen).
+     */
+    public function mailNote(): string
+    {
+        return trim((string) rhbp_setting(self::GROUP, self::FIELD_MAIL_NOTE, ''));
     }
 
     /**
