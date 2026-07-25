@@ -31,17 +31,38 @@ final class Totals
     ) {
     }
 
+    /**
+     * Der komplette Zusammenbau aus reinen Werten: Versand aus Warenwert + Pauschale +
+     * Gratis-Schwelle, Gesamt = Warenwert + Versand, enthaltene USt aus dem Gesamt.
+     * Ohne WordPress, damit die ganze Montage testbar ist und nur eine Stelle rechnet.
+     */
+    public static function fromValues(
+        int $subtotalCents,
+        int $flatShippingCents,
+        int $freeThresholdCents,
+        string $taxMode,
+        int $taxRatePercent,
+    ): self {
+        $shipping = self::shippingFor($subtotalCents, $flatShippingCents, $freeThresholdCents);
+        $total = $subtotalCents + $shipping;
+        $tax = self::includedTax($total, $taxMode, $taxRatePercent);
+
+        return new self($subtotalCents, $shipping, $tax, $total, $taxMode, $taxRatePercent, $freeThresholdCents);
+    }
+
+    /**
+     * WordPress-Adapter: zieht die Werte aus Warenkorb und Konfiguration und übergibt sie
+     * an fromValues. Die eigentliche Rechnung bleibt WP-frei.
+     */
     public static function forCart(Cart $cart, Config $config): self
     {
-        $subtotal = $cart->totalCents();
-        $threshold = $config->freeShippingThresholdCents();
-        $shipping = self::shippingFor($subtotal, $config->shippingCents(), $threshold);
-        $total = $subtotal + $shipping;
-        $mode = $config->taxMode();
-        $rate = $config->taxRatePercent();
-        $tax = self::includedTax($total, $mode, $rate);
-
-        return new self($subtotal, $shipping, $tax, $total, $mode, $rate, $threshold);
+        return self::fromValues(
+            $cart->totalCents(),
+            $config->shippingCents(),
+            $config->freeShippingThresholdCents(),
+            $config->taxMode(),
+            $config->taxRatePercent(),
+        );
     }
 
     /**
