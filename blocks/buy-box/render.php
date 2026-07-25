@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 use RhShop\Catalog\ProductType;
 use RhShop\Catalog\VariantRepository;
+use RhShop\Frontend\ExamplePreview;
 use RhShop\Frontend\Render;
 use RhShop\Stripe\Config;
 
@@ -20,6 +21,12 @@ $productId = (int) ($attributes['productId'] ?? 0);
 
 if ($productId <= 0 && is_singular(ProductType::POST_TYPE)) {
     $productId = (int) get_the_ID();
+}
+
+// Im Editor ohne konkretes Produkt (die Kauf-Box sitzt im Produkt-Template) ein
+// echtes Beispiel-Produkt zeigen, damit man die Kauf-Steuerung sieht.
+if ($productId <= 0 && ExamplePreview::isActive()) {
+    $productId = ExamplePreview::productId();
 }
 
 $product = $productId > 0 ? get_post($productId) : null;

@@ -106,17 +106,22 @@
 	}
 
 	/**
-	 * Instruktiver Platzhalter für die Blocks, die im Frontend automatisch gefüllt
-	 * werden (Warenkorb, Kasse, Widerruf, Kauf-Box). Statt eines kargen Textkastens
-	 * die native Placeholder-Komponente: Icon, Titel und ein Satz, was der Block tut
-	 * und dass hier nichts einzustellen ist.
+	 * Für die Blocks, die im Frontend automatisch gefüllt werden (Warenkorb, Kasse,
+	 * Widerruf, Kauf-Box): eine echte Server-Vorschau mit Musterdaten (?rhshop_preview),
+	 * damit man sich das Ergebnis vorstellen kann, plus eine Info-Notice, die erklärt,
+	 * dass es eine Beispielansicht ist und hier nichts einzustellen ist.
 	 */
-	function placeholder( icon, label, instructions ) {
-		return function () {
+	function previewWithNote( block, note ) {
+		return function ( props ) {
 			return el(
 				'div',
 				useBlockProps(),
-				el( c.Placeholder, { icon: icon, label: label, instructions: instructions } )
+				el( c.Notice, { status: 'info', isDismissible: false, className: 'rhshop-editor-note' }, note ),
+				el( ServerSideRender, {
+					block: block,
+					attributes: props.attributes,
+					urlQueryArgs: { rhshop_preview: 1 },
+				} )
 			);
 		};
 	}
@@ -124,25 +129,21 @@
 	var edits = {
 		'rh-shop/product-grid': editGrid,
 		'rh-shop/product-single': editSingle,
-		'rh-shop/buy-box': placeholder(
-			'cart',
-			__( 'Kauf-Box', 'rh-shop' ),
-			__( 'Zeigt Preis, Varianten-Auswahl und den In-den-Warenkorb-Button des Produkts. Gehört ins Produkt-Template und wird im Frontend automatisch gefüllt, hier ist nichts einzustellen.', 'rh-shop' )
+		'rh-shop/buy-box': previewWithNote(
+			'rh-shop/buy-box',
+			__( 'Beispielansicht mit einem deiner Produkte. Im Frontend zeigt der Block das Produkt der jeweiligen Detailseite.', 'rh-shop' )
 		),
-		'rh-shop/cart': placeholder(
-			'cart',
-			__( 'Warenkorb', 'rh-shop' ),
-			__( 'Diese Seite zeigt im Frontend automatisch den Warenkorb des Besuchers. Hier musst du nichts einstellen, die Vorschau siehst du erst im Frontend.', 'rh-shop' )
+		'rh-shop/cart': previewWithNote(
+			'rh-shop/cart',
+			__( 'Beispielansicht. Im Frontend zeigt der Warenkorb die Artikel des Besuchers.', 'rh-shop' )
 		),
-		'rh-shop/checkout': placeholder(
-			'money-alt',
-			__( 'Kasse', 'rh-shop' ),
-			__( 'Diese Seite zeigt im Frontend automatisch die Bestellübersicht, die Pflichtangaben und die Stripe-Zahlung. Hier musst du nichts einstellen.', 'rh-shop' )
+		'rh-shop/checkout': previewWithNote(
+			'rh-shop/checkout',
+			__( 'Beispielansicht der Kasse. Im Frontend mit den echten Artikeln des Besuchers und der Stripe-Zahlung.', 'rh-shop' )
 		),
-		'rh-shop/widerruf': placeholder(
-			'edit-page',
-			__( 'Vertrag widerrufen', 'rh-shop' ),
-			__( 'Zeigt im Frontend das Widerrufs-Formular nach §356a (Name, Bestellnummer, E-Mail). Hier musst du nichts einstellen.', 'rh-shop' )
+		'rh-shop/widerruf': previewWithNote(
+			'rh-shop/widerruf',
+			__( 'So sieht das Widerrufs-Formular für den Kunden aus. Hier musst du nichts einstellen.', 'rh-shop' )
 		),
 	};
 

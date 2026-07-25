@@ -10,9 +10,13 @@ declare(strict_types=1);
 
 use RhShop\Cart\Cart;
 use RhShop\Catalog\VariantRepository;
+use RhShop\Frontend\ExamplePreview;
 use RhShop\Stripe\Config;
 
-$cart = new Cart(new VariantRepository());
+// Im Editor (ServerSideRender mit ?rhshop_preview) eine Beispielansicht mit echten
+// Produkten zeigen, sonst den echten Warenkorb des Besuchers.
+$exampleCart = ExamplePreview::isActive() ? ExamplePreview::cart() : null;
+$cart = $exampleCart ?? new Cart(new VariantRepository());
 $state = $cart->toState(new Config());
 $checkoutUrl = (string) apply_filters('rh-blueprint/shop/checkout_url', home_url('/kasse'));
 
