@@ -36,6 +36,7 @@ final class Config
     public const FIELD_MAIL_NOTIFY = 'mail_notify';
     public const FIELD_MAIL_NOTE = 'mail_note';
     public const FIELD_LOW_STOCK = 'low_stock_threshold';
+    public const FIELD_HOLD_MINUTES = 'reservation_hold_minutes';
 
     /** Default-USt-Satz (Deutschland, Standardsatz). Der echte Satz ist konfigurierbar. */
     public const VAT_RATE_PERCENT = 19;
@@ -158,6 +159,16 @@ final class Config
     public function lowStockThreshold(): int
     {
         return max(0, min(999, (int) rhbp_setting(self::GROUP, self::FIELD_LOW_STOCK, 5)));
+    }
+
+    /**
+     * Wie lange (Minuten) der Bestand beim Auslösen der Bestellung reserviert wird,
+     * bevor er ohne Zahlung wieder frei wird. Deckt das Zeitfenster bis zur
+     * bestätigten Stripe-Zahlung ab.
+     */
+    public function reservationHoldMinutes(): int
+    {
+        return max(1, min(1440, (int) rhbp_setting(self::GROUP, self::FIELD_HOLD_MINUTES, 30)));
     }
 
     /**

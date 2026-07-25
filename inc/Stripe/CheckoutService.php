@@ -6,7 +6,9 @@ namespace RhShop\Stripe;
 
 use RhShop\Cart\Cart;
 use RhShop\Cart\CartLine;
+use RhShop\Catalog\ReservationRepository;
 use RhShop\Checkout\Totals;
+use RhShop\Orders\Order;
 use RhShop\Orders\OrderStore;
 use Stripe\Exception\ApiErrorException;
 use WP_Error;
@@ -27,6 +29,7 @@ final class CheckoutService
         private readonly Config $config,
         private readonly StripeClient $stripe,
         private readonly OrderStore $orders,
+        private readonly ReservationRepository $reservations = new ReservationRepository(),
     ) {
     }
 
@@ -69,6 +72,28 @@ final class CheckoutService
         $order = $this->orders->find($orderId);
         $orderNumber = $order?->orderNumber ?? '';
 
+        // Bestand reservieren (gegen Überverkauf), BEVOR die Zahlung startet. Klappt
+        // eine Position nicht, wird die ganze Bestellung freigegeben und sauber
+        // abgebrochen, kein PaymentIntent, der Kunde zahlt nie für Vergriffenes.
+        $holdMinutes = $this->config->reservationHoldMinutes();
+        foreach ($lines as $line) {
+            if ($this->reservations->reserve($orderId, $line->productId, $line->variantId, $line->qty, $holdMinutes)) {
+                continue;
+            }
+
+            $this->reservations->releaseForOrder($orderId);
+            $this->orders->updateStatus($orderId, Order::STATUS_CANCELLED);
+
+            $name = $line->productTitle . ($line->optionsLabel !== '' ? ' (' . $line->optionsLabel . ')' : '');
+
+            return new WP_Error(
+                'rhshop_out_of_stock',
+                /* translators: %s: Artikelname */
+                sprintf(__('„%s" ist leider gerade vergriffen. Bitte passe die Menge an.', 'rh-shop'), $name),
+                ['status' => 409]
+            );
+        }
+
         // Payment Element: ein PaymentIntent über den Warenkorb-Total (Bruttopreis,
         // Versand + enthaltene Steuer schon eingerechnet). Die Zahlarten wählt Stripe
         // automatisch, die Felder rendert das Frontend über die Elements. Die
@@ -89,7 +114,10 @@ final class CheckoutService
         } catch (ApiErrorException $e) {
             // Erwartbarer externer Fehlschlag: dem Kunden eine generische, saubere
             // Meldung geben (kein roher Stripe-Text nach aussen). Der Prozess bricht
-            // sauber ab, es wurde nichts belastet.
+            // sauber ab, es wurde nichts belastet. Reservierung freigeben, damit der
+            // Bestand nicht bis zum Ablauf blockiert bleibt.
+            $this->reservations->releaseForOrder($orderId);
+
             return new WP_Error(
                 'rhshop_stripe_error',
                 __('Die Zahlung konnte gerade nicht gestartet werden. Bitte versuche es in einem Moment erneut.', 'rh-shop'),

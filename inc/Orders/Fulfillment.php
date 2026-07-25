@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace RhShop\Orders;
 
+use RhShop\Catalog\ReservationRepository;
 use RhShop\Catalog\VariantRepository;
 use RhShop\Stripe\InvoiceService;
 
@@ -25,6 +26,7 @@ final class Fulfillment
         private readonly OrderStore $orders,
         private readonly ?InvoiceService $invoices,
         private readonly bool $invoiceEnabled,
+        private readonly ReservationRepository $reservations = new ReservationRepository(),
     ) {
     }
 
@@ -39,6 +41,10 @@ final class Fulfillment
                 $this->variants->decrementStock($productId, $variantId, $qty);
             }
         }
+
+        // Reservierung dieser Bestellung auflösen: der Bestand ist jetzt echt
+        // reduziert, die Reservierung hat ihren Zweck erfüllt.
+        $this->reservations->releaseForOrder($order->id);
 
         $invoiceUrl = '';
         if ($this->invoiceEnabled && $this->invoices !== null) {
