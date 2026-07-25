@@ -66,7 +66,7 @@ final class DankeView
     {
         $inner = $this->statusHead('success', esc_html__('Deine Zahlung ist bestätigt.', 'rh-shop'), $order)
             . '<p class="rhshop-danke__note">' . esc_html__('Die Bestellbestätigung schicken wir dir per E-Mail. Wir melden uns, sobald deine Bestellung unterwegs ist.', 'rh-shop') . '</p>'
-            . $this->orderSummary($order);
+            . $this->orderSummary($order, true);
 
         return $this->shell('success', $inner);
     }
@@ -75,7 +75,7 @@ final class DankeView
     {
         $inner = $this->statusHead('pending', esc_html__('Deine Zahlung wird gerade verarbeitet.', 'rh-shop'), $order)
             . '<p class="rhshop-danke__note">' . esc_html__('Sobald die Zahlung bestätigt ist, bekommst du die Bestellbestätigung per E-Mail.', 'rh-shop') . '</p>'
-            . $this->orderSummary($order);
+            . $this->orderSummary($order, false);
 
         return $this->shell('pending', $inner);
     }
@@ -85,7 +85,7 @@ final class DankeView
      * Kaufzeitpunkt, keine Neuberechnung). Zeigt Positionen, Summen und, falls die
      * Rechnung schon erstellt ist, den Link dazu.
      */
-    private function orderSummary(Order $order): string
+    private function orderSummary(Order $order, bool $paid): string
     {
         $symbol = $this->config->currencySymbol();
 
@@ -126,7 +126,7 @@ final class DankeView
             $rows .= $this->row(__('Gesamt (inkl. MwSt.)', 'rh-shop'), Money::format($order->totalCents, $symbol), 'total');
         }
 
-        $invoice = $this->invoiceSection($order);
+        $invoice = $this->invoiceSection($order, $paid);
 
         return '<div class="rhshop-danke__order">'
             . '<h3 class="rhshop-danke__order-title">' . esc_html__('Deine Bestellung', 'rh-shop') . '</h3>'
@@ -142,14 +142,17 @@ final class DankeView
      * Sekunden nach dem Rücksprung), ein Slot der per Poll live nachgeladen wird,
      * ohne dass der Käufer neu laden muss.
      */
-    private function invoiceSection(Order $order): string
+    private function invoiceSection(Order $order, bool $paid): string
     {
         if ($order->invoiceUrl !== '') {
             return '<p class="rhshop-danke__invoice"><a href="' . esc_url($order->invoiceUrl) . '" target="_blank" rel="noopener">'
                 . esc_html__('Rechnung ansehen', 'rh-shop') . '</a></p>';
         }
 
-        if (! $order->isPaid()) {
+        // Auf den Seiten-Zustand hören (bezahlt via Stripe), nicht auf den DB-Status:
+        // beim ersten Rücksprung hat der Webhook die Bestellung oft noch nicht auf
+        // bezahlt gesetzt. So erscheint der Poll-Slot sofort und lädt die Rechnung nach.
+        if (! $paid) {
             return '';
         }
 

@@ -417,6 +417,9 @@
 .rhshop-danke {
 	max-width: var(--wp--style--global--content-size, 720px);
 	margin-inline: auto;
+	/* padding statt margin: das Block-Theme resettet margin-block der Content-Kinder,
+	   padding wird nicht geresettet und kollabiert nicht. */
+	padding-block: clamp(2.5rem, 6vw, 5rem);
 	padding-inline: clamp(1rem, 4vw, 2rem);
 	box-sizing: border-box;
 }
