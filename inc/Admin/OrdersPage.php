@@ -48,6 +48,18 @@ final class OrdersPage
             return;
         }
 
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reiner Anzeige-Parameter, keine Aktion.
+        $orderId = isset($_GET['order']) ? absint(wp_unslash($_GET['order'])) : 0;
+        if ($orderId > 0) {
+            $this->renderDetail($orderId);
+            return;
+        }
+
+        $this->renderList();
+    }
+
+    private function renderList(): void
+    {
         $orders = (new OrderStore())->recent(100);
         $symbol = (new Config())->currencySymbol();
 
@@ -95,7 +107,7 @@ final class OrdersPage
         ));
 
         echo '<tr>';
-        echo '<td><strong>' . esc_html($order->orderNumber) . '</strong></td>';
+        echo '<td><strong><a href="' . esc_url($this->detailUrl($order->id)) . '">' . esc_html($order->orderNumber) . '</a></strong></td>';
         echo '<td>' . esc_html($date) . '</td>';
         // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- statusCell escapt intern.
         echo '<td>' . $this->statusCell($order) . '</td>';
@@ -115,6 +127,127 @@ final class OrdersPage
             echo '<td>-</td>';
         }
         echo '</tr>';
+    }
+
+    /**
+     * Detailansicht einer Bestellung: voller Kontext für den Betreiber (Kunde, Adresse,
+     * Positionen, Summen, Rechnung, Zahlungsreferenz) plus das Status-Ändern.
+     */
+    private function renderDetail(int $orderId): void
+    {
+        $order = (new OrderStore())->find($orderId);
+        $backLink = '<p><a href="' . esc_url($this->listUrl()) . '">&larr; ' . esc_html__('Alle Bestellungen', 'rh-shop') . '</a></p>';
+
+        if ($order === null) {
+            echo '<div class="wrap"><h1>' . esc_html__('Bestellung', 'rh-shop') . '</h1><p>'
+                . esc_html__('Bestellung nicht gefunden.', 'rh-shop') . '</p>' . $backLink . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+            return;
+        }
+
+        $symbol = (new Config())->currencySymbol();
+        $date = mysql2date(get_option('date_format') . ' ' . get_option('time_format'), $order->createdAt);
+
+        echo '<div class="wrap">';
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $backLink ist escapt.
+        echo $backLink;
+        echo '<h1>' . sprintf(/* translators: %s: Bestellnummer */ esc_html__('Bestellung %s', 'rh-shop'), esc_html($order->orderNumber)) . '</h1>';
+        echo '<p class="description">' . esc_html($date) . '</p>';
+
+        // Status + Kunde nebeneinander.
+        echo '<div style="display:flex;gap:2.5rem;flex-wrap:wrap;margin:1.5rem 0">';
+        echo '<div><h2 style="margin-top:0">' . esc_html__('Status', 'rh-shop') . '</h2>';
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- statusCell escapt intern.
+        echo $this->statusCell($order);
+        echo '</div>';
+
+        echo '<div><h2 style="margin-top:0">' . esc_html__('Kunde', 'rh-shop') . '</h2>';
+        $name = $order->customerName !== '' ? $order->customerName : __('kein Name angegeben', 'rh-shop');
+        echo '<p>' . esc_html($name) . '<br>';
+        if ($order->email !== '') {
+            echo '<a href="mailto:' . esc_attr($order->email) . '">' . esc_html($order->email) . '</a>';
+        }
+        echo '</p>';
+        if ($order->address !== []) {
+            echo '<p>' . nl2br(esc_html($this->formatAddress($order->address))) . '</p>';
+        }
+        echo '</div></div>';
+
+        // Positionen + Summen.
+        echo '<h2>' . esc_html__('Positionen', 'rh-shop') . '</h2>';
+        echo '<table class="widefat striped" style="max-width:640px"><thead><tr><th>'
+            . esc_html__('Artikel', 'rh-shop') . '</th><th>' . esc_html__('Menge', 'rh-shop')
+            . '</th><th style="text-align:right">' . esc_html__('Summe', 'rh-shop') . '</th></tr></thead><tbody>';
+        foreach ($order->items as $item) {
+            $itemName = (string) ($item['title'] ?? '');
+            $opts = (string) ($item['options'] ?? '');
+            if ($opts !== '') {
+                $itemName .= ' (' . $opts . ')';
+            }
+            printf(
+                '<tr><td>%s</td><td>%d</td><td style="text-align:right">%s</td></tr>',
+                esc_html($itemName),
+                (int) ($item['qty'] ?? 0),
+                esc_html(Money::format((int) ($item['line_total_cents'] ?? 0), $symbol))
+            );
+        }
+        echo '</tbody><tfoot>';
+        $this->totalRow(esc_html__('Zwischensumme', 'rh-shop'), esc_html(Money::format($order->subtotalCents, $symbol)));
+        $this->totalRow(
+            esc_html__('Versand', 'rh-shop'),
+            esc_html($order->shippingCents > 0 ? Money::format($order->shippingCents, $symbol) : __('kostenlos', 'rh-shop'))
+        );
+        if ($order->taxMode !== Order::TAX_KLEINUNTERNEHMER) {
+            $this->totalRow(esc_html__('enthaltene MwSt.', 'rh-shop'), esc_html(Money::format($order->taxCents, $symbol)));
+        }
+        $this->totalRow(
+            '<strong>' . esc_html__('Gesamt', 'rh-shop') . '</strong>',
+            '<strong>' . esc_html(Money::format($order->totalCents, $symbol)) . '</strong>'
+        );
+        echo '</tfoot></table>';
+
+        // Zahlung + Rechnung.
+        echo '<h2>' . esc_html__('Zahlung & Rechnung', 'rh-shop') . '</h2><p>';
+        if ($order->invoiceUrl !== '') {
+            echo '<a class="button" href="' . esc_url($order->invoiceUrl) . '" target="_blank" rel="noopener">'
+                . esc_html__('Rechnung ansehen', 'rh-shop') . '</a> ';
+        } elseif ($order->invoiceNumber !== '') {
+            echo esc_html($order->invoiceNumber) . ' ';
+        }
+        if ($order->stripePaymentIntentId !== '') {
+            echo '<code>' . esc_html($order->stripePaymentIntentId) . '</code>';
+        }
+        echo '</p></div>';
+    }
+
+    private function totalRow(string $label, string $value): void
+    {
+        // $label/$value sind bereits escapt (Aufrufer).
+        printf('<tr><td colspan="2" style="text-align:right">%s</td><td style="text-align:right">%s</td></tr>', $label, $value); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+    }
+
+    /**
+     * @param array<string, mixed> $address
+     */
+    private function formatAddress(array $address): string
+    {
+        $parts = array_filter([
+            (string) ($address['line1'] ?? ''),
+            (string) ($address['line2'] ?? ''),
+            trim(((string) ($address['postal_code'] ?? '')) . ' ' . ((string) ($address['city'] ?? ''))),
+            (string) ($address['country'] ?? ''),
+        ], static fn (string $p): bool => trim($p) !== '');
+
+        return implode("\n", $parts);
+    }
+
+    private function detailUrl(int $orderId): string
+    {
+        return add_query_arg('order', $orderId, $this->listUrl());
+    }
+
+    private function listUrl(): string
+    {
+        return admin_url('edit.php?post_type=' . ProductType::POST_TYPE . '&page=' . self::SLUG);
     }
 
     /**
