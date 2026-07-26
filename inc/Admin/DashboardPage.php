@@ -216,12 +216,7 @@ final class DashboardPage
 			var h = max > 0 ? Math.round( b.value / max * 100 ) : 0;
 			return '<div class="rhshop-chart__bar" style="height:' + Math.max( h, 2 ) + '%"' + ( b.value === 0 ? ' data-empty="1"' : '' ) + '><span class="v">' + esc( b.full ) + '</span></div>';
 		} ).join( '' );
-		var n = data.bars.length, every = Math.ceil( n / 6 );
-		var axis = data.bars.map( function ( b, i ) {
-			var show = n <= 12 || i === 0 || i === n - 1 || i % every === 0;
-			return '<span>' + ( show ? esc( b.label ) : '' ) + '</span>';
-		} ).join( '' );
-		plot.innerHTML = '<div class="rhshop-chart__bars">' + bars + '</div><div class="rhshop-chart__axis">' + axis + '</div>';
+		plot.innerHTML = '<div class="rhshop-chart__bars">' + bars + '</div>';
 	}
 
 	function load() {
@@ -270,6 +265,7 @@ final class DashboardPage
         );
 
         if ($waiting !== []) {
+            echo '<p class="rhshop-metric__sub">' . esc_html__('Am längsten wartend', 'rh-shop') . '</p>';
             echo '<ul class="rhshop-metric__list">';
             foreach ($waiting as $w) {
                 printf(
@@ -280,6 +276,15 @@ final class DashboardPage
                 );
             }
             echo '</ul>';
+
+            $more = $openOrders - count($waiting);
+            if ($more > 0) {
+                printf(
+                    '<a class="rhshop-metric__more" href="%s">%s</a>',
+                    esc_url($this->ordersUrl()),
+                    esc_html(sprintf(/* translators: %d: Anzahl weiterer Bestellungen */ _n('und %d weitere ansehen', 'und %d weitere ansehen', $more, 'rh-shop'), $more))
+                );
+            }
         } else {
             echo '<p class="rhshop-metric__empty">' . esc_html__('Nichts wartet auf Versand.', 'rh-shop') . '</p>';
         }
@@ -630,6 +635,9 @@ a.rhshop-metric__head:hover .num{color:#3858e9}
 .rhshop-metric__list .m.is-out{color:#d63638;font-weight:600}
 .rhshop-metric__list .m.is-low{color:#9a6700;font-weight:600}
 .rhshop-metric__empty{color:#646970;margin:12px 0 0}
+.rhshop-metric__sub{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#8c8f94;margin:12px 0 2px;font-weight:600}
+.rhshop-metric__more{display:inline-block;margin-top:8px;font-size:12px;color:#3858e9;text-decoration:none}
+.rhshop-metric__more:hover{text-decoration:underline}
 .rhshop-bars{list-style:none;margin:14px 0 0;padding:0;display:flex;flex-direction:column;gap:9px}
 .rhshop-bars li{display:grid;grid-template-columns:1fr;gap:3px}
 .rhshop-bars .bl{font-size:12px;color:#3c434a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -651,7 +659,6 @@ a.rhshop-metric__head:hover .num{color:#3858e9}
 .rhshop-chart__bar[data-empty="1"]{background:#f0f0f1}
 .rhshop-chart__bar .v{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);margin-bottom:4px;background:#1d2327;color:#fff;font-size:11px;padding:2px 6px;border-radius:4px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .1s}
 .rhshop-chart__bar:hover .v{opacity:1}
-.rhshop-chart__axis{display:flex;justify-content:space-between;margin-top:6px;font-size:11px;color:#8c8f94}
 .rhshop-dash__cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:900px}
 @media(max-width:782px){.rhshop-dash__cols{grid-template-columns:1fr}}
 .rhshop-dash__card{background:#fff;border:1px solid #dcdcde;border-radius:8px;padding:18px 20px}

@@ -79,10 +79,12 @@ final class VariantMetaBox
         );
 
         echo '<p><label><strong>' . esc_html__('Bestand', 'rh-shop') . '</strong><br>';
+        echo '<span class="rhshop-stock-field">';
         printf(
-            '<input type="number" name="rhshop_simple_stock" value="%s" min="0" step="1" style="max-width:140px"></label>',
+            '<input type="number" name="rhshop_simple_stock" value="%s" min="0" step="1" style="max-width:140px" data-rhshop-stock>',
             esc_attr($simpleStock === null ? '' : (string) $simpleStock)
         );
+        echo '<span class="rhshop-stock-badge" data-rhshop-stock-status></span></span></label>';
         echo '<br><span class="description">' . esc_html__('Leer lassen = Bestand nicht verfolgen (immer verfügbar).', 'rh-shop') . '</span></p>';
 
         $this->renderGrundpreis($post->ID);
@@ -189,7 +191,7 @@ final class VariantMetaBox
         printf('<td><input type="text" name="rhshop_variant_option2[]" value="%s"></td>', esc_attr($variant->option2));
         printf('<td><input type="text" name="rhshop_variant_sku[]" value="%s"></td>', esc_attr($variant->sku));
         printf('<td><input type="text" name="rhshop_variant_price[]" value="%s" placeholder="24,90" style="max-width:90px"></td>', esc_attr($priceDisplay));
-        printf('<td><input type="number" name="rhshop_variant_stock[]" value="%s" min="0" step="1" style="max-width:80px"></td>', esc_attr($stockDisplay));
+        printf('<td><span class="rhshop-stock-field"><input type="number" name="rhshop_variant_stock[]" value="%s" min="0" step="1" style="max-width:70px" data-rhshop-stock><span class="rhshop-stock-badge" data-rhshop-stock-status></span></span></td>', esc_attr($stockDisplay));
         printf('<td><input type="text" name="rhshop_variant_gp[]" value="%s" placeholder="500" inputmode="decimal" style="max-width:80px"></td>', esc_attr($gpDisplay));
         printf('<td><button type="button" class="button-link-delete" data-rhshop-remove-variant>%s</button></td>', esc_html__('Entfernen', 'rh-shop'));
         echo '</tr>';
@@ -209,7 +211,7 @@ final class VariantMetaBox
                 <td><input type="text" name="rhshop_variant_option2[]" value=""></td>
                 <td><input type="text" name="rhshop_variant_sku[]" value=""></td>
                 <td><input type="text" name="rhshop_variant_price[]" value="" placeholder="24,90" style="max-width:90px"></td>
-                <td><input type="number" name="rhshop_variant_stock[]" value="" min="0" step="1" style="max-width:80px"></td>
+                <td><span class="rhshop-stock-field"><input type="number" name="rhshop_variant_stock[]" value="" min="0" step="1" style="max-width:70px" data-rhshop-stock><span class="rhshop-stock-badge" data-rhshop-stock-status></span></span></td>
                 <td><input type="text" name="rhshop_variant_gp[]" value="" placeholder="500" inputmode="decimal" style="max-width:80px"></td>
                 <td><button type="button" class="button-link-delete" data-rhshop-remove-variant><?php echo esc_html__('Entfernen', 'rh-shop'); ?></button></td>
             </tr>
@@ -220,10 +222,38 @@ final class VariantMetaBox
             if ( ! box ) { return; }
             var rows = box.querySelector( '[data-rhshop-variant-rows]' );
             var tpl = box.querySelector( '[data-rhshop-variant-template]' );
+            var lowThreshold = <?php echo (int) (new \RhShop\Stripe\Config())->lowStockThreshold(); ?>;
+            var LABELS = {
+                untracked: <?php echo wp_json_encode(__('nicht verfolgt', 'rh-shop')); ?>,
+                out: <?php echo wp_json_encode(__('ausverkauft', 'rh-shop')); ?>,
+                low: <?php echo wp_json_encode(__('knapp', 'rh-shop')); ?>,
+                ok: <?php echo wp_json_encode(__('auf Lager', 'rh-shop')); ?>
+            };
+
+            // Bestand-Feld -> Status-Badge (leer = nicht verfolgt, 0 = ausverkauft,
+            // bis Schwelle = knapp, sonst auf Lager). Läuft live beim Tippen.
+            function updateStock( input ) {
+                var field = input.closest( '.rhshop-stock-field' );
+                var badge = field && field.querySelector( '[data-rhshop-stock-status]' );
+                if ( ! badge ) { return; }
+                var v = input.value.trim();
+                badge.className = 'rhshop-stock-badge';
+                if ( v === '' ) { badge.textContent = LABELS.untracked; badge.classList.add( 'is-untracked' ); return; }
+                var n = parseInt( v, 10 ) || 0;
+                if ( n <= 0 ) { badge.textContent = LABELS.out; badge.classList.add( 'is-out' ); }
+                else if ( lowThreshold > 0 && n <= lowThreshold ) { badge.textContent = LABELS.low; badge.classList.add( 'is-low' ); }
+                else { badge.textContent = LABELS.ok; badge.classList.add( 'is-ok' ); }
+            }
+
+            function refreshAll() {
+                box.querySelectorAll( '[data-rhshop-stock]' ).forEach( updateStock );
+            }
+
             box.addEventListener( 'click', function ( e ) {
                 var add = e.target.closest( '[data-rhshop-add-variant]' );
                 if ( add ) {
                     rows.appendChild( tpl.content.cloneNode( true ) );
+                    refreshAll();
                     return;
                 }
                 var remove = e.target.closest( '[data-rhshop-remove-variant]' );
@@ -232,13 +262,19 @@ final class VariantMetaBox
                     if ( tr ) { tr.remove(); }
                 }
             } );
-            // Spalten-Header spiegelt den Achsen-Namen live beim Tippen (Fallback: Default).
+
             box.addEventListener( 'input', function ( e ) {
+                // Bestand-Status live aktualisieren.
+                var stock = e.target.closest( '[data-rhshop-stock]' );
+                if ( stock ) { updateStock( stock ); return; }
+                // Spalten-Header spiegelt den Achsen-Namen live beim Tippen (Fallback: Default).
                 var inp = e.target.closest( '[data-rhshop-axis-input]' );
                 if ( ! inp ) { return; }
                 var head = box.querySelector( '[data-rhshop-axis-header="' + inp.getAttribute( 'data-rhshop-axis-input' ) + '"]' );
                 if ( head ) { head.textContent = inp.value.trim() || inp.placeholder; }
             } );
+
+            refreshAll();
         } )();
         </script>
         <style>
@@ -247,6 +283,13 @@ final class VariantMetaBox
         .rhshop-metabox .rhshop-axis-labels { display: flex; gap: 1.5rem; flex-wrap: wrap; }
         .rhshop-metabox .rhshop-axis-labels label { flex: 1; min-width: 160px; }
         .rhshop-metabox .rhshop-axis-labels input { width: 100%; }
+        .rhshop-metabox .rhshop-stock-field { display: inline-flex; align-items: center; gap: 6px; }
+        .rhshop-metabox .rhshop-stock-badge { font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 10px; white-space: nowrap; }
+        .rhshop-metabox .rhshop-stock-badge:empty { display: none; }
+        .rhshop-metabox .rhshop-stock-badge.is-out { background: #fcebea; color: #b3261e; }
+        .rhshop-metabox .rhshop-stock-badge.is-low { background: #fdf3e0; color: #9a6700; }
+        .rhshop-metabox .rhshop-stock-badge.is-ok { background: #eaf5ec; color: #1a7f37; }
+        .rhshop-metabox .rhshop-stock-badge.is-untracked { background: #f0f0f1; color: #8c8f94; }
         </style>
         <?php
     }
