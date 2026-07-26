@@ -131,4 +131,60 @@ final class StockRepository
 
         $wpdb->query($wpdb->prepare($sql, array_merge([$productId], array_values($keepVariantIds))));
     }
+
+    /**
+     * Lager-Status fürs Dashboard: wie viele verfolgte Varianten knapp (Bestand über 0
+     * und auf/unter der Schwelle) bzw. ganz ausverkauft (Bestand 0) sind. Nur Varianten
+     * existierender, veröffentlichter Produkte zählen (verwaiste Bestand-Zeilen nicht).
+     *
+     * @return array{low:int, out:int}
+     */
+    public function lowStockCounts(int $threshold): array
+    {
+        global $wpdb;
+        $table = Schema::variantStockTable();
+        $posts = $wpdb->posts;
+
+        $row = $wpdb->get_row($wpdb->prepare(
+            "SELECT
+                COALESCE(SUM(s.stock > 0 AND s.stock <= %d), 0) AS low,
+                COALESCE(SUM(s.stock = 0), 0) AS oos
+             FROM {$table} s
+             INNER JOIN {$posts} p ON p.ID = s.product_id AND p.post_type = 'rh_product' AND p.post_status = 'publish'
+             WHERE s.tracked = 1",
+            max(0, $threshold)
+        ));
+
+        return ['low' => (int) ($row->low ?? 0), 'out' => (int) ($row->oos ?? 0)];
+    }
+
+    /**
+     * Die knappsten verfolgten Varianten (inkl. ausverkauft), am wenigsten Bestand
+     * zuerst, mit Produkt-ID für die Auflösung von Titel und Optionen in der Anzeige.
+     *
+     * @return array<int, array{product_id:int, variant_id:string, stock:int}>
+     */
+    public function lowestStock(int $threshold, int $limit): array
+    {
+        global $wpdb;
+        $table = Schema::variantStockTable();
+        $posts = $wpdb->posts;
+
+        $rows = $wpdb->get_results($wpdb->prepare(
+            "SELECT s.product_id, s.variant_id, s.stock
+             FROM {$table} s
+             INNER JOIN {$posts} p ON p.ID = s.product_id AND p.post_type = 'rh_product' AND p.post_status = 'publish'
+             WHERE s.tracked = 1 AND s.stock <= %d
+             ORDER BY s.stock ASC, s.product_id ASC
+             LIMIT %d",
+            max(0, $threshold),
+            max(1, $limit)
+        ), ARRAY_A);
+
+        return is_array($rows) ? array_map(static fn (array $r): array => [
+            'product_id' => (int) $r['product_id'],
+            'variant_id' => (string) $r['variant_id'],
+            'stock' => (int) $r['stock'],
+        ], $rows) : [];
+    }
 }

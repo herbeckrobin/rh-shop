@@ -270,6 +270,101 @@ final class OrderStore
     }
 
     /**
+     * Die am längsten auf Versand wartenden Bestellungen (Status bezahlt), älteste
+     * zuerst. Fürs Dashboard: was ist als Nächstes zu verschicken.
+     *
+     * @return array<int, array{id:int, order_number:string, paid_at:string}>
+     */
+    public function oldestAwaitingShipment(int $limit): array
+    {
+        global $wpdb;
+
+        $table = Schema::ordersTable();
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        $rows = $wpdb->get_results($wpdb->prepare(
+            "SELECT id, order_number, paid_at FROM {$table} WHERE status = %s AND paid_at IS NOT NULL ORDER BY paid_at ASC LIMIT %d",
+            Order::STATUS_PAID,
+            max(1, $limit)
+        ), ARRAY_A);
+
+        return is_array($rows) ? array_map(static fn (array $r): array => [
+            'id' => (int) $r['id'],
+            'order_number' => (string) $r['order_number'],
+            'paid_at' => (string) $r['paid_at'],
+        ], $rows) : [];
+    }
+
+    /**
+     * Umsatz je Produkt aus den Positions-Snapshots bezahlter Bestellungen der letzten
+     * N Tage, absteigend. Fürs "was macht den Umsatz aus"-Diagramm. Aggregiert in PHP,
+     * weil die Positionen als JSON in der Zeile liegen (kleiner Katalog, kleine Menge).
+     *
+     * @return array<string, int> Produkttitel => Umsatz in Cent (absteigend)
+     */
+    public function revenueByProduct(int $days, int $limit): array
+    {
+        global $wpdb;
+
+        $table = Schema::ordersTable();
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        $rows = $wpdb->get_col($wpdb->prepare(
+            "SELECT items FROM {$table} WHERE paid_at >= (NOW() - INTERVAL %d DAY) AND status IN ('paid', 'shipped')",
+            max(1, $days)
+        ));
+
+        $revenue = [];
+        foreach ($rows as $json) {
+            $items = json_decode((string) $json, true);
+            if (! is_array($items)) {
+                continue;
+            }
+            foreach ($items as $item) {
+                $title = (string) ($item['title'] ?? '');
+                if ($title === '') {
+                    continue;
+                }
+                $revenue[$title] = ($revenue[$title] ?? 0) + (int) ($item['line_total_cents'] ?? 0);
+            }
+        }
+
+        arsort($revenue);
+
+        return array_slice($revenue, 0, max(1, $limit), true);
+    }
+
+    /**
+     * Anzahl bezahlter Bestellungen je Zeit-Eimer (Tag oder Monat) im Fenster
+     * [$from, $to). Nur nicht-leere Eimer; die leeren füllt die Anzeige. $from/$to sind
+     * WP-lokale Datumsstrings (gleiche Basis wie created_at), damit die Gruppierung
+     * zeitzonen-konsistent ist.
+     *
+     * @return array<string, int> Eimer (Y-m-d bzw. Y-m) => Anzahl
+     */
+    public function paidCountSeries(string $from, string $to, string $granularity): array
+    {
+        global $wpdb;
+
+        $table = Schema::ordersTable();
+        $format = $granularity === 'month' ? '%Y-%m' : '%Y-%m-%d';
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        $rows = $wpdb->get_results($wpdb->prepare(
+            "SELECT DATE_FORMAT(created_at, %s) AS bucket, COUNT(*) AS c FROM {$table}
+             WHERE created_at >= %s AND created_at < %s AND status IN ('paid', 'shipped')
+             GROUP BY bucket",
+            $format,
+            $from,
+            $to
+        ), ARRAY_A);
+
+        $map = [];
+        foreach (is_array($rows) ? $rows : [] as $r) {
+            $map[(string) $r['bucket']] = (int) $r['c'];
+        }
+
+        return $map;
+    }
+
+    /**
      * Gemeinsamer Einzel-Fetch mit prepared WHERE-Klausel.
      */
     private function fetch(string $where, int|string $value): ?Order
