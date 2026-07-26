@@ -39,51 +39,60 @@ final class ReservationRepository
 
         $wpdb->query('START TRANSACTION');
 
-        // Bestand-Zeile exklusiv sperren. Serialisiert konkurrierende Reservierungen
-        // derselben Variante.
-        $row = $wpdb->get_row($wpdb->prepare(
-            "SELECT stock, tracked FROM {$stockTable} WHERE product_id = %d AND variant_id = %s FOR UPDATE",
-            $productId,
-            $variantId
-        ));
+        // Bricht der Request zwischen START und COMMIT ab (Fatal, Memory-Limit, Filter-
+        // Hook), darf kein Zeilen-Lock offen bleiben: Throwable rollt zurück und wirft
+        // weiter (Sichtbarkeit im Monitoring, siehe ADR 0001).
+        try {
+            // Bestand-Zeile exklusiv sperren. Serialisiert konkurrierende Reservierungen
+            // derselben Variante.
+            $row = $wpdb->get_row($wpdb->prepare(
+                "SELECT stock, tracked FROM {$stockTable} WHERE product_id = %d AND variant_id = %s FOR UPDATE",
+                $productId,
+                $variantId
+            ));
 
-        // Keine Zeile oder nicht verfolgt = unbegrenzt, keine Reservierung nötig.
-        if ($row === null || (int) $row->tracked === 0) {
+            // Keine Zeile oder nicht verfolgt = unbegrenzt, keine Reservierung nötig.
+            if ($row === null || (int) $row->tracked === 0) {
+                $wpdb->query('COMMIT');
+
+                return true;
+            }
+
+            // Aktive Reservierungen ANDERER Bestellungen (die eigene zählt nicht doppelt).
+            $reserved = (int) $wpdb->get_var($wpdb->prepare(
+                "SELECT COALESCE(SUM(qty), 0) FROM {$resTable}
+                 WHERE product_id = %d AND variant_id = %s AND expires_at > UTC_TIMESTAMP() AND order_id <> %d",
+                $productId,
+                $variantId,
+                $orderId
+            ));
+
+            if ((int) $row->stock - $reserved < $qty) {
+                $wpdb->query('ROLLBACK');
+
+                return false;
+            }
+
+            // Reservieren (idempotent pro Bestellung+Variante über den Unique-Key).
+            $wpdb->query($wpdb->prepare(
+                "INSERT INTO {$resTable} (order_id, product_id, variant_id, qty, expires_at, created_at)
+                 VALUES (%d, %d, %s, %d, DATE_ADD(UTC_TIMESTAMP(), INTERVAL %d MINUTE), UTC_TIMESTAMP())
+                 ON DUPLICATE KEY UPDATE qty = VALUES(qty), expires_at = VALUES(expires_at)",
+                $orderId,
+                $productId,
+                $variantId,
+                $qty,
+                $holdMinutes
+            ));
+
             $wpdb->query('COMMIT');
 
             return true;
-        }
-
-        // Aktive Reservierungen ANDERER Bestellungen (die eigene zählt nicht doppelt).
-        $reserved = (int) $wpdb->get_var($wpdb->prepare(
-            "SELECT COALESCE(SUM(qty), 0) FROM {$resTable}
-             WHERE product_id = %d AND variant_id = %s AND expires_at > UTC_TIMESTAMP() AND order_id <> %d",
-            $productId,
-            $variantId,
-            $orderId
-        ));
-
-        if ((int) $row->stock - $reserved < $qty) {
+        } catch (\Throwable $e) {
             $wpdb->query('ROLLBACK');
 
-            return false;
+            throw $e;
         }
-
-        // Reservieren (idempotent pro Bestellung+Variante über den Unique-Key).
-        $wpdb->query($wpdb->prepare(
-            "INSERT INTO {$resTable} (order_id, product_id, variant_id, qty, expires_at, created_at)
-             VALUES (%d, %d, %s, %d, DATE_ADD(UTC_TIMESTAMP(), INTERVAL %d MINUTE), UTC_TIMESTAMP())
-             ON DUPLICATE KEY UPDATE qty = VALUES(qty), expires_at = VALUES(expires_at)",
-            $orderId,
-            $productId,
-            $variantId,
-            $qty,
-            $holdMinutes
-        ));
-
-        $wpdb->query('COMMIT');
-
-        return true;
     }
 
     /**

@@ -18,7 +18,7 @@ namespace RhShop\Orders;
  */
 final class Schema
 {
-    public const DB_VERSION = '4';
+    public const DB_VERSION = '5';
     public const OPTION_DB_VERSION = 'rhshop_orders_db_version';
     public const OPTION_STOCK_MIGRATED = 'rhshop_stock_migrated';
 
@@ -110,8 +110,9 @@ final class Schema
             PRIMARY KEY  (id),
             KEY order_number (order_number),
             KEY status (status),
-            KEY stripe_session_id (stripe_session_id)
-        ) {$charset};";
+            KEY stripe_session_id (stripe_session_id),
+            KEY stripe_payment_intent_id (stripe_payment_intent_id(191))
+        ) ENGINE=InnoDB {$charset};";
 
         dbDelta($sql);
 
@@ -149,7 +150,7 @@ final class Schema
             updated_at DATETIME NOT NULL,
             PRIMARY KEY  (id),
             UNIQUE KEY product_variant (product_id, variant_id)
-        ) {$charset};";
+        ) ENGINE=InnoDB {$charset};";
 
         dbDelta($sqlStock);
 
@@ -163,15 +164,61 @@ final class Schema
             expires_at DATETIME NOT NULL,
             created_at DATETIME NOT NULL,
             PRIMARY KEY  (id),
-            UNIQUE KEY order_variant (order_id, variant_id),
+            UNIQUE KEY order_product_variant (order_id, product_id, variant_id),
             KEY variant_expiry (product_id, variant_id, expires_at)
-        ) {$charset};";
+        ) ENGINE=InnoDB {$charset};";
 
         dbDelta($sqlReservations);
 
         self::migrateStockFromPostMeta();
+        self::upgradeReservationSchema();
 
         update_option(self::OPTION_DB_VERSION, self::DB_VERSION);
+    }
+
+    /**
+     * Bestandsinstallationen härten (dbDelta ändert Engine und Unique-Keys nicht
+     * zuverlässig): Engine der bestandskritischen Tabellen auf InnoDB ziehen (sonst
+     * sind FOR UPDATE und Transaktionen wirkungslos) und den Reservierungs-Unique-Key
+     * von (order_id, variant_id) auf (order_id, product_id, variant_id) tauschen. Ohne
+     * product_id kollidieren zwei Produkte ohne Varianten (beide variant_id 'default')
+     * in EINER Bestellung, die zweite Reservierung geht verloren -> Überverkauf.
+     */
+    private static function upgradeReservationSchema(): void
+    {
+        global $wpdb;
+        $res = self::reservationsTable();
+
+        // Engine sicherstellen (idempotent). Auf Hosts mit MyISAM-Default wäre der
+        // ganze Überverkaufs-Schutz sonst still deaktiviert.
+        foreach ([$res, self::variantStockTable(), self::ordersTable()] as $tbl) {
+            $engine = $wpdb->get_var($wpdb->prepare(
+                'SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s',
+                $tbl
+            ));
+            if ($engine !== null && strcasecmp((string) $engine, 'InnoDB') !== 0) {
+                $wpdb->query("ALTER TABLE {$tbl} ENGINE=InnoDB");
+            }
+        }
+
+        // Alten Unique-Key ersetzen. Reservierungen sind ephemer (kurze Haltedauer),
+        // ein Leeren garantiert, dass der neue, engere Unique-Key kollisionsfrei greift.
+        $hasOld = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND INDEX_NAME = 'order_variant'",
+            $res
+        ));
+        if ($hasOld > 0) {
+            $wpdb->query("DELETE FROM {$res}");
+            $wpdb->query("ALTER TABLE {$res} DROP INDEX order_variant");
+        }
+
+        $hasNew = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND INDEX_NAME = 'order_product_variant'",
+            $res
+        ));
+        if ($hasNew === 0) {
+            $wpdb->query("ALTER TABLE {$res} ADD UNIQUE KEY order_product_variant (order_id, product_id, variant_id)");
+        }
     }
 
     /**
