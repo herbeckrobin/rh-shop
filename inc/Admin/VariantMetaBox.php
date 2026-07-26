@@ -221,7 +221,10 @@ final class VariantMetaBox
             var box = document.querySelector( '.rhshop-metabox' );
             if ( ! box ) { return; }
             var rows = box.querySelector( '[data-rhshop-variant-rows]' );
-            var tpl = box.querySelector( '[data-rhshop-variant-template]' );
+            // Das Template liegt als Geschwister neben der Box (nach dem schließenden
+            // div), darum global suchen. Es gibt nur eine Produkt-Meta-Box je Seite.
+            var tpl = document.querySelector( '[data-rhshop-variant-template]' );
+            if ( ! rows || ! tpl ) { return; }
             var lowThreshold = <?php echo (int) (new \RhShop\Stripe\Config())->lowStockThreshold(); ?>;
             var LABELS = {
                 untracked: <?php echo wp_json_encode(__('nicht verfolgt', 'rh-shop')); ?>,
