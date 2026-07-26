@@ -630,14 +630,21 @@
 .rhshop-cw__drawer *::before,
 .rhshop-cw__drawer *::after { box-sizing: border-box; }
 
-/* :where()-Reset: neutralisiert Theme-Grundstile der im Drawer genutzten
-   Elemente. Specificity 0 -> unsere .rhshop-*-Klassen gewinnen immer. */
+/* Reset für die im Drawer genutzten Element-Typen: neutralisiert Theme-Grundstile.
+   Der Vorfahre .rhshop-cw__panel gibt Specificity 0,1,0 (schlägt Theme-Element-
+   Selektoren), das :where() hält nur den Element-Teil bei 0. Eigene gestylte Klassen
+   mit gleicher Specificity (0,1,0) verlieren also per Reihenfolge und müssen unten
+   nachgezogen werden, wo eine eigene Farbe/BG nötig ist (siehe .rhshop-btn-checkout). */
 .rhshop-cw__panel :where(ul, ol, li) { margin: 0; padding: 0; list-style: none; }
 .rhshop-cw__panel :where(p, h1, h2, h3, h4, figure, span, strong, div) { margin: 0; }
 .rhshop-cw__panel :where(button) { margin: 0; font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
 .rhshop-cw__panel :where(a) { color: inherit; }
 .rhshop-cw__panel :where(img) { max-width: 100%; height: auto; display: block; }
 .rhshop-cw__panel :where(input) { font: inherit; }
+/* Der "Zur Kasse"-Button ist ein <a> mit eigener heller Schrift auf dunklem Grund.
+   Der :where(a)-Reset oben (0,1,0) würde ihm sonst die Farbe klauen -> dunkel auf
+   dunkel, unlesbar. Höhere Specificity (0,2,0) holt die Button-Farbe zurück. */
+.rhshop-cw__panel .rhshop-btn-checkout { color: var(--rhshop-on-accent); }
 
 .rhshop-cw__backdrop {
 	position: absolute;
