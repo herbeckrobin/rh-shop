@@ -85,6 +85,19 @@ final class WebhookController
             return;
         }
 
+        // Defense-in-Depth: der bezahlte Betrag muss zum Bestellbetrag passen. Der Betrag
+        // wird serverseitig aus dem Warenkorb gesetzt (der Kunde kann ihn über Stripe
+        // Elements nicht ändern), ein Mismatch wäre also ein Bug oder Manipulationsversuch.
+        // Dann nicht automatisch fulfillen, sondern propagieren (Monitoring sieht es).
+        $existing = $this->orders->findByPaymentIntent($intentId);
+        if ($existing === null) {
+            return; // unbekannter/fremder PaymentIntent -> sauberes 200, kein Retry
+        }
+        $received = (int) ($intent->amount_received ?? 0);
+        if ($received !== $existing->totalCents) {
+            throw new \RuntimeException('rh-shop: bezahlter Betrag passt nicht zur Bestellung, Fulfillment gestoppt.');
+        }
+
         $order = $this->orders->markPaidByPaymentIntent($intentId, $this->buyer($intent));
 
         // Nur wenn frisch auf bezahlt umgestellt (Idempotenz), Bestand + Mail. Ein
@@ -110,18 +123,21 @@ final class WebhookController
     {
         $shipping = $intent->shipping ?? null;
 
+        // Käufer-kontrollierter Freitext (Stripe Address Element): schon hier sanitizen,
+        // nicht erst am Ausgabepunkt. Defense-in-Depth, falls ein künftiger Report-Pfad
+        // das Escapen vergisst.
         $address = [];
         if ($shipping !== null && isset($shipping->address) && is_object($shipping->address)) {
             foreach (['line1', 'line2', 'city', 'postal_code', 'state', 'country'] as $key) {
                 if (isset($shipping->address->$key) && $shipping->address->$key !== null) {
-                    $address[$key] = (string) $shipping->address->$key;
+                    $address[$key] = sanitize_text_field((string) $shipping->address->$key);
                 }
             }
         }
 
         return [
-            'email' => (string) ($intent->receipt_email ?? ''),
-            'name' => (string) ($shipping->name ?? ''),
+            'email' => sanitize_email((string) ($intent->receipt_email ?? '')),
+            'name' => sanitize_text_field((string) ($shipping->name ?? '')),
             'address' => $address,
         ];
     }

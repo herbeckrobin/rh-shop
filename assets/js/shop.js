@@ -86,10 +86,13 @@
 		}
 	}
 
+	// Escaping für Einbettung in innerHTML, inklusive Attribut-Kontext: textContent
+	// neutralisiert &, <, >; die zwei replaces zusätzlich " und ', damit ein Wert auch
+	// zwischen Attribut-Anführungszeichen (data-v="...", src="...") nicht ausbrechen kann.
 	function esc( value ) {
 		var d = document.createElement( 'div' );
 		d.textContent = value == null ? '' : String( value );
-		return d.innerHTML;
+		return d.innerHTML.replace( /"/g, '&quot;' ).replace( /'/g, '&#39;' );
 	}
 
 	function updateCartCount( state ) {
