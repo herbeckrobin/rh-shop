@@ -20,7 +20,7 @@ defined( 'ABSPATH' ) || exit;
  */
 final class Schema
 {
-    public const DB_VERSION = '5';
+    public const DB_VERSION = '6';
     public const OPTION_DB_VERSION = 'rhshop_orders_db_version';
     public const OPTION_STOCK_MIGRATED = 'rhshop_stock_migrated';
 
@@ -98,6 +98,9 @@ final class Schema
             items LONGTEXT NOT NULL,
             subtotal_cents BIGINT UNSIGNED NOT NULL DEFAULT 0,
             shipping_cents BIGINT UNSIGNED NOT NULL DEFAULT 0,
+            shipping_method VARCHAR(190) NOT NULL DEFAULT '',
+            carrier VARCHAR(32) NOT NULL DEFAULT '',
+            tracking_number VARCHAR(190) NOT NULL DEFAULT '',
             tax_cents BIGINT UNSIGNED NOT NULL DEFAULT 0,
             total_cents BIGINT UNSIGNED NOT NULL DEFAULT 0,
             tax_mode VARCHAR(20) NOT NULL DEFAULT 'vat',
@@ -109,6 +112,7 @@ final class Schema
             created_at DATETIME NOT NULL,
             updated_at DATETIME NOT NULL,
             paid_at DATETIME NULL DEFAULT NULL,
+            shipped_at DATETIME NULL DEFAULT NULL,
             PRIMARY KEY  (id),
             KEY order_number (order_number),
             KEY status (status),

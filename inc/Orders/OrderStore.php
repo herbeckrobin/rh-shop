@@ -6,6 +6,8 @@ namespace RhShop\Orders;
 
 defined( 'ABSPATH' ) || exit;
 
+use RhShop\Shipping\Carrier;
+
 /**
  * Datenzugriff für Bestellungen. Hält CRUD und die Status-Übergänge an einer
  * Stelle, damit Checkout, Webhook und Admin dieselbe Wahrheit lesen.
@@ -42,6 +44,8 @@ final class OrderStore
             'items' => (string) wp_json_encode(array_values($draft['items'] ?? [])),
             'subtotal_cents' => max(0, (int) ($draft['subtotal_cents'] ?? 0)),
             'shipping_cents' => max(0, (int) ($draft['shipping_cents'] ?? 0)),
+            'shipping_method' => sanitize_text_field((string) ($draft['shipping_method'] ?? '')),
+            'carrier' => Carrier::sanitize((string) ($draft['carrier'] ?? '')),
             'tax_cents' => max(0, (int) ($draft['tax_cents'] ?? 0)),
             'total_cents' => max(0, (int) ($draft['total_cents'] ?? 0)),
             'tax_mode' => in_array($draft['tax_mode'] ?? '', [Order::TAX_VAT, Order::TAX_KLEINUNTERNEHMER], true) ? $draft['tax_mode'] : Order::TAX_VAT,
@@ -50,7 +54,7 @@ final class OrderStore
             'created_at' => $now,
             'updated_at' => $now,
         ];
-        $formats = ['%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%d', '%s', '%s', '%s', '%s', '%s'];
+        $formats = ['%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s', '%s', '%d', '%d', '%s', '%s', '%s', '%s', '%s'];
 
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
         $inserted = $wpdb->insert($table, $data, $formats);
@@ -183,6 +187,34 @@ final class OrderStore
             ['status' => $status, 'updated_at' => current_time('mysql')],
             ['id' => $id],
             ['%s', '%s'],
+            ['%d']
+        );
+    }
+
+    /**
+     * Bestellung als versendet markieren und dabei Carrier + Sendungsnummer + Versand-
+     * datum persistieren. Anders als der bisherige Ablauf (Nummer floss nur flüchtig in
+     * die Mail) bleibt das Tracking hier erhalten und ist später abrufbar. Erwartet
+     * bereits sanitisierte Werte vom Aufrufer.
+     */
+    public function markShipped(int $id, string $carrier, string $trackingNumber): void
+    {
+        global $wpdb;
+
+        $now = current_time('mysql');
+        $table = Schema::ordersTable();
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+        $wpdb->update(
+            $table,
+            [
+                'status' => Order::STATUS_SHIPPED,
+                'carrier' => $carrier,
+                'tracking_number' => $trackingNumber,
+                'shipped_at' => $now,
+                'updated_at' => $now,
+            ],
+            ['id' => $id],
+            ['%s', '%s', '%s', '%s', '%s'],
             ['%d']
         );
     }

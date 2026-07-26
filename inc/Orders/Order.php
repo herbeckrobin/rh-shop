@@ -59,6 +59,10 @@ final class Order
         public readonly string $invoiceUrl,
         public readonly string $createdAt,
         public readonly ?string $paidAt,
+        public readonly string $shippingMethod = '',
+        public readonly string $carrier = '',
+        public readonly string $trackingNumber = '',
+        public readonly ?string $shippedAt = null,
     ) {
     }
 
@@ -102,6 +106,10 @@ final class Order
             invoiceUrl: (string) ($row['invoice_url'] ?? ''),
             createdAt: (string) ($row['created_at'] ?? ''),
             paidAt: isset($row['paid_at']) && $row['paid_at'] !== null ? (string) $row['paid_at'] : null,
+            shippingMethod: (string) ($row['shipping_method'] ?? ''),
+            carrier: (string) ($row['carrier'] ?? ''),
+            trackingNumber: (string) ($row['tracking_number'] ?? ''),
+            shippedAt: isset($row['shipped_at']) && $row['shipped_at'] !== null ? (string) $row['shipped_at'] : null,
         );
     }
 }

@@ -8,6 +8,7 @@ defined( 'ABSPATH' ) || exit;
 
 use RhShop\Cart\Cart;
 use RhShop\Orders\Order;
+use RhShop\Shipping\ShippingMethod;
 use RhShop\Stripe\Config;
 use RhShop\Support\Money;
 
@@ -55,13 +56,20 @@ final class Totals
     /**
      * WordPress-Adapter: zieht die Werte aus Warenkorb und Konfiguration und übergibt sie
      * an fromValues. Die eigentliche Rechnung bleibt WP-frei.
+     *
+     * Ist eine Versandmethode gewählt, liefern deren Preis und Gratis-ab-Schwelle die
+     * Versandkosten. Ohne Methode greift die bisherige Pauschale aus der Config
+     * (Rückwärtskompat).
      */
-    public static function forCart(Cart $cart, Config $config): self
+    public static function forCart(Cart $cart, Config $config, ?ShippingMethod $method = null): self
     {
+        $flat = $method !== null ? $method->priceCents : $config->shippingCents();
+        $threshold = $method !== null ? ($method->freeFromCents ?? 0) : $config->freeShippingThresholdCents();
+
         return self::fromValues(
             $cart->totalCents(),
-            $config->shippingCents(),
-            $config->freeShippingThresholdCents(),
+            $flat,
+            $threshold,
             $config->taxMode(),
             $config->taxRatePercent(),
         );
@@ -145,6 +153,7 @@ final class Totals
             'kleinunternehmer' => $this->isKleinunternehmer(),
             'vat_rate' => $this->taxRatePercent,
             'free_shipping_remaining_cents' => $this->freeShippingRemainingCents(),
+            'free_shipping_remaining' => Money::format($this->freeShippingRemainingCents(), $symbol),
         ];
     }
 }
