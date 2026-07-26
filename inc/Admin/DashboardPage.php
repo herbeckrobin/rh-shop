@@ -332,22 +332,33 @@ final class DashboardPage
      */
     private function ordersChartCard(OrderStore $orders, int $paidCount): void
     {
+        $prevCount = $orders->paidCountPreviousDays(self::RANGE_DAYS);
+
         echo '<div class="rhshop-dash__card rhshop-metric rhshop-chart" data-rhshop-chart data-nonce="' . esc_attr(wp_create_nonce('rhshop_dash')) . '">';
         printf(
-            '<div class="rhshop-metric__head"><span class="num">%d</span><span class="lbl">%s</span></div>',
+            '<div class="rhshop-metric__head"><span class="num">%d%s</span><span class="lbl">%s</span></div>',
             $paidCount,
+            $this->trendArrow($paidCount, $prevCount),
             esc_html(sprintf(/* translators: %d: Anzahl Tage */ __('Bestellungen (%d Tage)', 'rh-shop'), self::RANGE_DAYS))
         );
 
-        // Umschalter + Navigation (Vanilla-JS füllt den Chart-Bereich).
+        // Umschalter + Navigation (Vanilla-JS füllt den Chart-Bereich). Die Buttons
+        // zeigen kurz W/M/J, das volle Wort steckt im Tooltip und aria-label.
         echo '<div class="rhshop-chart__controls">';
         echo '<div class="rhshop-chart__ranges" role="tablist">';
-        foreach (['week' => __('Woche', 'rh-shop'), 'month' => __('Monat', 'rh-shop'), 'year' => __('Jahr', 'rh-shop')] as $key => $label) {
+        $ranges = [
+            'week' => [_x('W', 'Woche, Kurzform im Umschalter', 'rh-shop'), __('Woche', 'rh-shop')],
+            'month' => [_x('M', 'Monat, Kurzform im Umschalter', 'rh-shop'), __('Monat', 'rh-shop')],
+            'year' => [_x('J', 'Jahr, Kurzform im Umschalter', 'rh-shop'), __('Jahr', 'rh-shop')],
+        ];
+        foreach ($ranges as $key => [$short, $full]) {
             printf(
-                '<button type="button" class="rhshop-chart__range%s" data-range="%s">%s</button>',
+                '<button type="button" class="rhshop-chart__range%s" data-range="%s" title="%s" aria-label="%s">%s</button>',
                 $key === 'month' ? ' is-active' : '',
                 esc_attr($key),
-                esc_html($label)
+                esc_attr($full),
+                esc_attr($full),
+                esc_html($short)
             );
         }
         echo '</div>';
@@ -407,6 +418,34 @@ final class DashboardPage
             echo '<p class="rhshop-metric__empty">' . esc_html__('Alle Bestände sind in Ordnung.', 'rh-shop') . '</p>';
         }
         echo '</div>';
+    }
+
+    /**
+     * Trend-Pfeil neben der Bestellungen-Zahl: grün hoch bei mehr, rot runter bei weniger
+     * als im gleich langen Zeitraum davor. Bei Gleichstand kein Pfeil. Der Vergleich steht
+     * im Tooltip. Gibt fertiges, escaptes HTML zurück (leer wenn kein Trend).
+     */
+    private function trendArrow(int $current, int $previous): string
+    {
+        if ($current === $previous) {
+            return '';
+        }
+
+        $up = $current > $previous;
+        $diff = abs($current - $previous);
+        $label = $up
+            /* translators: %d: Anzahl mehr als im Zeitraum davor */
+            ? sprintf(__('%d mehr als im Zeitraum davor', 'rh-shop'), $diff)
+            /* translators: %d: Anzahl weniger als im Zeitraum davor */
+            : sprintf(__('%d weniger als im Zeitraum davor', 'rh-shop'), $diff);
+
+        return sprintf(
+            '<span class="rhshop-trend rhshop-trend--%s" title="%s" aria-label="%s">%s</span>',
+            $up ? 'up' : 'down',
+            esc_attr($label),
+            esc_attr($label),
+            $up ? '&#9650;' : '&#9660;'
+        );
     }
 
     private function orderDetailUrl(int $id): string
@@ -625,6 +664,9 @@ final class DashboardPage
 a.rhshop-metric__head:hover .num{color:#3858e9}
 .rhshop-metric__head.is-attn{position:relative}
 .rhshop-metric__head.is-attn .num{color:#d63638}
+.rhshop-trend{font-size:15px;font-weight:700;margin-left:9px;vertical-align:5px;line-height:1}
+.rhshop-trend--up{color:#1a7f37}
+.rhshop-trend--down{color:#d63638}
 .rhshop-metric__list{list-style:none;margin:12px 0 0;padding:0}
 .rhshop-metric__list li{border-bottom:1px solid #f6f7f7}
 .rhshop-metric__list li:last-child{border-bottom:0}
@@ -645,7 +687,7 @@ a.rhshop-metric__head:hover .num{color:#3858e9}
 .rhshop-bars .bf{display:block;height:100%;background:#3858e9;border-radius:4px;min-width:2px}
 .rhshop-chart__controls{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap}
 .rhshop-chart__ranges{display:inline-flex;border:1px solid #dcdcde;border-radius:6px;overflow:hidden}
-.rhshop-chart__range{background:#fff;border:0;border-right:1px solid #dcdcde;padding:4px 10px;font-size:12px;cursor:pointer;color:#3c434a}
+.rhshop-chart__range{background:#fff;border:0;border-right:1px solid #dcdcde;padding:4px 0;min-width:32px;text-align:center;font-size:12px;font-weight:600;cursor:pointer;color:#3c434a}
 .rhshop-chart__range:last-child{border-right:0}
 .rhshop-chart__range.is-active{background:#3858e9;color:#fff}
 .rhshop-chart__nav{display:inline-flex;align-items:center;gap:6px}

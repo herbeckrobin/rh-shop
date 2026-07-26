@@ -270,6 +270,26 @@ final class OrderStore
     }
 
     /**
+     * Anzahl bezahlter Bestellungen im gleich langen Fenster DAVOR (Tag -2N bis -N),
+     * für den Trend-Vergleich der aktuellen N Tage gegen die N Tage davor.
+     */
+    public function paidCountPreviousDays(int $days): int
+    {
+        global $wpdb;
+
+        $days = max(1, $days);
+        $table = Schema::ordersTable();
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        return (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$table}
+             WHERE paid_at >= (NOW() - INTERVAL %d DAY) AND paid_at < (NOW() - INTERVAL %d DAY)
+             AND status IN ('paid', 'shipped')",
+            $days * 2,
+            $days
+        ));
+    }
+
+    /**
      * Die am längsten auf Versand wartenden Bestellungen (Status bezahlt), älteste
      * zuerst. Fürs Dashboard: was ist als Nächstes zu verschicken.
      *
