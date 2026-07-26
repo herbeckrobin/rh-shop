@@ -4,7 +4,7 @@ Tags: shop, ecommerce, stripe, products
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 0.6.1
+Stable tag: 0.7.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -17,6 +17,12 @@ RH Shop ist der leichte Weg, ein kleines Sortiment (Merch, ein paar Produkte) zu
 Teil der rh-blueprint Kollektion.
 
 == Changelog ==
+
+= 0.7.0 =
+* Shop-Übersicht ausgebaut: die vier Kacheln zeigen jetzt mehr als die nackte Zahl. Offene Bestellungen listen die am längsten wartenden (was als Nächstes rausgeht), der Umsatz ein Balkendiagramm der umsatzstärksten Produkte, die Bestellungen eine Verlaufsgrafik (Woche/Monat/Jahr umschaltbar, durch den Kalender blätterbar) mit Trend-Pfeil gegen den Zeitraum davor, und die Produkte den Lager-Status mit den knappsten Varianten.
+* Im Produkt-Editor zeigt das Bestand-Feld jetzt live einen Status: ausverkauft, knapp, auf Lager oder nicht verfolgt, direkt beim Tippen. So ist auf einen Blick klar, was Sache ist, statt nur der eingetragenen Zahl.
+* Fehler behoben: In der Varianten-Tabelle ließen sich keine neuen Varianten hinzufügen, der Knopf tat nichts.
+* Fehler behoben: Der "Zur Kasse"-Knopf im Warenkorb-Overlay war unlesbar (dunkle Schrift auf dunklem Grund).
 
 = 0.6.1 =
 * Sicherheits-Update (empfohlen). Wichtigste Behebung: In einem Sonderfall (zwei Produkte ohne Varianten in derselben Bestellung) konnte der Überverkaufs-Schutz umgangen werden, das ist behoben.
