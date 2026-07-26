@@ -11,6 +11,7 @@ use RhShop\Orders\OrderStore;
 use RhShop\Stripe\CheckoutService;
 use RhShop\Stripe\Config;
 use RhShop\Stripe\StripeClient;
+use RhShop\Support\RateLimiter;
 use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -72,6 +73,12 @@ final class CheckoutRestController
 
     public function createSession(WP_REST_Request $request): WP_REST_Response|WP_Error
     {
+        // Rate-Limit gegen Denial-of-Inventory: jeder Aufruf reserviert Bestand + kostet
+        // einen Stripe-Call. Ein echter Kunde bestellt selten mehr als ein paar Mal.
+        if (RateLimiter::tooMany('checkout', 8, MINUTE_IN_SECONDS)) {
+            return new WP_Error('rhshop_rate_limited', __('Zu viele Anfragen. Bitte warte einen Moment und versuch es erneut.', 'rh-shop'), ['status' => 429]);
+        }
+
         $config = new Config();
 
         $revocation = rest_sanitize_boolean($request->get_param('accept_revocation'));

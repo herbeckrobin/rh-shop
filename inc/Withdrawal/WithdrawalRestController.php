@@ -6,6 +6,7 @@ namespace RhShop\Withdrawal;
 
 use RhShop\Cart\CartRestController;
 use RhShop\Orders\OrderStore;
+use RhShop\Support\RateLimiter;
 use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -44,10 +45,18 @@ final class WithdrawalRestController
 
     public function submit(WP_REST_Request $request): WP_REST_Response|WP_Error
     {
+        // Rate-Limit gegen Mail-Spam-Missbrauch (jeder Aufruf verschickt eine
+        // Admin-Benachrichtigung und speichert eine Zeile). Ein echter Kunde widerruft einmal.
+        if (RateLimiter::tooMany('widerruf', 3, 10 * MINUTE_IN_SECONDS)) {
+            return new WP_Error('rhshop_rate_limited', __('Zu viele Anfragen. Bitte warte einen Moment und versuch es erneut.', 'rh-shop'), ['status' => 429]);
+        }
+
         $name = sanitize_text_field((string) $request->get_param('name'));
         $orderNumber = sanitize_text_field((string) $request->get_param('order_number'));
         $email = sanitize_email((string) $request->get_param('email'));
-        $reason = sanitize_textarea_field((string) $request->get_param('reason'));
+        // Grund begrenzen: das reason-Feld ist ein ungelängtes TEXT, ohne Deckel könnte
+        // man die Tabelle mit Megabyte-Grüßen fluten.
+        $reason = mb_substr(sanitize_textarea_field((string) $request->get_param('reason')), 0, 2000);
 
         if ($name === '' || $orderNumber === '') {
             return new WP_Error('rhshop_widerruf_incomplete', __('Bitte Name und Bestellnummer angeben.', 'rh-shop'), ['status' => 400]);
@@ -79,7 +88,9 @@ final class WithdrawalRestController
 
         $withdrawal = $store->find($id);
         if ($withdrawal !== null) {
-            (new WithdrawalMailer())->send($withdrawal);
+            // Kunden-Bestätigung nur bei gegen die Bestellung verifizierter E-Mail
+            // (orderId > 0), sonst wäre der Endpoint ein Mail-Relay an fremde Adressen.
+            (new WithdrawalMailer())->send($withdrawal, $orderId > 0);
 
             /**
              * Ein Widerruf ist eingegangen (dokumentiert, Eingangsbestätigung raus).

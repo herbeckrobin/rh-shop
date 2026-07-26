@@ -15,12 +15,20 @@ namespace RhShop\Withdrawal;
  */
 final class WithdrawalMailer
 {
-    public function send(Withdrawal $withdrawal): void
+    /**
+     * @param bool $verified Nur bei einer gegen die Bestellung (Nummer + E-Mail)
+     *                       verifizierten Erklärung geht die Eingangsbestätigung an den
+     *                       Kunden. Sonst würde der Endpoint zum Mail-Relay: ein Angreifer
+     *                       könnte die Bestätigung an beliebige fremde Adressen schicken.
+     *                       Die Admin-Benachrichtigung geht immer raus, der Betreiber kann
+     *                       einen unverifizierten Widerruf manuell prüfen und bestätigen.
+     */
+    public function send(Withdrawal $withdrawal, bool $verified): void
     {
         $headers = ['Content-Type: text/html; charset=UTF-8'];
         $received = $this->formatDateTime($withdrawal->receivedAt);
 
-        if ($withdrawal->email !== '') {
+        if ($verified && $withdrawal->email !== '') {
             wp_mail(
                 $withdrawal->email,
                 __('Eingangsbestätigung deines Widerrufs', 'rh-shop'),
