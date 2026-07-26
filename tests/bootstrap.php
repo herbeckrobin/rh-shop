@@ -21,6 +21,8 @@ require $inc . '/Catalog/Variant.php';
 require $inc . '/Catalog/StockSummary.php';
 require $inc . '/Orders/Order.php';
 require $inc . '/Checkout/Totals.php';
+require $inc . '/Shipping/Carrier.php';
+require $inc . '/Shipping/ShippingMethod.php';
 
 $GLOBALS['__rhshop_tests'] = ['pass' => 0, 'fail' => 0, 'fails' => []];
 

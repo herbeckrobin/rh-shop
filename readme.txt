@@ -4,7 +4,7 @@ Tags: shop, ecommerce, stripe, products
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 0.7.0
+Stable tag: 0.8.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -17,6 +17,13 @@ RH Shop ist der leichte Weg, ein kleines Sortiment (Merch, ein paar Produkte) zu
 Teil der rh-blueprint Kollektion.
 
 == Changelog ==
+
+= 0.8.0 =
+* Versandmethoden statt fester Pauschale: Unter Einstellungen → Versand legst du die Versandarten an, die der Kunde im Checkout wählt (Bezeichnung, Anbieter, Preis, Gratis-ab, Lieferzeit, an/aus). Beispiele: „Abholung im Laden", „DHL nach Hause", „Hermes nach Hause". Ist keine Methode angelegt, gilt weiter die einfache Pauschale, bestehende Shops ändern sich nicht.
+* Im Checkout wählt der Kunde ab zwei Methoden die Versandart. Preis, Gesamtsumme und der Betrag zur Zahlung aktualisieren sich sofort bei der Auswahl, immer serverseitig gerechnet.
+* Die Sendungsnummer geht nicht mehr verloren: Beim Versenden wählst du den Anbieter und trägst die Nummer ein, beides wird gespeichert und ist in der Bestellliste und der Detailansicht sichtbar. Ein „Label erstellen"-Link führt ins Portal des Anbieters.
+* Der Kunde bekommt in der Versandbestätigung den passenden Sendungsverfolgungs-Link (DHL, Hermes, DPD, GLS oder UPS), nicht mehr nur eine nackte Nummer.
+* WICHTIG beim Update: Eine kleine Datenbank-Erweiterung (Anbieter, Sendungsnummer, Versanddatum je Bestellung) läuft beim ersten Aufruf nach dem Update automatisch, du musst nichts tun.
 
 = 0.7.0 =
 * Shop-Übersicht ausgebaut: die vier Kacheln zeigen jetzt mehr als die nackte Zahl. Offene Bestellungen listen die am längsten wartenden (was als Nächstes rausgeht), der Umsatz ein Balkendiagramm der umsatzstärksten Produkte, die Bestellungen eine Verlaufsgrafik (Woche/Monat/Jahr umschaltbar, durch den Kalender blätterbar) mit Trend-Pfeil gegen den Zeitraum davor, und die Produkte den Lager-Status mit den knappsten Varianten.
