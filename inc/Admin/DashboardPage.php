@@ -609,7 +609,8 @@ final class DashboardPage
     {
         echo '<style>
 .rhshop-dash__banner{margin:16px 0}
-.rhshop-dash__cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:20px 0;max-width:900px}
+.rhshop-dash__cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin:20px 0}
+@media(max-width:1200px){.rhshop-dash__cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:782px){.rhshop-dash__cards{grid-template-columns:1fr}}
 .rhshop-chart__empty{color:#8c8f94;font-size:12px;text-align:center;padding:38px 0}
 .rhshop-metric{display:flex;flex-direction:column}
