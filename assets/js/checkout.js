@@ -17,6 +17,10 @@
 		consents: 'Bitte bestätige die markierten Pflichtangaben.',
 		email: 'Bitte gib eine gültige E-Mail-Adresse an.',
 		error: 'Etwas ist schiefgelaufen. Bitte nochmal versuchen.',
+		free: 'kostenlos',
+		inclShip: 'inkl. %s Versand',
+		inclFree: 'inkl. kostenlosem Versand',
+		freeRemain: 'Noch %s bis zum Gratisversand.',
 	};
 
 	// Spinner + Text für Lade-Meldungen (LABELS sind statisch, kein User-Input).
@@ -52,12 +56,62 @@
 		}
 
 		var submitting = false;
+		var currentMethod = cfg.shippingMethod || '';
+		var currentAmount = cfg.amount;
+		var elements = null;
+
+		// Versandmethoden-Auswahl: läuft SOFORT, unabhängig von Stripe. Beim Wechsel holt
+		// das JS den neuen Preis vom Quote-Endpoint (Server ist die eine Rechenquelle) und
+		// aktualisiert die Anzeige. Nur das Angleichen des Stripe-Betrags wartet konditional
+		// auf das geladene Payment Element, damit der Preis sich auch dann ändert, wenn
+		// Stripe langsam oder gar nicht lädt.
+		function setText( sel, txt ) {
+			var el = document.querySelector( sel );
+			if ( el ) { el.textContent = txt; }
+		}
+		function applyQuote( q ) {
+			currentMethod = q.shipping_method || currentMethod;
+			currentAmount = q.total_cents || currentAmount;
+			setText( '[data-rhshop-sum-shipping]', q.shipping_cents > 0 ? q.shipping : LABELS.free );
+			setText( '[data-rhshop-sum-tax]', q.tax );
+			setText( '[data-rhshop-sum-total]', q.total );
+			setText( '[data-rhshop-payline-total]', q.total );
+			setText( '[data-rhshop-payline-note]', q.shipping_cents > 0 ? LABELS.inclShip.replace( '%s', q.shipping ) : LABELS.inclFree );
+			var free = document.querySelector( '[data-rhshop-sum-freeship]' );
+			if ( free ) {
+				if ( q.free_shipping_remaining_cents > 0 ) {
+					free.textContent = LABELS.freeRemain.replace( '%s', q.free_shipping_remaining );
+					free.hidden = false;
+				} else {
+					free.hidden = true;
+				}
+			}
+			if ( elements && q.total_cents ) { elements.update( { amount: q.total_cents } ); }
+		}
+		var methodBox = document.querySelector( '[data-rhshop-shipping-methods]' );
+		if ( methodBox ) {
+			methodBox.addEventListener( 'change', function ( e ) {
+				var radio = e.target.closest( '[data-rhshop-shipping-method]' );
+				if ( ! radio ) { return; }
+				fetch( cfg.restUrl + 'checkout/quote', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+					credentials: 'same-origin',
+					body: JSON.stringify( { shipping_method: radio.value } ),
+				} )
+					.then( function ( r ) { return r.json(); } )
+					.then( function ( q ) { if ( q && q.total_cents != null ) { applyQuote( q ); } } )
+					.catch( function () {} );
+			} );
+		}
 
 		loadStripe()
 			.then( function ( stripe ) {
-				var elements = stripe.elements( {
+				// Betrag mit dem aktuell gewählten Stand mounten (falls schon vor dem
+				// Stripe-Load gewechselt wurde), nicht mit dem Default aus cfg.amount.
+				elements = stripe.elements( {
 					mode: 'payment',
-					amount: cfg.amount,
+					amount: currentAmount,
 					currency: cfg.currency || 'eur',
 					appearance: cfg.appearance || {},
 				} );
@@ -112,6 +166,7 @@
 								credentials: 'same-origin',
 								body: JSON.stringify( {
 									email: email,
+									shipping_method: currentMethod,
 									accept_terms: true,
 									accept_revocation: true,
 									accept_privacy: true,

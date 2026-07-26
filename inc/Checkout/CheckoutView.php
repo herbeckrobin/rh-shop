@@ -9,6 +9,8 @@ defined( 'ABSPATH' ) || exit;
 use RhShop\Cart\Cart;
 use RhShop\Cart\CartLine;
 use RhShop\Catalog\VariantRepository;
+use RhShop\Shipping\ShippingMethod;
+use RhShop\Shipping\ShippingMethods;
 use RhShop\Stripe\Config;
 use RhShop\Support\Money;
 
@@ -49,13 +51,47 @@ final class CheckoutView
             return '';
         }
 
-        $totals = Totals::forCart($this->cart, $this->config);
+        $methods = ShippingMethods::make()->availableForCheckout();
+        $totals = Totals::forCart($this->cart, $this->config, $methods[0]);
         $symbol = $this->config->currencySymbol();
 
         return '<div class="rhshop-checkout-summary">'
             . $this->summary($this->cart->lines(), $symbol)
+            . $this->shippingPicker($methods, $symbol)
             . $this->breakdown($totals, $symbol)
             . '</div>';
+    }
+
+    /**
+     * Auswahl der Versandmethode (nur ab zwei verfügbaren, sonst gibt es nichts zu
+     * wählen). Der Kunde tippt eine Option, checkout.js holt den neuen Preis vom Quote-
+     * Endpoint und aktualisiert Anzeige und Stripe-Betrag. Ohne JS bleibt die erste
+     * (vorausgewählte) Methode gültig, die der Server ohnehin autoritativ bepreist.
+     *
+     * @param array<int, ShippingMethod> $methods
+     */
+    private function shippingPicker(array $methods, string $symbol): string
+    {
+        if (count($methods) < 2) {
+            return '';
+        }
+
+        $html = '<div class="rhshop-checkout__shipping" data-rhshop-shipping-methods>'
+            . '<span class="rhshop-checkout__section-title">' . esc_html__('Versand', 'rh-shop') . '</span>';
+
+        foreach ($methods as $i => $method) {
+            $priceLabel = $method->priceCents > 0 ? Money::format($method->priceCents, $symbol) : __('kostenlos', 'rh-shop');
+            $time = $method->deliveryTime !== ''
+                ? '<span class="rhshop-checkout__ship-time">' . esc_html($method->deliveryTime) . '</span>'
+                : '';
+            $html .= '<label class="rhshop-checkout__ship-opt">'
+                . '<input type="radio" name="rhshop-shipping" value="' . esc_attr($method->id) . '" data-rhshop-shipping-method' . checked($i === 0, true, false) . ' />'
+                . '<span class="rhshop-checkout__ship-name">' . esc_html($method->label) . $time . '</span>' // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $time escapt.
+                . '<span class="rhshop-checkout__ship-price">' . esc_html($priceLabel) . '</span>'
+                . '</label>';
+        }
+
+        return $html . '</div>';
     }
 
     /**
@@ -73,7 +109,7 @@ final class CheckoutView
                 . esc_html__('Zum Shop', 'rh-shop') . '</a></p></div>';
         }
 
-        $totals = Totals::forCart($this->cart, $this->config);
+        $totals = Totals::forCart($this->cart, $this->config, ShippingMethods::make()->availableForCheckout()[0]);
         $symbol = $this->config->currencySymbol();
 
         return '<div class="rhshop-checkout" data-rhshop-checkout>'
@@ -96,8 +132,8 @@ final class CheckoutView
 
         return '<div class="rhshop-checkout__payline">'
             . '<span class="rhshop-checkout__payline-label">' . esc_html($label) . '</span>'
-            . '<span class="rhshop-checkout__payline-total">' . esc_html(Money::format($totals->totalCents, $symbol)) . '</span>'
-            . '<span class="rhshop-checkout__payline-note">' . esc_html($note) . '</span>'
+            . '<span class="rhshop-checkout__payline-total" data-rhshop-payline-total>' . esc_html(Money::format($totals->totalCents, $symbol)) . '</span>'
+            . '<span class="rhshop-checkout__payline-note" data-rhshop-payline-note>' . esc_html($note) . '</span>'
             . '</div>';
     }
 
@@ -138,31 +174,32 @@ final class CheckoutView
         $shippingLabel = $totals->shippingCents > 0
             ? Money::format($totals->shippingCents, $symbol)
             : __('kostenlos', 'rh-shop');
-        $rows .= '<div class="rhshop-checkout__row"><span>' . esc_html__('Versand', 'rh-shop') . '</span><span>'
+        $rows .= '<div class="rhshop-checkout__row"><span>' . esc_html__('Versand', 'rh-shop') . '</span><span data-rhshop-sum-shipping>'
             . esc_html($shippingLabel) . '</span></div>';
 
+        // Immer gerendert (bei Bedarf versteckt), damit checkout.js den Hinweis beim
+        // Methodenwechsel ein- und ausblenden kann.
         $remaining = $totals->freeShippingRemainingCents();
-        if ($remaining > 0) {
-            $rows .= '<p class="rhshop-checkout__freeship">' . esc_html(sprintf(
+        $rows .= '<p class="rhshop-checkout__freeship" data-rhshop-sum-freeship' . ($remaining > 0 ? '' : ' hidden') . '>'
+            . esc_html($remaining > 0 ? sprintf(
                 /* translators: %s: noch fehlender Warenwert bis zum Gratisversand */
                 __('Noch %s bis zum Gratisversand.', 'rh-shop'),
                 Money::format($remaining, $symbol)
-            )) . '</p>';
-        }
+            ) : '') . '</p>';
 
         if ($totals->isKleinunternehmer()) {
-            $rows .= '<div class="rhshop-checkout__row rhshop-checkout__total"><span>' . esc_html__('Gesamt', 'rh-shop') . '</span><span>'
+            $rows .= '<div class="rhshop-checkout__row rhshop-checkout__total"><span>' . esc_html__('Gesamt', 'rh-shop') . '</span><span data-rhshop-sum-total>'
                 . esc_html(Money::format($totals->totalCents, $symbol)) . '</span></div>';
             $rows .= '<p class="rhshop-checkout__taxnote">'
                 . esc_html__('Kleinunternehmer gemäß § 19 UStG. Im Preis ist keine Umsatzsteuer enthalten.', 'rh-shop')
                 . '</p>';
         } else {
             $rows .= sprintf(
-                '<div class="rhshop-checkout__row rhshop-checkout__row--muted"><span>%s</span><span>%s</span></div>',
+                '<div class="rhshop-checkout__row rhshop-checkout__row--muted"><span>%s</span><span data-rhshop-sum-tax>%s</span></div>',
                 esc_html(sprintf(/* translators: %d: Steuersatz */ __('enthaltene MwSt. (%d %%)', 'rh-shop'), $totals->taxRatePercent)),
                 esc_html(Money::format($totals->taxCents, $symbol))
             );
-            $rows .= '<div class="rhshop-checkout__row rhshop-checkout__total"><span>' . esc_html__('Gesamt (inkl. MwSt.)', 'rh-shop') . '</span><span>'
+            $rows .= '<div class="rhshop-checkout__row rhshop-checkout__total"><span>' . esc_html__('Gesamt (inkl. MwSt.)', 'rh-shop') . '</span><span data-rhshop-sum-total>'
                 . esc_html(Money::format($totals->totalCents, $symbol)) . '</span></div>';
         }
 

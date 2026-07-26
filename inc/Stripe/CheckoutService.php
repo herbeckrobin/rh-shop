@@ -12,6 +12,7 @@ use RhShop\Catalog\ReservationRepository;
 use RhShop\Checkout\Totals;
 use RhShop\Orders\Order;
 use RhShop\Orders\OrderStore;
+use RhShop\Shipping\ShippingMethods;
 use Stripe\Exception\ApiErrorException;
 use WP_Error;
 
@@ -39,7 +40,7 @@ final class CheckoutService
      * @param array{email?:string, name?:string} $buyer
      * @return array{client_secret:string, order_id:int, order_number:string, payment_intent_id:string}|WP_Error
      */
-    public function createSession(Cart $cart, array $buyer): array|WP_Error
+    public function createSession(Cart $cart, array $buyer, string $shippingMethodId = ''): array|WP_Error
     {
         $lines = $cart->lines();
         if ($lines === []) {
@@ -52,7 +53,13 @@ final class CheckoutService
         }
 
         $currency = $this->config->currency();
-        $totals = Totals::forCart($cart, $this->config);
+
+        // Die gewählte Versandmethode serverseitig auflösen (nie den Client-Preis
+        // vertrauen: resolveForCheckout nimmt immer das hinterlegte Objekt, fällt bei
+        // unbekannter Id auf die erste verfügbare zurück). Preis und Gratis-Schwelle der
+        // Methode fließen in die Totals, der Carrier wird als Vorbelegung mitgespeichert.
+        $method = ShippingMethods::make()->resolveForCheckout($shippingMethodId);
+        $totals = Totals::forCart($cart, $this->config, $method);
 
         // Bestellung ZUERST anlegen (Positions-Snapshot).
         $orderId = $this->orders->create([
@@ -62,6 +69,8 @@ final class CheckoutService
             'items' => array_map([$this, 'snapshot'], $lines),
             'subtotal_cents' => $totals->subtotalCents,
             'shipping_cents' => $totals->shippingCents,
+            'shipping_method' => $method->label,
+            'carrier' => $method->carrier,
             'tax_cents' => $totals->taxCents,
             'total_cents' => $totals->totalCents,
             'tax_mode' => $totals->taxMode,

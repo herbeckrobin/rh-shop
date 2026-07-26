@@ -10,6 +10,7 @@ use RhShop\Cart\Cart;
 use RhShop\Cart\CartRestController;
 use RhShop\Catalog\VariantRepository;
 use RhShop\Orders\OrderStore;
+use RhShop\Shipping\ShippingMethods;
 use RhShop\Stripe\CheckoutService;
 use RhShop\Stripe\Config;
 use RhShop\Stripe\StripeClient;
@@ -39,6 +40,16 @@ final class CheckoutRestController
         register_rest_route(CartRestController::NAMESPACE, '/checkout/session', [
             'methods' => WP_REST_Server::CREATABLE,
             'callback' => [$this, 'createSession'],
+            'permission_callback' => [$this, 'checkNonce'],
+        ]);
+
+        // Preis-Vorschau für eine gewählte Versandmethode. Rechnet die Totals server-
+        // seitig (eine Quelle), damit die Anzeige und der Stripe-Betrag konsistent
+        // bleiben, wenn der Kunde die Methode im Checkout wechselt. Kein Stripe-Call,
+        // keine Reservierung, nur eine Rechnung, darum ohne Rate-Limit (Nonce reicht).
+        register_rest_route(CartRestController::NAMESPACE, '/checkout/quote', [
+            'methods' => WP_REST_Server::CREATABLE,
+            'callback' => [$this, 'quote'],
             'permission_callback' => [$this, 'checkNonce'],
         ]);
 
@@ -73,6 +84,24 @@ final class CheckoutRestController
         return (bool) wp_verify_nonce((string) $request->get_header('X-WP-Nonce'), 'wp_rest');
     }
 
+    /**
+     * Preis-Vorschau: die Totals für den aktuellen Warenkorb mit der gewählten
+     * Versandmethode. Liefert die formatierten Werte + total_cents (für die Stripe-
+     * Betrags-Aktualisierung) und die aufgelöste Methoden-Id.
+     */
+    public function quote(WP_REST_Request $request): WP_REST_Response
+    {
+        $config = new Config();
+        $methodId = sanitize_text_field((string) $request->get_param('shipping_method'));
+        $method = ShippingMethods::make()->resolveForCheckout($methodId);
+        $totals = Totals::forCart(new Cart(new VariantRepository()), $config, $method);
+
+        $state = $totals->toState($config->currencySymbol());
+        $state['shipping_method'] = $method->id;
+
+        return new WP_REST_Response($state);
+    }
+
     public function createSession(WP_REST_Request $request): WP_REST_Response|WP_Error
     {
         // Rate-Limit gegen Denial-of-Inventory: jeder Aufruf reserviert Bestand + kostet
@@ -103,9 +132,10 @@ final class CheckoutRestController
         }
 
         $name = sanitize_text_field((string) $request->get_param('name'));
+        $shippingMethod = sanitize_text_field((string) $request->get_param('shipping_method'));
         $service = new CheckoutService($config, new StripeClient($config), new OrderStore());
 
-        $result = $service->createSession(new Cart(new VariantRepository()), ['email' => $email, 'name' => $name]);
+        $result = $service->createSession(new Cart(new VariantRepository()), ['email' => $email, 'name' => $name], $shippingMethod);
 
         if ($result instanceof WP_Error) {
             return $result;

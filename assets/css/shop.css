@@ -349,6 +349,26 @@
 }
 .rhshop-checkout__taxnote { font-size: 0.85rem; opacity: 0.7; margin: 0.4rem 0 0; }
 
+/* Versandmethoden-Auswahl im Checkout. */
+.rhshop-checkout__shipping { margin: 1.2rem 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.rhshop-checkout__ship-opt {
+	display: flex;
+	align-items: center;
+	gap: 0.7rem;
+	padding: 0.7rem 0.9rem;
+	border: 1px solid var(--rhshop-border-fallback);
+	border: 1px solid var(--rhshop-border);
+	border-radius: var(--rhshop-radius);
+	cursor: pointer;
+	transition: border-color 0.15s ease;
+}
+.rhshop-checkout__ship-opt:hover { border-color: var(--rhshop-accent); }
+.rhshop-checkout__ship-opt:has(input:checked) { border-color: var(--rhshop-accent); box-shadow: inset 0 0 0 1px var(--rhshop-accent); }
+.rhshop-checkout__ship-opt input { flex: none; margin: 0; }
+.rhshop-checkout__ship-name { flex: 1; display: flex; flex-direction: column; line-height: 1.3; }
+.rhshop-checkout__ship-time { font-size: 0.82rem; opacity: 0.65; }
+.rhshop-checkout__ship-price { font-weight: 600; white-space: nowrap; }
+
 .rhshop-checkout__form .rhshop-field { margin-bottom: 0.9rem; display: flex; flex-direction: column; gap: 0.3rem; }
 .rhshop-checkout__form label { font-weight: 500; }
 .rhshop-checkout__form input[type="email"],

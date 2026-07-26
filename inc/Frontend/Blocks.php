@@ -94,7 +94,12 @@ final class Blocks
         // rechnen wir serverseitig aus dem aktuellen Warenkorb. Das Appearance-Theming
         // ist per Filter überschreibbar, damit es pro Projekt zum Design passt.
         $config = new \RhShop\Stripe\Config();
-        $totals = \RhShop\Checkout\Totals::forCart(new \RhShop\Cart\Cart(new \RhShop\Catalog\VariantRepository()), $config);
+        $cart = new \RhShop\Cart\Cart(new \RhShop\Catalog\VariantRepository());
+        // Betrag mit der Default-Versandmethode (erste verfügbare), damit der an Stripe
+        // übergebene amount zum serverseitig gerechneten Betrag passt. Wechselt der Kunde
+        // die Methode, aktualisiert checkout.js Betrag und Anzeige über den Quote-Endpoint.
+        $defaultMethod = \RhShop\Shipping\ShippingMethods::make()->availableForCheckout()[0];
+        $totals = \RhShop\Checkout\Totals::forCart($cart, $config, $defaultMethod);
 
         $appearance = apply_filters('rh-blueprint/shop/stripe_appearance', [
             'theme' => 'stripe',
@@ -115,6 +120,7 @@ final class Blocks
             'restUrl' => esc_url_raw(rest_url(CartRestController::NAMESPACE . '/')),
             'nonce' => wp_create_nonce('wp_rest'),
             'amount' => $totals->totalCents,
+            'shippingMethod' => $defaultMethod->id,
             'currency' => $config->currency(),
             'returnUrl' => (string) apply_filters('rh-blueprint/shop/return_url', home_url('/danke')),
             'countries' => array_values((array) apply_filters('rh-blueprint/shop/shipping_countries', ['DE', 'AT', 'CH'])),
