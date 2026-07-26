@@ -4,7 +4,7 @@ Tags: shop, ecommerce, stripe, products
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 0.6.0
+Stable tag: 0.6.1
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -17,6 +17,12 @@ RH Shop ist der leichte Weg, ein kleines Sortiment (Merch, ein paar Produkte) zu
 Teil der rh-blueprint Kollektion.
 
 == Changelog ==
+
+= 0.6.1 =
+* Sicherheits-Update (empfohlen). Wichtigste Behebung: In einem Sonderfall (zwei Produkte ohne Varianten in derselben Bestellung) konnte der Überverkaufs-Schutz umgangen werden, das ist behoben.
+* Schutz gegen automatisierten Missbrauch: Die Kasse und der Widerruf sind jetzt gegen massenhafte Anfragen gedrosselt (ein einzelner Bot kann so nicht mehr den Bestand blockieren oder über das Widerrufsformular Mails verschicken). Die Widerruf-Eingangsbestätigung geht nur noch an eine zur Bestellung passende E-Mail-Adresse.
+* Weitere Härtung: Der Bezahlbetrag wird beim Zahlungseingang gegen den Bestellbetrag geprüft, interne Dateien geben bei direktem Aufruf nichts mehr preis, und die Bestand-Tabellen laufen garantiert auf einer transaktionssicheren Engine.
+* WICHTIG beim Update: Eine kleine Datenbank-Anpassung läuft beim ersten Aufruf nach dem Update automatisch, du musst nichts tun.
 
 = 0.6.0 =
 * Schutz gegen Überverkauf bei gleichzeitigem Zugriff: Beim Auslösen der Bestellung wird der Bestand reserviert, bevor die Zahlung startet. So können nicht zwei Kunden denselben letzten Artikel kaufen. Reicht der Bestand nicht, bricht die Kasse mit einem klaren Hinweis ab, es wird nichts belastet.
