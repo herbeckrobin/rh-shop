@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace RhShop\Legal;
 
+defined( 'ABSPATH' ) || exit;
+
 /**
  * Anbieter-Kontaktdaten für die Pflicht-Rechtstexte (Muster-Widerrufsformular).
  *

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace RhShop\Checkout;
 
+defined( 'ABSPATH' ) || exit;
+
 use RhShop\Cart\Cart;
 use RhShop\Orders\Order;
 use RhShop\Stripe\Config;

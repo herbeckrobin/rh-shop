@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace RhShop\Setup;
 
+defined( 'ABSPATH' ) || exit;
+
 /**
  * Legt die vom Shop benötigten Rechtstext-Seiten beim Aktivieren an, damit ein
  * frischer Install sofort einen funktionierenden "Versandkosten"-Link hat (PAngV).

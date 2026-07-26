@@ -8,6 +8,8 @@
 
 declare(strict_types=1);
 
+defined( 'ABSPATH' ) || exit;
+
 use RhShop\Checkout\CheckoutView;
 use RhShop\Frontend\ExamplePreview;
 use RhShop\Stripe\Config;

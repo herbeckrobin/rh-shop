@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace RhShop\Stripe;
 
+defined( 'ABSPATH' ) || exit;
+
 use RhShop\Cart\CartRestController;
 use RhShop\Support\Secret;
 use Stripe\Exception\ApiErrorException;

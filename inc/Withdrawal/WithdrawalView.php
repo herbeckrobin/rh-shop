@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace RhShop\Withdrawal;
 
+defined( 'ABSPATH' ) || exit;
+
 /**
  * Rendert die Widerrufs-Bestätigungsseite (§356a). Zweite Stufe des zweistufigen
  * Ablaufs: der Kunde kam über den "Vertrag widerrufen"-Button hierher, füllt die

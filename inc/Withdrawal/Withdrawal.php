@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace RhShop\Withdrawal;
 
+defined( 'ABSPATH' ) || exit;
+
 /**
  * Ein Widerruf nach §356a BGB. Erfasst die drei Pflichtangaben (Name, Vertrags-/
  * Bestellidentifikation, Kontakt) plus den nachweispflichtigen Eingangszeitpunkt.

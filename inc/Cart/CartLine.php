@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace RhShop\Cart;
 
+defined( 'ABSPATH' ) || exit;
+
 /**
  * Eine aufgelöste Warenkorb-Zeile: die rohe Cookie-Referenz (Produkt + Variante +
  * Menge) mit den aktuellen Katalogdaten verknüpft. Preis kommt IMMER frisch aus

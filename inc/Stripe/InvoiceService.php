@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace RhShop\Stripe;
 
+defined( 'ABSPATH' ) || exit;
+
 use RhShop\Orders\Order;
 use Stripe\Exception\ApiErrorException;
 use Stripe\StripeClient as SdkClient;

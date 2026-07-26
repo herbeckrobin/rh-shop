@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace RhShop\Frontend;
 
+defined( 'ABSPATH' ) || exit;
+
 use RhShop\Cart\Cart;
 use RhShop\Cart\CartView;
 use RhShop\Catalog\VariantRepository;

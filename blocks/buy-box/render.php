@@ -11,6 +11,8 @@
 
 declare(strict_types=1);
 
+defined( 'ABSPATH' ) || exit;
+
 use RhShop\Catalog\ProductType;
 use RhShop\Catalog\VariantRepository;
 use RhShop\Frontend\ExamplePreview;

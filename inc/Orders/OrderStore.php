@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace RhShop\Orders;
 
+defined( 'ABSPATH' ) || exit;
+
 /**
  * Datenzugriff für Bestellungen. Hält CRUD und die Status-Übergänge an einer
  * Stelle, damit Checkout, Webhook und Admin dieselbe Wahrheit lesen.

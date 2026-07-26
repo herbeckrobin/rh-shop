@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace RhShop\Catalog;
 
+defined( 'ABSPATH' ) || exit;
+
 /**
  * Bestands-Zusammenfassung eines Produkts über alle seine Varianten. Die eine
  * Quelle für die Vor-Auswahl-Sicht: das "Fast ausverkauft"-Badge im Raster und die

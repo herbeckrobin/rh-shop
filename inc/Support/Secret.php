@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace RhShop\Support;
 
+defined( 'ABSPATH' ) || exit;
+
 /**
  * Verschlüsselt Geheimnisse (Stripe Secret Key, Webhook-Signing-Secret) at-rest
  * mit libsodium.

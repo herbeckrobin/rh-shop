@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace RhShop\Orders;
 
+defined( 'ABSPATH' ) || exit;
+
 use RhShop\Catalog\ReservationRepository;
 use RhShop\Catalog\VariantRepository;
 use RhShop\Stripe\InvoiceService;

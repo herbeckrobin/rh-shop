@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace RhShop;
 
+defined( 'ABSPATH' ) || exit;
+
 use YahnisElsts\PluginUpdateChecker\v5\PucFactory;
 
 /**

@@ -9,6 +9,8 @@
 
 declare(strict_types=1);
 
+defined( 'ABSPATH' ) || exit;
+
 use RhShop\Catalog\ProductType;
 use RhShop\Frontend\Render;
 use RhShop\Stripe\Config;

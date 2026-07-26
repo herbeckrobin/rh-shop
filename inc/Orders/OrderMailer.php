@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace RhShop\Orders;
 
+defined( 'ABSPATH' ) || exit;
+
 use RhShop\Legal\Widerrufsformular;
 use RhShop\Stripe\Config;
 use RhShop\Support\Money;

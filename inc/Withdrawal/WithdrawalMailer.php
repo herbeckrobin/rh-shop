@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace RhShop\Withdrawal;
 
+defined( 'ABSPATH' ) || exit;
+
 /**
  * Verschickt die Eingangsbestätigung nach §356a Abs. 4 BGB auf dauerhaftem
  * Datenträger (E-Mail), plus eine interne Benachrichtigung an den Betreiber.

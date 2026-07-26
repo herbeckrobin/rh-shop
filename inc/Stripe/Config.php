@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace RhShop\Stripe;
 
+defined( 'ABSPATH' ) || exit;
+
 use RhShop\Orders\Order;
 use RhShop\Support\Secret;
 

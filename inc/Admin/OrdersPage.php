@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace RhShop\Admin;
 
+defined( 'ABSPATH' ) || exit;
+
 use RhShop\Catalog\ProductType;
 use RhShop\Orders\Order;
 use RhShop\Orders\OrderMailer;

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace RhShop;
 
+defined( 'ABSPATH' ) || exit;
+
 use RhBlueprint\Core\Core;
 use RhBlueprint\Core\Settings\SettingsPage;
 use RhShop\Admin\DashboardPage;

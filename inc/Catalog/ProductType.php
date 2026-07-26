@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace RhShop\Catalog;
 
+defined( 'ABSPATH' ) || exit;
+
 /**
  * Registriert den Produkt-CPT `rh_product` und die Kategorie-Taxonomie.
  *

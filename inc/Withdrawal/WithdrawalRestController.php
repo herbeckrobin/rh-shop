@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace RhShop\Withdrawal;
 
+defined( 'ABSPATH' ) || exit;
+
 use RhShop\Cart\CartRestController;
 use RhShop\Orders\OrderStore;
 use RhShop\Support\RateLimiter;

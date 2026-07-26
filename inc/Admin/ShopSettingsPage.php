@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace RhShop\Admin;
 
+defined( 'ABSPATH' ) || exit;
+
 use RhBlueprint\Core\Settings\SettingsPage;
 use RhShop\Catalog\ProductType;
 use RhShop\Orders\Order;

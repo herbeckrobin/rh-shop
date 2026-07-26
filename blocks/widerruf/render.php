@@ -6,6 +6,8 @@
 
 declare(strict_types=1);
 
+defined( 'ABSPATH' ) || exit;
+
 use RhShop\Withdrawal\WithdrawalView;
 
 $wrapper = get_block_wrapper_attributes(['class' => 'rhshop-widerruf-block']);

@@ -8,6 +8,11 @@ declare(strict_types=1);
  * pure Funktionen (Cent rein, Cent raus), die kein WP brauchen. Lauf: php tests/run.php
  */
 
+// Die inc/-Dateien haben einen `defined('ABSPATH') || exit;`-Guard (Schutz vor direktem
+// Aufruf). Die Tests laufen ohne WordPress, simulieren die Konstante darum minimal, sonst
+// beendet der Guard den Runner beim ersten require.
+defined('ABSPATH') || define('ABSPATH', __DIR__ . '/');
+
 $inc = dirname(__DIR__) . '/inc';
 
 require $inc . '/Support/Money.php';

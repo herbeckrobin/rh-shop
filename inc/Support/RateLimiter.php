@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace RhShop\Support;
 
+defined( 'ABSPATH' ) || exit;
+
 /**
  * Einfaches IP-basiertes Rate-Limit über Transients. Schützt die öffentlichen,
  * zustandsändernden bzw. kostenverursachenden Endpoints (Bestellung auslösen =

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace RhShop\Stripe;
 
+defined( 'ABSPATH' ) || exit;
+
 use RhShop\Cart\Cart;
 use RhShop\Cart\CartLine;
 use RhShop\Catalog\ReservationRepository;

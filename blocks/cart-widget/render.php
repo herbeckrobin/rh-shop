@@ -11,6 +11,8 @@
 
 declare(strict_types=1);
 
+defined( 'ABSPATH' ) || exit;
+
 use RhShop\Frontend\CartWidget;
 
 $wrapper = get_block_wrapper_attributes(['class' => 'rhshop-cw']);

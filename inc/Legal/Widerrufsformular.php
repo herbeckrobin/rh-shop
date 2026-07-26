@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace RhShop\Legal;
 
+defined( 'ABSPATH' ) || exit;
+
 /**
  * Muster-Widerrufsformular im amtlich vorgeschriebenen Wortlaut (Anlage 2 zu
  * Art. 246a § 1 Abs. 2 EGBGB). Anders als AGB/Widerrufsbelehrung darf und soll

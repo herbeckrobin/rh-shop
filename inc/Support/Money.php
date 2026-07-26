@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace RhShop\Support;
 
+defined( 'ABSPATH' ) || exit;
+
 /**
  * Geldbeträge werden intern IMMER als Ganzzahl in Cent geführt, nie als Float.
  * Float-Arithmetik auf Preisen kippt bei Summen und Steuern (0.1 + 0.2 != 0.3);

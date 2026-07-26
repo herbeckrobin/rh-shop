@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace RhShop\Catalog;
 
+defined( 'ABSPATH' ) || exit;
+
 /**
  * Die eine Quelle für die PAngV-Grundpreis-Einheiten: welche Einheiten es gibt, in
  * welche Basiseinheit sie umgerechnet werden (1 kg / 1 l / 1 m / 1 m²) und die

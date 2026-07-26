@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace RhShop\Catalog;
 
+defined( 'ABSPATH' ) || exit;
+
 /**
  * Liest und schreibt die Varianten eines Produkts als Post-Meta.
  *
