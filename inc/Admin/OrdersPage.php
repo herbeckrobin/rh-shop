@@ -10,6 +10,7 @@ use RhShop\Catalog\ProductType;
 use RhShop\Orders\Order;
 use RhShop\Orders\OrderMailer;
 use RhShop\Orders\OrderStore;
+use RhShop\Shipping\Carrier;
 use RhShop\Stripe\Config;
 use RhShop\Support\Money;
 
@@ -194,8 +195,9 @@ final class OrdersPage
         }
         echo '</tbody><tfoot>';
         $this->totalRow(esc_html__('Zwischensumme', 'rh-shop'), esc_html(Money::format($order->subtotalCents, $symbol)));
+        $shipLabel = __('Versand', 'rh-shop') . ($order->shippingMethod !== '' ? ' (' . $order->shippingMethod . ')' : '');
         $this->totalRow(
-            esc_html__('Versand', 'rh-shop'),
+            esc_html($shipLabel),
             esc_html($order->shippingCents > 0 ? Money::format($order->shippingCents, $symbol) : __('kostenlos', 'rh-shop'))
         );
         if ($order->taxMode !== Order::TAX_KLEINUNTERNEHMER) {
@@ -282,33 +284,79 @@ final class OrdersPage
     }
 
     /**
-     * Status-Zelle: die farbige Pille als Blick-Anker plus ein Mini-Formular
-     * (Auswahl + "Setzen") zum Umstellen. Bewusst kein Auto-Submit, damit keine
-     * versehentliche Statusänderung passiert. POST an admin-post.php mit Nonce.
+     * Status-Zelle: die farbige Pille als Blick-Anker plus ein Mini-Formular zum
+     * Umstellen. Beim Versenden wählt der Betreiber den Anbieter und trägt die
+     * Sendungsnummer ein (beides wird gespeichert), ein "Label erstellen"-Link führt ins
+     * Anbieter-Portal. Bereits versendete Bestellungen zeigen die gespeicherte Nummer mit
+     * direktem Sendungsverfolgungs-Link. Bewusst kein Auto-Submit. POST mit Nonce.
      */
     private function statusCell(Order $order): string
     {
-        $options = '';
+        $statusOptions = '';
         foreach ($this->statusMeta() as $key => [$label]) {
-            $options .= sprintf(
-                '<option value="%s"%s>%s</option>',
-                esc_attr($key),
-                selected($order->status, $key, false),
-                esc_html($label)
-            );
+            $statusOptions .= sprintf('<option value="%s"%s>%s</option>', esc_attr($key), selected($order->status, $key, false), esc_html($label));
         }
 
-        // Das Sendungs-Feld wird nur genutzt, wenn auf "versendet" gesetzt wird, dann
-        // geht es in die "ist unterwegs"-Mail an den Kunden. Sonst wird es ignoriert.
+        $selectedCarrier = $order->carrier !== '' ? $order->carrier : Carrier::NONE;
+        $carrierOptions = '';
+        foreach (Carrier::options() as $cid => $clabel) {
+            $carrierOptions .= sprintf('<option value="%s"%s>%s</option>', esc_attr($cid), selected($selectedCarrier, $cid, false), esc_html($clabel));
+        }
+
+        $portalUrl = Carrier::portalUrl($selectedCarrier);
+        $trackUrl = Carrier::trackingUrl($order->carrier, $order->trackingNumber);
+
+        // Gespeicherte Sendungsinfo mit Kunden-Trackinglink, wenn vorhanden.
+        $shippedInfo = '';
+        if ($order->trackingNumber !== '') {
+            $num = $trackUrl !== ''
+                ? '<a href="' . esc_url($trackUrl) . '" target="_blank" rel="noopener">' . esc_html($order->trackingNumber) . '</a>'
+                : esc_html($order->trackingNumber);
+            $shippedInfo = '<p style="margin:6px 0 0;font-size:12px;color:#50575e">'
+                . esc_html(Carrier::label($order->carrier)) . ': ' . $num . '</p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $num escapt.
+        }
+
         return $this->statusPill($order->status)
-            . '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '" style="margin-top:6px;display:flex;gap:4px;align-items:center;flex-wrap:wrap;max-width:250px">'
+            . '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '" style="margin-top:6px;display:flex;gap:4px;align-items:center;flex-wrap:wrap;max-width:280px" data-rhshop-ship>'
             . '<input type="hidden" name="action" value="' . esc_attr(self::ACTION_SET_STATUS) . '" />'
             . '<input type="hidden" name="order_id" value="' . esc_attr((string) $order->id) . '" />'
             . wp_nonce_field(self::NONCE, '_wpnonce', true, false)
-            . '<select name="status" aria-label="' . esc_attr__('Status ändern', 'rh-shop') . '">' . $options . '</select>'
+            . '<select name="status" aria-label="' . esc_attr__('Status ändern', 'rh-shop') . '">' . $statusOptions . '</select>'
             . '<button type="submit" class="button button-small">' . esc_html__('Setzen', 'rh-shop') . '</button>'
-            . '<input type="text" name="tracking" value="" placeholder="' . esc_attr__('Sendungsnr./Link (optional)', 'rh-shop') . '" style="flex:1 1 100%;font-size:12px" />'
-            . '</form>';
+            . '<select name="carrier" data-rhshop-carrier aria-label="' . esc_attr__('Versandanbieter', 'rh-shop') . '" style="flex:1 1 45%;font-size:12px">' . $carrierOptions . '</select>'
+            . '<input type="text" name="tracking" value="' . esc_attr($order->trackingNumber) . '" placeholder="' . esc_attr__('Sendungsnummer', 'rh-shop') . '" style="flex:1 1 45%;font-size:12px" />'
+            . '<a data-rhshop-portal href="' . esc_url($portalUrl) . '" target="_blank" rel="noopener" style="font-size:12px"' . ($portalUrl === '' ? ' hidden' : '') . '>' . esc_html__('Label erstellen', 'rh-shop') . ' &#8599;</a>'
+            . '</form>'
+            . $shippedInfo
+            . $this->shippingScript();
+    }
+
+    /**
+     * Einmaliges Inline-JS: aktualisiert den "Label erstellen"-Link, wenn im Formular ein
+     * anderer Anbieter gewählt wird (Portal-URL je Carrier). Guard, damit es bei vielen
+     * Zeilen nur einmal ausgegeben wird.
+     */
+    private function shippingScript(): string
+    {
+        static $printed = false;
+        if ($printed) {
+            return '';
+        }
+        $printed = true;
+
+        $portals = [];
+        foreach (array_keys(Carrier::options()) as $cid) {
+            $portals[$cid] = Carrier::portalUrl($cid);
+        }
+
+        return '<script>( function () {'
+            . 'var P = ' . wp_json_encode($portals) . ';'
+            . 'document.addEventListener( "change", function ( e ) {'
+            . 'var sel = e.target.closest( "[data-rhshop-carrier]" ); if ( ! sel ) { return; }'
+            . 'var wrap = sel.closest( "[data-rhshop-ship]" ); var link = wrap && wrap.querySelector( "[data-rhshop-portal]" ); if ( ! link ) { return; }'
+            . 'var url = P[ sel.value ] || ""; if ( url ) { link.href = url; link.hidden = false; } else { link.hidden = true; }'
+            . '} );'
+            . '} )();</script>';
     }
 
     /**
@@ -327,6 +375,7 @@ final class OrdersPage
         $orderId = isset($_POST['order_id']) ? absint(wp_unslash($_POST['order_id'])) : 0;
         $status = isset($_POST['status']) ? sanitize_key(wp_unslash($_POST['status'])) : '';
         $tracking = isset($_POST['tracking']) ? sanitize_text_field(wp_unslash($_POST['tracking'])) : '';
+        $carrier = isset($_POST['carrier']) ? Carrier::sanitize(sanitize_key(wp_unslash($_POST['carrier']))) : Carrier::NONE;
 
         $ok = false;
         $store = new OrderStore();
@@ -334,17 +383,23 @@ final class OrdersPage
 
         if ($order !== null && in_array($status, Order::STATUSES, true)) {
             $wasShipped = $order->status === Order::STATUS_SHIPPED;
-            $store->updateStatus($orderId, $status);
-            $ok = true;
 
-            // Versandbestätigung nur beim Übergang NACH "versendet", nicht bei jedem
-            // Speichern (kein doppelter Versand, wenn schon versendet war).
-            if ($status === Order::STATUS_SHIPPED && ! $wasShipped) {
-                $fresh = $store->find($orderId);
-                if ($fresh !== null) {
-                    (new OrderMailer(new Config()))->sendShipped($fresh, $tracking);
+            if ($status === Order::STATUS_SHIPPED) {
+                // Carrier + Sendungsnummer persistieren (bleiben erhalten, auch für eine
+                // spätere Korrektur). Die Versandbestätigung geht nur beim ERSTEN Übergang
+                // raus, damit ein Nachtragen der Nummer keine zweite Mail auslöst.
+                $store->markShipped($orderId, $carrier, $tracking);
+                if (! $wasShipped) {
+                    $fresh = $store->find($orderId);
+                    if ($fresh !== null) {
+                        (new OrderMailer(new Config()))->sendShipped($fresh);
+                    }
                 }
+            } else {
+                $store->updateStatus($orderId, $status);
             }
+
+            $ok = true;
         }
 
         wp_safe_redirect(add_query_arg(

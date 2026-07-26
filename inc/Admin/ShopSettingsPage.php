@@ -9,6 +9,9 @@ defined( 'ABSPATH' ) || exit;
 use RhBlueprint\Core\Settings\SettingsPage;
 use RhShop\Catalog\ProductType;
 use RhShop\Orders\Order;
+use RhShop\Shipping\Carrier;
+use RhShop\Shipping\ShippingMethod;
+use RhShop\Shipping\ShippingMethods;
 use RhShop\Stripe\Config;
 use RhShop\Stripe\StripeClient;
 use RhShop\Stripe\WebhookInstaller;
@@ -348,16 +351,51 @@ final class ShopSettingsPage
     }
 
     /**
-     * Abschnitt 3: Versand.
+     * Abschnitt 3: Versand. Oben die Versandarten, die der Kunde im Checkout wählt
+     * (Amazon-Prinzip: eine flache Liste, jede Zeile trägt Anbieter + Preis). Ohne
+     * angelegte Methode gilt weiterhin die einfache Pauschale darunter (Rückwärtskompat).
      */
     private function renderShippingSection(): void
     {
         $this->sectionOpen(
             __('Versand', 'rh-shop'),
-            __('Was der Versand kostet und ab wann er gratis ist.', 'rh-shop')
+            __('Die Versandarten, die der Kunde im Checkout wählt: Bezeichnung, Anbieter und Preis. Ist keine Methode angelegt, gilt die einfache Pauschale ganz unten.', 'rh-shop')
         );
 
-        // Versandpauschale
+        $methods = (new ShippingMethods($this->config))->all();
+
+        echo '<div class="rhshop-methods" data-rhshop-methods>';
+        echo '<table class="rhshop-methods__table"><thead><tr>';
+        foreach ([
+            __('Aktiv', 'rh-shop'),
+            __('Bezeichnung', 'rh-shop'),
+            __('Anbieter', 'rh-shop'),
+            __('Preis (€)', 'rh-shop'),
+            __('Gratis ab (€)', 'rh-shop'),
+            __('Lieferzeit', 'rh-shop'),
+            '',
+        ] as $head) {
+            printf('<th>%s</th>', esc_html($head));
+        }
+        echo '</tr></thead><tbody data-rhshop-method-rows>';
+        foreach ($methods as $method) {
+            $this->renderMethodRow($method->id, $method);
+        }
+        echo '</tbody></table>';
+        printf(
+            '<p><button type="button" class="rhbp-btn rhbp-btn--ghost" data-rhshop-add-method>%s</button></p>',
+            esc_html__('+ Versandart hinzufügen', 'rh-shop')
+        );
+        echo '<p class="rhbp-field__desc">' . esc_html__('Beispiele: „Abholung im Laden" (Anbieter: Abholung, Preis 0), „DHL nach Hause", „Hermes nach Hause". Der Anbieter bestimmt den Sendungsverfolgungs-Link, den der Kunde nach dem Versand bekommt.', 'rh-shop') . '</p>';
+        echo '</div>';
+
+        $this->renderMethodTemplateAndScript();
+
+        // Fallback-Pauschale: greift nur, solange keine Methode angelegt ist.
+        echo '<hr style="margin:1.4rem 0">';
+        echo '<h4 style="margin:0 0 0.2rem">' . esc_html__('Einfache Pauschale (Fallback)', 'rh-shop') . '</h4>';
+        echo '<p class="rhbp-field__desc" style="margin:0 0 1rem">' . esc_html__('Gilt nur, wenn oben keine Versandart angelegt ist. Sobald du Methoden pflegst, wählt der Kunde daraus.', 'rh-shop') . '</p>';
+
         $shippingCents = $this->config->shippingCents();
         echo '<div class="rhbp-field">';
         echo '<label class="rhbp-field__label" for="rhshop-shipping">' . esc_html__('Versandpauschale', 'rh-shop') . '</label>';
@@ -368,7 +406,6 @@ final class ShopSettingsPage
         echo '<p class="rhbp-field__desc">' . esc_html__('Pauschale Versandkosten pro Bestellung. Leer oder 0 = kostenloser Versand.', 'rh-shop') . '</p>';
         echo '</div>';
 
-        // Gratisversand ab Warenwert
         $freeShippingCents = $this->config->freeShippingThresholdCents();
         echo '<div class="rhbp-field">';
         echo '<label class="rhbp-field__label" for="rhshop-free-shipping">' . esc_html__('Gratisversand ab', 'rh-shop') . '</label>';
@@ -380,6 +417,90 @@ final class ShopSettingsPage
         echo '</div>';
 
         $this->sectionClose();
+    }
+
+    /**
+     * Eine Versandmethoden-Zeile. Alle Felder unter dem gemeinsamen Zeilen-Schlüssel
+     * `shipping_method[<key>][...]` (verschachteltes Array), damit die Checkbox „aktiv"
+     * eindeutig zur Zeile gehört, ohne fragilen laufenden Index. Der Schlüssel selbst ist
+     * nur die POST-Gruppierung; die stabile Id steht im versteckten id-Feld.
+     */
+    private function renderMethodRow(string $key, ?ShippingMethod $method): void
+    {
+        $price = $method !== null && $method->priceCents > 0 ? number_format($method->priceCents / 100, 2, ',', '') : '';
+        $free = $method !== null && $method->freeFromCents !== null && $method->freeFromCents > 0
+            ? number_format($method->freeFromCents / 100, 2, ',', '') : '';
+        $name = 'shipping_method[' . $key . ']';
+
+        echo '<tr class="rhshop-methods__row">';
+        printf(
+            '<td class="rhshop-methods__c-active"><input type="checkbox" name="%s[enabled]" value="1" %s></td>',
+            esc_attr($name),
+            checked($method === null ? true : $method->enabled, true, false)
+        );
+        printf(
+            '<td><input type="hidden" name="%1$s[id]" value="%2$s"><input type="text" name="%1$s[label]" value="%3$s" placeholder="%4$s"></td>',
+            esc_attr($name),
+            esc_attr($method?->id ?? ''),
+            esc_attr($method?->label ?? ''),
+            esc_attr__('z.B. DHL nach Hause', 'rh-shop')
+        );
+        echo '<td><select name="' . esc_attr($name) . '[carrier]">';
+        $current = $method?->carrier ?? Carrier::NONE;
+        foreach (Carrier::options() as $id => $label) {
+            printf('<option value="%s" %s>%s</option>', esc_attr($id), selected($current, $id, false), esc_html($label));
+        }
+        echo '</select></td>';
+        printf('<td><input type="text" name="%s[price]" value="%s" placeholder="4,90" style="max-width:80px"></td>', esc_attr($name), esc_attr($price));
+        printf('<td><input type="text" name="%s[free]" value="%s" placeholder="aus" style="max-width:80px"></td>', esc_attr($name), esc_attr($free));
+        printf('<td><input type="text" name="%s[time]" value="%s" placeholder="%s"></td>', esc_attr($name), esc_attr($method?->deliveryTime ?? ''), esc_attr__('2-3 Werktage', 'rh-shop'));
+        printf('<td><button type="button" class="button-link-delete" data-rhshop-remove-method>%s</button></td>', esc_html__('Entfernen', 'rh-shop'));
+        echo '</tr>';
+    }
+
+    /**
+     * Leere Vorlagen-Zeile (per JS geklont, __KEY__ wird durch einen frischen Schlüssel
+     * ersetzt) + die Add/Remove-Mechanik und etwas Layout. Buildless, Vanilla-JS,
+     * Event-Delegation.
+     */
+    private function renderMethodTemplateAndScript(): void
+    {
+        ob_start();
+        $this->renderMethodRow('__KEY__', null);
+        $rowHtml = (string) ob_get_clean();
+        ?>
+        <template data-rhshop-method-template><?php echo $rowHtml; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- eigenes Markup, oben escapt. ?></template>
+        <script>
+        ( function () {
+            var box = document.querySelector( '[data-rhshop-methods]' );
+            if ( ! box ) { return; }
+            var rows = box.querySelector( '[data-rhshop-method-rows]' );
+            var tpl = document.querySelector( '[data-rhshop-method-template]' );
+            if ( ! rows || ! tpl ) { return; }
+            var seq = 0;
+            box.addEventListener( 'click', function ( e ) {
+                var add = e.target.closest( '[data-rhshop-add-method]' );
+                if ( add ) {
+                    var html = tpl.innerHTML.replace( /__KEY__/g, 'new_' + ( seq++ ) + '_' + Date.now() );
+                    var tmp = document.createElement( 'tbody' );
+                    tmp.innerHTML = html;
+                    if ( tmp.firstElementChild ) { rows.appendChild( tmp.firstElementChild ); }
+                    return;
+                }
+                var rm = e.target.closest( '[data-rhshop-remove-method]' );
+                if ( rm ) { var tr = rm.closest( 'tr' ); if ( tr ) { tr.remove(); } }
+            } );
+        } )();
+        </script>
+        <style>
+        .rhshop-methods__table { width: 100%; border-collapse: collapse; margin: 0.6rem 0; }
+        .rhshop-methods__table th { text-align: left; font-size: 12px; color: #646970; font-weight: 600; padding: 4px 8px 4px 0; }
+        .rhshop-methods__table td { padding: 4px 8px 4px 0; vertical-align: middle; }
+        .rhshop-methods__table input[type="text"] { width: 100%; }
+        .rhshop-methods__c-active { text-align: center; }
+        .rhshop-methods__row td:last-child { white-space: nowrap; }
+        </style>
+        <?php
     }
 
     /**
@@ -581,6 +702,7 @@ final class ShopSettingsPage
             Config::FIELD_TAX_RATE => max(0, min(100, (int) ($_POST['tax_rate'] ?? Config::VAT_RATE_PERCENT))),
             Config::FIELD_SHIPPING => Money::toCents(isset($_POST['shipping_cents']) ? sanitize_text_field(wp_unslash($_POST['shipping_cents'])) : ''),
             Config::FIELD_FREE_SHIPPING => Money::toCents(isset($_POST['free_shipping_cents']) ? sanitize_text_field(wp_unslash($_POST['free_shipping_cents'])) : ''),
+            ShippingMethods::FIELD => $this->collectShippingMethods(),
             Config::FIELD_LOW_STOCK => max(0, min(999, (int) ($_POST['low_stock_threshold'] ?? 5))),
             Config::FIELD_HOLD_MINUTES => max(1, min(1440, (int) ($_POST['reservation_hold_minutes'] ?? 30))),
             Config::FIELD_WIDERRUF_BUTTON => isset($_POST['widerruf_button']),
@@ -601,6 +723,51 @@ final class ShopSettingsPage
         rhbp_update_settings(Config::GROUP, $values);
 
         $this->redirect();
+    }
+
+    /**
+     * Die Versandmethoden-Zeilen aus dem POST zu einer JSON-Liste bauen. Leere Zeilen
+     * (ohne Bezeichnung) werden übersprungen, neue Zeilen bekommen eine stabile Id.
+     * Alle Werte werden sanitisiert, Preis/Gratis-ab über Money in Cent.
+     */
+    private function collectShippingMethods(): string
+    {
+        if (! isset($_POST['shipping_method']) || ! is_array($_POST['shipping_method'])) {
+            return '';
+        }
+
+        $rows = [];
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce in handleSave geprüft.
+        foreach (wp_unslash($_POST['shipping_method']) as $raw) {
+            if (! is_array($raw)) {
+                continue;
+            }
+
+            $label = sanitize_text_field((string) ($raw['label'] ?? ''));
+            if ($label === '') {
+                continue;
+            }
+
+            $id = sanitize_text_field((string) ($raw['id'] ?? ''));
+            if ($id === '') {
+                $id = 'm_' . wp_generate_password(10, false, false);
+            }
+
+            $free = trim((string) ($raw['free'] ?? ''));
+
+            $method = new ShippingMethod(
+                id: $id,
+                label: $label,
+                carrier: Carrier::sanitize((string) ($raw['carrier'] ?? Carrier::NONE)),
+                priceCents: Money::toCents((string) ($raw['price'] ?? '')),
+                freeFromCents: $free === '' ? null : Money::toCents($free),
+                deliveryTime: sanitize_text_field((string) ($raw['time'] ?? '')),
+                enabled: isset($raw['enabled']),
+            );
+            $rows[] = $method->toArray();
+        }
+
+        return (string) wp_json_encode($rows);
     }
 
     /**

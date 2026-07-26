@@ -7,6 +7,7 @@ namespace RhShop\Orders;
 defined( 'ABSPATH' ) || exit;
 
 use RhShop\Legal\Widerrufsformular;
+use RhShop\Shipping\Carrier;
 use RhShop\Stripe\Config;
 use RhShop\Support\Money;
 
@@ -51,9 +52,10 @@ final class OrderMailer
 
     /**
      * Versandbestätigung an den Kunden ("ist unterwegs"), ausgelöst wenn der Betreiber
-     * die Bestellung auf "versendet" setzt. Sendungsnummer/Link ist optional.
+     * die Bestellung auf "versendet" setzt. Anbieter und Sendungsnummer kommen aus der
+     * gespeicherten Bestellung, der Tracking-Link wird daraus gebaut.
      */
-    public function sendShipped(Order $order, string $tracking = ''): void
+    public function sendShipped(Order $order): void
     {
         if ($order->email === '') {
             return;
@@ -62,7 +64,7 @@ final class OrderMailer
         wp_mail(
             $order->email,
             sprintf(/* translators: %s: Bestellnummer */ __('Deine Bestellung %s ist unterwegs', 'rh-shop'), $order->orderNumber),
-            $this->shippedBody($order, $tracking),
+            $this->shippedBody($order),
             $this->headers()
         );
     }
@@ -86,17 +88,23 @@ final class OrderMailer
         return $headers;
     }
 
-    private function shippedBody(Order $order, string $tracking): string
+    private function shippedBody(Order $order): string
     {
         $trackingHtml = '';
-        if ($tracking !== '') {
-            $trackingHtml = filter_var($tracking, FILTER_VALIDATE_URL) !== false
-                ? '<p>' . sprintf(
-                    /* translators: %s: Link zur Sendungsverfolgung */
-                    esc_html__('Sendung verfolgen: %s', 'rh-shop'),
-                    '<a href="' . esc_url($tracking) . '">' . esc_html__('zur Sendungsverfolgung', 'rh-shop') . '</a>'
-                ) . '</p>'
-                : '<p>' . esc_html(sprintf(/* translators: %s: Sendungsnummer */ __('Sendungsnummer: %s', 'rh-shop'), $tracking)) . '</p>';
+        if ($order->trackingNumber !== '') {
+            $lines = [];
+            if ($order->carrier !== '' && $order->carrier !== Carrier::NONE) {
+                /* translators: %s: Versandanbieter (z.B. DHL) */
+                $lines[] = esc_html(sprintf(__('Versendet mit %s.', 'rh-shop'), Carrier::label($order->carrier)));
+            }
+            /* translators: %s: Sendungsnummer */
+            $lines[] = esc_html(sprintf(__('Sendungsnummer: %s', 'rh-shop'), $order->trackingNumber));
+            $trackingHtml = '<p>' . implode('<br>', $lines) . '</p>';
+
+            $url = Carrier::trackingUrl($order->carrier, $order->trackingNumber);
+            if ($url !== '') {
+                $trackingHtml .= '<p><a href="' . esc_url($url) . '">' . esc_html__('Sendung verfolgen', 'rh-shop') . '</a></p>';
+            }
         }
 
         return '<p>' . esc_html__('Hallo,', 'rh-shop') . '</p>'
