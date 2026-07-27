@@ -6,6 +6,10 @@ namespace RhShop\Withdrawal;
 
 defined( 'ABSPATH' ) || exit;
 
+use RhShop\Mail\MailDispatcher;
+use RhShop\Mail\MailRegistry;
+use RhShop\Stripe\Config;
+
 /**
  * Verschickt die Eingangsbestätigung nach §356a Abs. 4 BGB auf dauerhaftem
  * Datenträger (E-Mail), plus eine interne Benachrichtigung an den Betreiber.
@@ -17,6 +21,13 @@ defined( 'ABSPATH' ) || exit;
  */
 final class WithdrawalMailer
 {
+    private readonly MailDispatcher $dispatcher;
+
+    public function __construct(private readonly Config $config)
+    {
+        $this->dispatcher = new MailDispatcher($config);
+    }
+
     /**
      * @param bool $verified Nur bei einer gegen die Bestellung (Nummer + E-Mail)
      *                       verifizierten Erklärung geht die Eingangsbestätigung an den
@@ -27,27 +38,27 @@ final class WithdrawalMailer
      */
     public function send(Withdrawal $withdrawal, bool $verified): void
     {
-        $headers = ['Content-Type: text/html; charset=UTF-8'];
         $received = $this->formatDateTime($withdrawal->receivedAt);
+        $values = [
+            'bestellnummer' => $withdrawal->orderNumber,
+            'name' => $withdrawal->customerName,
+            'shop_name' => (string) get_bloginfo('name'),
+        ];
 
-        if ($verified && $withdrawal->email !== '') {
-            wp_mail(
-                $withdrawal->email,
-                __('Eingangsbestätigung deines Widerrufs', 'rh-shop'),
-                $this->customerBody($withdrawal, $received),
-                $headers
-            );
-        }
-
-        $admin = (string) get_option('admin_email');
-        if ($admin !== '') {
-            wp_mail(
-                $admin,
-                sprintf(/* translators: %s: Bestellnummer */ __('Neuer Widerruf eingegangen (%s)', 'rh-shop'), $withdrawal->orderNumber),
-                $this->adminBody($withdrawal, $received),
-                $headers
-            );
-        }
+        // Kundenmail nur bei verifiziertem Widerruf (leerer Empfänger = kein Versand).
+        // Die Eingangsbestätigung ist Pflicht (nicht abschaltbar), darum ohne An/Aus-Risiko.
+        $this->dispatcher->send(
+            MailRegistry::get(MailRegistry::WITHDRAWAL_CUSTOMER),
+            $verified ? $withdrawal->email : '',
+            $values,
+            $this->customerBody($withdrawal, $received)
+        );
+        $this->dispatcher->send(
+            MailRegistry::get(MailRegistry::WITHDRAWAL_OPERATOR),
+            $this->config->notifyAddress(),
+            $values,
+            $this->adminBody($withdrawal, $received)
+        );
     }
 
     private function customerBody(Withdrawal $w, string $received): string

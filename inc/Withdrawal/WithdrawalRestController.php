@@ -8,6 +8,7 @@ defined( 'ABSPATH' ) || exit;
 
 use RhShop\Cart\CartRestController;
 use RhShop\Orders\OrderStore;
+use RhShop\Stripe\Config;
 use RhShop\Support\RateLimiter;
 use WP_Error;
 use WP_REST_Request;
@@ -92,7 +93,7 @@ final class WithdrawalRestController
         if ($withdrawal !== null) {
             // Kunden-Bestätigung nur bei gegen die Bestellung verifizierter E-Mail
             // (orderId > 0), sonst wäre der Endpoint ein Mail-Relay an fremde Adressen.
-            (new WithdrawalMailer())->send($withdrawal, $orderId > 0);
+            (new WithdrawalMailer(new Config()))->send($withdrawal, $orderId > 0);
 
             /**
              * Ein Widerruf ist eingegangen (dokumentiert, Eingangsbestätigung raus).

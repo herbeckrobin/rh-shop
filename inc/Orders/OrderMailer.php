@@ -7,6 +7,8 @@ namespace RhShop\Orders;
 defined( 'ABSPATH' ) || exit;
 
 use RhShop\Legal\Widerrufsformular;
+use RhShop\Mail\MailDispatcher;
+use RhShop\Mail\MailRegistry;
 use RhShop\Shipping\Carrier;
 use RhShop\Stripe\Config;
 use RhShop\Support\Money;
@@ -21,33 +23,31 @@ use RhShop\Support\Money;
  */
 final class OrderMailer
 {
+    private readonly MailDispatcher $dispatcher;
+
     public function __construct(private readonly Config $config)
     {
+        $this->dispatcher = new MailDispatcher($config);
     }
 
     public function sendConfirmation(Order $order, string $invoiceUrl = ''): void
     {
         $symbol = $this->config->currencySymbol();
-        $headers = $this->headers();
+        $values = $this->orderValues($order, $symbol);
 
-        if ($order->email !== '') {
-            wp_mail(
-                $order->email,
-                sprintf(/* translators: %s: Bestellnummer */ __('Deine Bestellung %s', 'rh-shop'), $order->orderNumber),
-                $this->customerBody($order, $symbol, $invoiceUrl),
-                $headers
-            );
-        }
-
-        $notify = $this->config->notifyAddress();
-        if ($notify !== '') {
-            wp_mail(
-                $notify,
-                sprintf(/* translators: %s: Bestellnummer */ __('Neue Bestellung %s', 'rh-shop'), $order->orderNumber),
-                $this->adminBody($order, $symbol),
-                $headers
-            );
-        }
+        $this->dispatcher->send(
+            MailRegistry::get(MailRegistry::ORDER_CONFIRMATION),
+            $order->email,
+            $values,
+            $this->customerBody($order, $symbol, $invoiceUrl),
+            $this->config->mailNote() // Legacy-Zusatztext, bis migriert
+        );
+        $this->dispatcher->send(
+            MailRegistry::get(MailRegistry::ORDER_ADMIN_NOTIFY),
+            $this->config->notifyAddress(),
+            $values,
+            $this->adminBody($order, $symbol)
+        );
     }
 
     /**
@@ -57,35 +57,80 @@ final class OrderMailer
      */
     public function sendShipped(Order $order): void
     {
-        if ($order->email === '') {
-            return;
-        }
-
-        wp_mail(
+        $this->dispatcher->send(
+            MailRegistry::get(MailRegistry::ORDER_SHIPPED),
             $order->email,
-            sprintf(/* translators: %s: Bestellnummer */ __('Deine Bestellung %s ist unterwegs', 'rh-shop'), $order->orderNumber),
-            $this->shippedBody($order),
-            $this->headers()
+            $this->orderValues($order, $this->config->currencySymbol()),
+            $this->shippedBody($order)
         );
     }
 
     /**
-     * Gemeinsame Mail-Header. Absender (From) nur setzen, wenn der Betreiber eine eigene
-     * Adresse gepflegt hat, sonst bleibt der WordPress-/rh-smtp-Default.
-     *
-     * @return array<int, string>
+     * Stornierungs-Mail an den Kunden, ausgelöst beim Wechsel auf "storniert".
      */
-    private function headers(): array
+    public function sendCancelled(Order $order): void
     {
-        $headers = ['Content-Type: text/html; charset=UTF-8'];
+        $this->dispatcher->send(
+            MailRegistry::get(MailRegistry::ORDER_CANCELLED),
+            $order->email,
+            $this->orderValues($order, $this->config->currencySymbol()),
+            '<p>' . esc_html__('Hallo,', 'rh-shop') . '</p>'
+            . '<p>' . esc_html(sprintf(/* translators: %s: Bestellnummer */ __('deine Bestellung %s wurde storniert.', 'rh-shop'), $order->orderNumber)) . '</p>'
+            . '<p>' . esc_html__('Falls du bereits bezahlt hast, erstatten wir dir den Betrag zurück.', 'rh-shop') . '</p>'
+        );
+    }
 
-        $fromAddress = $this->config->mailFromAddress();
-        if ($fromAddress !== '') {
-            $fromName = $this->config->mailFromName();
-            $headers[] = 'From: ' . ($fromName !== '' ? sprintf('%s <%s>', $fromName, $fromAddress) : $fromAddress);
-        }
+    /**
+     * Rückerstattungs-Mail an den Kunden, ausgelöst beim Wechsel auf "erstattet".
+     */
+    public function sendRefunded(Order $order): void
+    {
+        $symbol = $this->config->currencySymbol();
+        $this->dispatcher->send(
+            MailRegistry::get(MailRegistry::ORDER_REFUNDED),
+            $order->email,
+            $this->orderValues($order, $symbol),
+            '<p>' . esc_html__('Hallo,', 'rh-shop') . '</p>'
+            . '<p>' . esc_html(sprintf(
+                /* translators: 1: Betrag, 2: Bestellnummer */
+                __('wir haben dir %1$s für deine Bestellung %2$s erstattet.', 'rh-shop'),
+                Money::format($order->totalCents, $symbol),
+                $order->orderNumber
+            )) . '</p>'
+            . '<p>' . esc_html__('Je nach Zahlungsart kann es ein paar Tage dauern, bis der Betrag wieder bei dir ist.', 'rh-shop') . '</p>'
+        );
+    }
 
-        return $headers;
+    /**
+     * Mail bei fehlgeschlagener Zahlung. Greift vor allem bei späteren/asynchronen
+     * Zahlungsarten, die erst nach der Bestellung fehlschlagen können.
+     */
+    public function sendPaymentFailed(Order $order): void
+    {
+        $this->dispatcher->send(
+            MailRegistry::get(MailRegistry::PAYMENT_FAILED),
+            $order->email,
+            $this->orderValues($order, $this->config->currencySymbol()),
+            '<p>' . esc_html__('Hallo,', 'rh-shop') . '</p>'
+            . '<p>' . esc_html(sprintf(/* translators: %s: Bestellnummer */ __('die Zahlung für deine Bestellung %s ist leider fehlgeschlagen. Es wurde nichts belastet.', 'rh-shop'), $order->orderNumber)) . '</p>'
+            . '<p>' . esc_html__('Du kannst die Bestellung gern erneut auslösen.', 'rh-shop') . '</p>'
+        );
+    }
+
+    /**
+     * Platzhalter-Werte einer Bestellung für Betreff und Zusatztext.
+     *
+     * @return array<string, string>
+     */
+    private function orderValues(Order $order, string $symbol): array
+    {
+        return [
+            'bestellnummer' => $order->orderNumber,
+            'name' => $order->customerName,
+            'summe' => Money::format($order->totalCents, $symbol),
+            'sendungsnummer' => $order->trackingNumber,
+            'shop_name' => (string) get_bloginfo('name'),
+        ];
     }
 
     private function shippedBody(Order $order): string
@@ -132,15 +177,11 @@ final class OrderMailer
             ) . '</p>'
             : '';
 
-        $note = $this->config->mailNote();
-        $noteHtml = $note !== '' ? '<p>' . nl2br(esc_html($note)) . '</p>' : '';
-
         return '<p>' . esc_html__('Hallo,', 'rh-shop') . '</p>'
             . '<p>' . esc_html($intro) . '</p>'
             . $this->itemsTable($order, $symbol)
             . $invoice
             . '<p>' . esc_html__('Wir melden uns, sobald deine Bestellung unterwegs ist.', 'rh-shop') . '</p>'
-            . $noteHtml
             . $this->widerrufBlock();
     }
 
