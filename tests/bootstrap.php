@@ -23,6 +23,7 @@ require $inc . '/Orders/Order.php';
 require $inc . '/Checkout/Totals.php';
 require $inc . '/Shipping/Carrier.php';
 require $inc . '/Shipping/ShippingMethod.php';
+require $inc . '/Mail/Placeholders.php';
 
 $GLOBALS['__rhshop_tests'] = ['pass' => 0, 'fail' => 0, 'fails' => []];
 

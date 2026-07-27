@@ -4,7 +4,7 @@ Tags: shop, ecommerce, stripe, products
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 0.8.0
+Stable tag: 0.9.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -17,6 +17,13 @@ RH Shop ist der leichte Weg, ein kleines Sortiment (Merch, ein paar Produkte) zu
 Teil der rh-blueprint Kollektion.
 
 == Changelog ==
+
+= 0.9.0 =
+* Mail-Verwaltung: Jede Shop-Mail lässt sich jetzt einzeln steuern (Einstellungen → E-Mail). Pro Mail an oder aus, ein eigener Betreff und ein Zusatztext, mit Platzhaltern wie {bestellnummer}, {name} oder {summe}, die automatisch eingesetzt werden.
+* Alle Mails bekommen ein einheitliches Erscheinungsbild: Logo im Kopf (dein Website-Logo oder ein eigenes), Akzentfarbe und Fusstext, an einer Stelle einstellbar.
+* Drei neue Mails: Stornierung und Rückerstattung gehen an den Kunden, wenn du eine Bestellung auf storniert bzw. erstattet setzt, dazu eine Info bei fehlgeschlagener Zahlung.
+* Pflicht-Mails (Bestellbestätigung, Widerruf-Eingangsbestätigung) sind bewusst immer aktiv und nicht abschaltbar, damit rechtliche Angaben nicht verloren gehen.
+* Der bisherige globale Zusatztext der Bestätigungsmail wandert automatisch in die neue Per-Mail-Einstellung, du musst nichts tun.
 
 = 0.8.0 =
 * Versandmethoden statt fester Pauschale: Unter Einstellungen → Versand legst du die Versandarten an, die der Kunde im Checkout wählt (Bezeichnung, Anbieter, Preis, Gratis-ab, Lieferzeit, an/aus). Beispiele: „Abholung im Laden", „DHL nach Hause", „Hermes nach Hause". Ist keine Methode angelegt, gilt weiter die einfache Pauschale, bestehende Shops ändern sich nicht.
