@@ -37,6 +37,9 @@ final class Config
     public const FIELD_MAIL_FROM_ADDRESS = 'mail_from_address';
     public const FIELD_MAIL_NOTIFY = 'mail_notify';
     public const FIELD_MAIL_NOTE = 'mail_note';
+    public const FIELD_MAIL_LAYOUT_LOGO = 'mail_layout_logo';
+    public const FIELD_MAIL_LAYOUT_ACCENT = 'mail_layout_accent';
+    public const FIELD_MAIL_LAYOUT_FOOTER = 'mail_layout_footer';
     public const FIELD_LOW_STOCK = 'low_stock_threshold';
     public const FIELD_HOLD_MINUTES = 'reservation_hold_minutes';
 
@@ -205,10 +208,61 @@ final class Config
 
     /**
      * Optionaler eigener Text in der Kundenbestätigung (z.B. Kontakt bei Fragen).
+     * Legacy-Feld: wird beim Ausbau in den Per-Mail-Zusatztext der Bestellbestätigung
+     * überführt, der Getter bleibt für die Migration.
      */
     public function mailNote(): string
     {
         return trim((string) rhbp_setting(self::GROUP, self::FIELD_MAIL_NOTE, ''));
+    }
+
+    /**
+     * Logo-URL für den Mail-Kopf. Bevorzugt das Shop-Mail-Logo (Medien-ID), sonst das
+     * WordPress-Website-Logo (custom_logo). Leer, wenn keins gepflegt ist.
+     */
+    public function mailLayoutLogoUrl(): string
+    {
+        $id = (int) rhbp_setting(self::GROUP, self::FIELD_MAIL_LAYOUT_LOGO, 0);
+        if ($id > 0) {
+            $url = wp_get_attachment_image_url($id, 'medium');
+            if (is_string($url) && $url !== '') {
+                return $url;
+            }
+        }
+
+        $custom = (int) get_theme_mod('custom_logo', 0);
+        if ($custom > 0) {
+            $url = wp_get_attachment_image_url($custom, 'medium');
+            if (is_string($url) && $url !== '') {
+                return $url;
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * Akzentfarbe des Mail-Kopfs als Hex. Default ist das dunkle Grün-Grau der Kasse.
+     */
+    public function mailLayoutAccent(): string
+    {
+        $value = trim((string) rhbp_setting(self::GROUP, self::FIELD_MAIL_LAYOUT_ACCENT, ''));
+
+        return preg_match('/^#[0-9a-fA-F]{6}$/', $value) === 1 ? $value : '#1c2c2c';
+    }
+
+    /**
+     * Fusstext der Mails. Eigener Text, sonst die Anbieter-Anschrift (aus dem
+     * Rechtliches-Tab), sonst leer.
+     */
+    public function mailLayoutFooter(): string
+    {
+        $value = trim((string) rhbp_setting(self::GROUP, self::FIELD_MAIL_LAYOUT_FOOTER, ''));
+        if ($value !== '') {
+            return $value;
+        }
+
+        return trim((string) rhbp_setting(self::GROUP, \RhShop\Legal\Anbieter::SETTING_ADDRESS, ''));
     }
 
     /**
