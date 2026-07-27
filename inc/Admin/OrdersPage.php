@@ -382,14 +382,14 @@ final class OrdersPage
         $order = $orderId > 0 ? $store->find($orderId) : null;
 
         if ($order !== null && in_array($status, Order::STATUSES, true)) {
-            $wasShipped = $order->status === Order::STATUS_SHIPPED;
+            $previous = $order->status;
 
             if ($status === Order::STATUS_SHIPPED) {
                 // Carrier + Sendungsnummer persistieren (bleiben erhalten, auch für eine
                 // spätere Korrektur). Die Versandbestätigung geht nur beim ERSTEN Übergang
                 // raus, damit ein Nachtragen der Nummer keine zweite Mail auslöst.
                 $store->markShipped($orderId, $carrier, $tracking);
-                if (! $wasShipped) {
+                if ($previous !== Order::STATUS_SHIPPED) {
                     $fresh = $store->find($orderId);
                     if ($fresh !== null) {
                         (new OrderMailer(new Config()))->sendShipped($fresh);
@@ -397,6 +397,20 @@ final class OrdersPage
                 }
             } else {
                 $store->updateStatus($orderId, $status);
+
+                // Storno-/Rückerstattungs-Mail nur beim echten Statuswechsel, nicht bei
+                // wiederholtem Setzen desselben Status (keine Doppel-Mail).
+                if ($previous !== $status && ($status === Order::STATUS_CANCELLED || $status === Order::STATUS_REFUNDED)) {
+                    $fresh = $store->find($orderId);
+                    if ($fresh !== null) {
+                        $mailer = new OrderMailer(new Config());
+                        if ($status === Order::STATUS_CANCELLED) {
+                            $mailer->sendCancelled($fresh);
+                        } else {
+                            $mailer->sendRefunded($fresh);
+                        }
+                    }
+                }
             }
 
             $ok = true;

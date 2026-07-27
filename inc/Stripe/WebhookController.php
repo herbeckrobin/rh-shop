@@ -8,6 +8,7 @@ defined( 'ABSPATH' ) || exit;
 
 use RhShop\Cart\CartRestController;
 use RhShop\Orders\Fulfillment;
+use RhShop\Orders\OrderMailer;
 use RhShop\Orders\OrderStore;
 use Stripe\Exception\SignatureVerificationException;
 use Stripe\Webhook;
@@ -70,9 +71,33 @@ final class WebhookController
 
         if (in_array($event->type, self::PAID_EVENTS, true)) {
             $this->fulfillPaymentIntent($event->data->object);
+        } elseif ($event->type === 'payment_intent.payment_failed') {
+            $this->notifyPaymentFailed($event->data->object);
         }
 
         return new WP_REST_Response(['received' => true], 200);
+    }
+
+    /**
+     * Kunde über eine fehlgeschlagene Zahlung informieren. Nur bei einer bekannten, noch
+     * nicht bezahlten Bestellung (ein spätes Fehl-Event nach erfolgter Zahlung ignorieren).
+     * Der Status bleibt unangetastet, der Kunde kann erneut auslösen.
+     *
+     * @param object $intent Stripe PaymentIntent aus dem Event.
+     */
+    private function notifyPaymentFailed(object $intent): void
+    {
+        $intentId = (string) ($intent->id ?? '');
+        if ($intentId === '') {
+            return;
+        }
+
+        $order = $this->orders->findByPaymentIntent($intentId);
+        if ($order === null || $order->isPaid()) {
+            return;
+        }
+
+        (new OrderMailer($this->config))->sendPaymentFailed($order);
     }
 
     /**
