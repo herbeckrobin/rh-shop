@@ -8,6 +8,9 @@ defined( 'ABSPATH' ) || exit;
 
 use RhBlueprint\Core\Settings\SettingsPage;
 use RhShop\Catalog\ProductType;
+use RhShop\Mail\MailRegistry;
+use RhShop\Mail\MailSettings;
+use RhShop\Mail\MailType;
 use RhShop\Orders\Order;
 use RhShop\Shipping\Carrier;
 use RhShop\Shipping\ShippingMethod;
@@ -86,6 +89,8 @@ final class ShopSettingsPage
 
         wp_enqueue_style('rh-shop-settings-tabs', RHSHOP_PLUGIN_URL . 'assets/admin/settings-tabs.css', ['rh-blueprint-settings'], RHSHOP_VERSION);
         wp_enqueue_script('rh-shop-settings-tabs', RHSHOP_PLUGIN_URL . 'assets/admin/settings-tabs.js', [], RHSHOP_VERSION, true);
+        // Medien-Picker fürs Mail-Logo im E-Mail-Tab.
+        wp_enqueue_media();
     }
 
     public function render(string $tabId): void
@@ -546,18 +551,168 @@ final class ShopSettingsPage
         echo '<p class="rhbp-field__desc">' . esc_html__('Hierhin geht die Info über jede neue Bestellung. Leer = die Administrator-Adresse dieser Website.', 'rh-shop') . '</p>';
         echo '</div>';
 
-        // Optionaler Zusatztext in der Kundenbestätigung
-        echo '<div class="rhbp-field">';
-        echo '<label class="rhbp-field__label" for="rhshop-mail-note">' . esc_html__('Zusatztext in der Bestätigungsmail', 'rh-shop') . '</label>';
-        printf(
-            '<textarea id="rhshop-mail-note" name="mail_note" rows="3" class="regular-text" style="max-width:420px" placeholder="%s">%s</textarea>',
-            esc_attr__('z.B. Bei Fragen erreichst du uns unter …', 'rh-shop'),
-            esc_textarea($this->config->mailNote())
+        $this->sectionClose();
+
+        // Erscheinungsbild (gilt für alle Mails).
+        $this->sectionOpen(
+            __('Erscheinungsbild der Mails', 'rh-shop'),
+            __('Logo, Farbe und Fusstext, die in jeder Shop-Mail erscheinen.', 'rh-shop')
         );
-        echo '<p class="rhbp-field__desc">' . esc_html__('Wird dem Kunden unten in der Bestellbestätigung angezeigt. Optional.', 'rh-shop') . '</p>';
+
+        // Logo (Medien-Picker). Leer = automatisch das Website-Logo.
+        $logoId = (int) rhbp_setting(Config::GROUP, Config::FIELD_MAIL_LAYOUT_LOGO, 0);
+        $logoUrl = $logoId > 0 ? (string) wp_get_attachment_image_url($logoId, 'medium') : '';
+        echo '<div class="rhbp-field" data-rhshop-logo>';
+        echo '<label class="rhbp-field__label">' . esc_html__('Logo', 'rh-shop') . '</label>';
+        printf('<input type="hidden" name="mail_layout_logo" value="%d" data-rhshop-logo-id>', $logoId);
+        printf(
+            '<img src="%s" alt="" style="max-height:48px;display:%s;margin-bottom:8px" data-rhshop-logo-preview>',
+            esc_url($logoUrl),
+            $logoUrl !== '' ? 'block' : 'none'
+        );
+        echo '<p><button type="button" class="rhbp-btn rhbp-btn--ghost" data-rhshop-logo-pick>' . esc_html__('Logo wählen', 'rh-shop') . '</button> ';
+        printf(
+            '<button type="button" class="rhbp-btn rhbp-btn--ghost" data-rhshop-logo-clear style="display:%s">%s</button></p>',
+            $logoId > 0 ? 'inline-block' : 'none',
+            esc_html__('Entfernen', 'rh-shop')
+        );
+        echo '<p class="rhbp-field__desc">' . esc_html__('Erscheint im Mail-Kopf. Leer = automatisch das Website-Logo, falls eins gesetzt ist.', 'rh-shop') . '</p>';
+        echo '</div>';
+
+        // Akzentfarbe
+        echo '<div class="rhbp-field">';
+        echo '<label class="rhbp-field__label" for="rhshop-mail-accent">' . esc_html__('Akzentfarbe', 'rh-shop') . '</label>';
+        printf(
+            '<input type="color" id="rhshop-mail-accent" name="mail_layout_accent" value="%s">',
+            esc_attr($this->config->mailLayoutAccent())
+        );
+        echo '<p class="rhbp-field__desc">' . esc_html__('Hintergrund des Mail-Kopfs.', 'rh-shop') . '</p>';
+        echo '</div>';
+
+        // Fusstext
+        echo '<div class="rhbp-field">';
+        echo '<label class="rhbp-field__label" for="rhshop-mail-footer">' . esc_html__('Fusstext', 'rh-shop') . '</label>';
+        printf(
+            '<textarea id="rhshop-mail-footer" name="mail_layout_footer" rows="3" class="regular-text" style="max-width:420px" placeholder="%s">%s</textarea>',
+            esc_attr__('leer = deine Anbieter-Anschrift', 'rh-shop'),
+            esc_textarea(trim((string) rhbp_setting(Config::GROUP, Config::FIELD_MAIL_LAYOUT_FOOTER, '')))
+        );
+        echo '<p class="rhbp-field__desc">' . esc_html__('Steht unten in jeder Mail. Leer = die Anbieter-Anschrift aus dem Rechtliches-Tab.', 'rh-shop') . '</p>';
         echo '</div>';
 
         $this->sectionClose();
+
+        // Die einzelnen Mails.
+        $this->sectionOpen(
+            __('Einzelne Mails', 'rh-shop'),
+            __('Pro Mail: an oder aus, eigener Betreff und ein Zusatztext. Platzhalter in geschweiften Klammern werden automatisch eingesetzt.', 'rh-shop')
+        );
+        $settings = new MailSettings();
+        foreach (MailRegistry::all() as $type) {
+            $this->renderMailRow($type, $settings);
+        }
+        $this->mailMediaScript();
+        $this->sectionClose();
+    }
+
+    /**
+     * Eine Mail-Reihe: An/Aus-Schalter (bei Pflicht-Mails gesperrt) plus ein aufklappbarer
+     * Bereich für Betreff und Zusatztext. Alle Felder liegen im gemeinsamen Tab-Formular,
+     * gespeichert wird über handleSave.
+     */
+    private function renderMailRow(MailType $type, MailSettings $settings): void
+    {
+        $enabledKey = MailSettings::enabledKey($type->id);
+        $subjectVal = trim((string) rhbp_setting(Config::GROUP, MailSettings::subjectKey($type->id), ''));
+        $noteVal = trim((string) rhbp_setting(Config::GROUP, MailSettings::noteKey($type->id), ''));
+        // Legacy: der alte globale Zusatztext füllt anfangs den der Bestellbestätigung.
+        if ($noteVal === '' && $type->id === MailRegistry::ORDER_CONFIRMATION) {
+            $noteVal = $this->config->mailNote();
+        }
+        $placeholders = implode(' ', array_map(static fn (string $p): string => '{' . $p . '}', $type->placeholders));
+
+        echo '<div class="rhshop-mailrow">';
+        echo '<div class="rhshop-mailrow__head">';
+        echo '<div class="rhshop-mailrow__title"><strong>' . esc_html($type->label) . '</strong>'
+            . '<span class="rhshop-mailrow__desc">' . esc_html($type->description) . '</span></div>';
+
+        if ($type->lockable) {
+            printf(
+                '<label class="rhbp-switch"><input type="checkbox" name="%s" value="1" %s><span class="rhbp-switch__track" aria-hidden="true"></span></label>',
+                esc_attr($enabledKey),
+                checked($settings->enabled($type), true, false)
+            );
+        } else {
+            echo '<span class="rhbp-pill rhbp-pill--ok">' . esc_html__('immer aktiv', 'rh-shop') . '</span>';
+        }
+        echo '</div>';
+
+        echo '<details class="rhshop-mailrow__edit"><summary>' . esc_html__('Betreff & Text bearbeiten', 'rh-shop') . '</summary>';
+        echo '<div class="rhbp-field">';
+        echo '<label class="rhbp-field__label">' . esc_html__('Betreff', 'rh-shop') . '</label>';
+        printf(
+            '<input type="text" name="%s" value="%s" placeholder="%s" class="regular-text">',
+            esc_attr(MailSettings::subjectKey($type->id)),
+            esc_attr($subjectVal),
+            esc_attr($type->defaultSubject)
+        );
+        echo '</div>';
+        echo '<div class="rhbp-field">';
+        echo '<label class="rhbp-field__label">' . esc_html__('Zusatztext', 'rh-shop') . '</label>';
+        printf(
+            '<textarea name="%s" rows="3" class="regular-text" style="max-width:420px">%s</textarea>',
+            esc_attr(MailSettings::noteKey($type->id)),
+            esc_textarea($noteVal)
+        );
+        echo '<p class="rhbp-field__desc">' . esc_html__('Platzhalter:', 'rh-shop') . ' <code>' . esc_html($placeholders) . '</code></p>';
+        echo '</div>';
+        echo '</details>';
+        echo '</div>';
+    }
+
+    /**
+     * Medien-Picker fürs Mail-Logo (wp.media). Einmal ausgegeben, steuert das Hidden-Feld
+     * + Vorschau in der Logo-Zeile.
+     */
+    private function mailMediaScript(): void
+    {
+        ?>
+        <style>
+        .rhshop-mailrow { border: 1px solid #dcdcde; border-radius: 8px; padding: 12px 16px; margin: 0 0 10px; max-width: 640px; }
+        .rhshop-mailrow__head { display: flex; align-items: center; gap: 12px; }
+        .rhshop-mailrow__title { flex: 1; display: flex; flex-direction: column; }
+        .rhshop-mailrow__desc { color: #646970; font-size: 12px; margin-top: 2px; }
+        .rhshop-mailrow__edit { margin-top: 10px; }
+        .rhshop-mailrow__edit > summary { cursor: pointer; color: #3858e9; font-size: 13px; }
+        .rhshop-mailrow__edit[open] > summary { margin-bottom: 10px; }
+        </style>
+        <script>
+        ( function () {
+            var wrap = document.querySelector( '[data-rhshop-logo]' );
+            if ( ! wrap || ! window.wp || ! window.wp.media ) { return; }
+            var idField = wrap.querySelector( '[data-rhshop-logo-id]' );
+            var preview = wrap.querySelector( '[data-rhshop-logo-preview]' );
+            var clearBtn = wrap.querySelector( '[data-rhshop-logo-clear]' );
+            var frame;
+            wrap.querySelector( '[data-rhshop-logo-pick]' ).addEventListener( 'click', function () {
+                if ( ! frame ) {
+                    frame = window.wp.media( { title: '<?php echo esc_js( __( 'Logo wählen', 'rh-shop' ) ); ?>', multiple: false, library: { type: 'image' } } );
+                    frame.on( 'select', function () {
+                        var att = frame.state().get( 'selection' ).first().toJSON();
+                        idField.value = att.id;
+                        var url = att.sizes && att.sizes.medium ? att.sizes.medium.url : att.url;
+                        preview.src = url; preview.style.display = 'block';
+                        clearBtn.style.display = 'inline-block';
+                    } );
+                }
+                frame.open();
+            } );
+            clearBtn.addEventListener( 'click', function () {
+                idField.value = '0'; preview.src = ''; preview.style.display = 'none'; clearBtn.style.display = 'none';
+            } );
+        } )();
+        </script>
+        <?php
     }
 
     /**
@@ -719,6 +874,22 @@ final class ShopSettingsPage
 
         $this->collectSecret($values, 'secret_key', Config::FIELD_SECRET_ENC);
         $this->collectSecret($values, 'webhook_secret', Config::FIELD_WEBHOOK_ENC);
+
+        // Mail-Layout
+        $values[Config::FIELD_MAIL_LAYOUT_LOGO] = isset($_POST['mail_layout_logo']) ? absint(wp_unslash($_POST['mail_layout_logo'])) : 0;
+        $values[Config::FIELD_MAIL_LAYOUT_ACCENT] = sanitize_hex_color((string) wp_unslash($_POST['mail_layout_accent'] ?? '')) ?? '';
+        $values[Config::FIELD_MAIL_LAYOUT_FOOTER] = isset($_POST['mail_layout_footer']) ? sanitize_textarea_field(wp_unslash($_POST['mail_layout_footer'])) : '';
+
+        // Per-Mail: An/Aus (nur abschaltbare), Betreff, Zusatztext.
+        foreach (MailRegistry::all() as $type) {
+            if ($type->lockable) {
+                $values[MailSettings::enabledKey($type->id)] = isset($_POST[MailSettings::enabledKey($type->id)]);
+            }
+            $subjectKey = MailSettings::subjectKey($type->id);
+            $noteKey = MailSettings::noteKey($type->id);
+            $values[$subjectKey] = isset($_POST[$subjectKey]) ? sanitize_text_field(wp_unslash($_POST[$subjectKey])) : '';
+            $values[$noteKey] = isset($_POST[$noteKey]) ? sanitize_textarea_field(wp_unslash($_POST[$noteKey])) : '';
+        }
 
         rhbp_update_settings(Config::GROUP, $values);
 
