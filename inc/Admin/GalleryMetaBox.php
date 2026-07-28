@@ -38,11 +38,10 @@ final class GalleryMetaBox
             __('Bildergalerie', 'rh-shop'),
             [$this, 'render'],
             ProductType::POST_TYPE,
-            // Bewusst 'side': im Block-Editor rendert das die Box in der rechten
-            // Dokument-Spalte, wo sie direkt sichtbar ist. 'normal' landet dagegen im
-            // unteren Meta-Boxen-Bereich, der standardmäßig zugeklappt ist (gemessen:
-            // Box dann gar nicht erreichbar, ohne dass der Nutzer ihn erst aufklappt).
-            'side'
+            // Zu den anderen Produktdaten in den Meta-Boxen-Bereich, direkt unter
+            // Preis & Varianten. Volle Breite, dadurch grosse Vorschaubilder.
+            'normal',
+            'default'
         );
     }
 
@@ -75,9 +74,14 @@ final class GalleryMetaBox
             true
         );
         wp_localize_script('rh-shop-gallery-metabox', 'rhShopGallery', [
-            'title' => __('Galerie-Bilder wählen', 'rh-shop'),
+            'title' => __('Bilder wählen', 'rh-shop'),
             'button' => __('Übernehmen', 'rh-shop'),
             'remove' => __('Bild entfernen', 'rh-shop'),
+            'feature' => __('Als Hauptbild festlegen', 'rh-shop'),
+            'replace' => __('Bild ersetzen', 'rh-shop'),
+            'featuredBadge' => __('Hauptbild', 'rh-shop'),
+            'iconStar' => self::icon('star'),
+            'iconReplace' => self::icon('replace'),
             'mediaMissing' => __('Die Medienauswahl konnte nicht geladen werden. Bitte lade die Seite neu.', 'rh-shop'),
         ]);
     }
@@ -86,26 +90,49 @@ final class GalleryMetaBox
     {
         wp_nonce_field(self::NONCE_ACTION, self::NONCE_FIELD);
 
-        $ids = self::imageIds($post->ID);
+        $featured = (int) get_post_thumbnail_id($post->ID);
+        // Das Hauptbild steht genau einmal in der Liste, an erster Stelle. Aus den
+        // weiteren Bildern fliegt es raus, falls es dort auch gepflegt wurde.
+        $gallery = array_values(array_filter(
+            self::imageIds($post->ID),
+            static fn (int $id): bool => $id !== $featured
+        ));
 
         echo '<div class="rhshop-gallery-box" data-rhshop-gallery-box>';
         echo '<p class="rhshop-hint">' . esc_html__(
-            'Weitere Bilder für die Produktseite. Das Beitragsbild ist immer das erste Bild.',
+            'Alle Bilder dieses Produkts. Das erste ist das Hauptbild und erscheint im Raster und im Warenkorb, die weiteren stehen auf der Produktseite darunter. Kacheln verschieben sortiert sie um.',
             'rh-shop'
         ) . '</p>';
 
         echo '<ul class="rhshop-gallery-box__list" data-rhshop-gallery-list>';
-        foreach ($ids as $id) {
-            $this->renderItem($id);
+        if ($featured > 0) {
+            $this->renderItem($featured, true);
+        }
+        foreach ($gallery as $id) {
+            $this->renderItem($id, false);
         }
         echo '</ul>';
 
         printf(
-            '<input type="hidden" name="rhshop_gallery_ids" value="%s" data-rhshop-gallery-ids>',
-            esc_attr(implode(',', $ids))
+            '<p class="rhshop-gallery-box__empty" data-rhshop-gallery-empty%s>%s</p>',
+            ($featured > 0 || $gallery !== []) ? ' hidden' : '',
+            esc_html__('Noch keine Bilder. Leg mit "Bilder hinzufügen" los, das erste wird das Hauptbild.', 'rh-shop')
         );
+
         printf(
-            '<button type="button" class="button" data-rhshop-gallery-add>%s</button>',
+            '<input type="hidden" name="rhshop_gallery_ids" value="%s" data-rhshop-gallery-ids>',
+            esc_attr(implode(',', $gallery))
+        );
+        // Nur gefüllt, wenn der Redakteur hier ein anderes Hauptbild wählt. Leer heisst:
+        // Beitragsbild nicht anfassen (sonst würde eine Änderung aus der Seitenleiste
+        // beim Speichern wieder überschrieben).
+        printf(
+            '<input type="hidden" name="rhshop_featured_id" value="" data-rhshop-gallery-featured data-initial="%d">',
+            $featured
+        );
+
+        printf(
+            '<button type="button" class="button button-primary" data-rhshop-gallery-add>%s</button>',
             esc_html__('Bilder hinzufügen', 'rh-shop')
         );
         echo '</div>';
@@ -113,22 +140,48 @@ final class GalleryMetaBox
         $this->renderAssets();
     }
 
-    private function renderItem(int $id): void
+    private function renderItem(int $id, bool $isFeatured): void
     {
-        $thumb = wp_get_attachment_image_url($id, 'thumbnail');
+        $thumb = wp_get_attachment_image_url($id, 'medium');
         if (! is_string($thumb)) {
             return;
         }
 
         printf(
-            '<li data-rhshop-gallery-item="%1$d" draggable="true">'
-            . '<img src="%2$s" alt="">'
-            . '<button type="button" data-rhshop-gallery-remove aria-label="%3$s">×</button>'
+            '<li data-rhshop-gallery-item="%1$d"%2$s draggable="true" title="%3$s">'
+            . '<img src="%4$s" alt="">'
+            . '<span class="rhshop-gallery-box__badge">%5$s</span>'
+            . '<span class="rhshop-gallery-box__tools">'
+            . '<button type="button" data-rhshop-gallery-feature aria-label="%6$s" title="%6$s">%9$s</button>'
+            . '<button type="button" data-rhshop-gallery-replace aria-label="%7$s" title="%7$s">%10$s</button>'
+            . '<button type="button" data-rhshop-gallery-remove aria-label="%8$s" title="%8$s">×</button>'
+            . '</span>'
             . '</li>',
             (int) $id,
+            $isFeatured ? ' class="is-featured"' : '',
+            esc_attr(get_the_title($id)),
             esc_url($thumb),
-            esc_attr__('Bild entfernen', 'rh-shop')
+            esc_html__('Hauptbild', 'rh-shop'),
+            esc_attr__('Als Hauptbild festlegen', 'rh-shop'),
+            esc_attr__('Bild ersetzen', 'rh-shop'),
+            esc_attr__('Bild entfernen', 'rh-shop'),
+            self::icon('star'),
+            self::icon('replace')
         );
+    }
+
+    /**
+     * Kleine Inline-Icons für die Kachel-Werkzeuge (kein Dashicon-Zwang, damit die
+     * Buttons auf dem Bild gleich gross und gut treffbar bleiben).
+     */
+    private static function icon(string $name): string
+    {
+        $paths = [
+            'star' => '<path d="M12 3.6l2.5 5.1 5.6.8-4 4 1 5.6-5.1-2.7-5 2.7 1-5.6-4.1-4 5.6-.8z"/>',
+            'replace' => '<path d="M4 12a8 8 0 0 1 13.7-5.6M20 12a8 8 0 0 1-13.7 5.6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M17 3v4h-4M7 21v-4h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+        ];
+
+        return '<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true">' . ($paths[$name] ?? '') . '</svg>';
     }
 
     /**
@@ -139,17 +192,57 @@ final class GalleryMetaBox
     {
         ?>
         <style>
-        .rhshop-gallery-box .rhshop-hint { color: #646970; }
-        .rhshop-gallery-box__list { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 10px; padding: 0; list-style: none; }
-        .rhshop-gallery-box__list li { position: relative; width: 72px; height: 72px; cursor: grab; }
-        .rhshop-gallery-box__list img { width: 100%; height: 100%; object-fit: cover; border-radius: 4px; display: block; }
-        .rhshop-gallery-box__list button {
-            position: absolute; top: -6px; right: -6px;
-            width: 20px; height: 20px; padding: 0;
-            border: 0; border-radius: 50%;
-            background: #1d2327; color: #fff;
-            font-size: 13px; line-height: 1; cursor: pointer;
+        .rhshop-gallery-box .rhshop-hint { color: #646970; margin: 0 0 12px; max-width: 75ch; }
+        .rhshop-gallery-box__list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 12px;
+            margin: 0 0 12px;
+            padding: 0;
+            list-style: none;
         }
+        .rhshop-gallery-box__list li {
+            position: relative;
+            aspect-ratio: 1;
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid #dcdcde;
+            background: #f6f7f7;
+            cursor: grab;
+        }
+        .rhshop-gallery-box__list li.is-featured { border: 2px solid #2271b1; }
+        .rhshop-gallery-box__list li:active { cursor: grabbing; }
+        .rhshop-gallery-box__list img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+        /* Badge nur am Hauptbild, Werkzeuge auf Hover/Fokus. */
+        .rhshop-gallery-box__badge {
+            position: absolute; left: 6px; bottom: 6px;
+            padding: 2px 8px; border-radius: 999px;
+            background: #2271b1; color: #fff;
+            font-size: 11px; font-weight: 600;
+            display: none;
+        }
+        .rhshop-gallery-box__list li.is-featured .rhshop-gallery-box__badge { display: block; }
+
+        .rhshop-gallery-box__tools {
+            position: absolute; top: 6px; right: 6px;
+            display: flex; gap: 4px;
+            opacity: 0; transition: opacity .15s ease;
+        }
+        .rhshop-gallery-box__list li:hover .rhshop-gallery-box__tools,
+        .rhshop-gallery-box__tools:focus-within { opacity: 1; }
+        .rhshop-gallery-box__tools button {
+            width: 26px; height: 26px; padding: 0;
+            display: flex; align-items: center; justify-content: center;
+            border: 0; border-radius: 50%;
+            background: rgba(29, 35, 39, 0.85); color: #fff;
+            font-size: 15px; line-height: 1; cursor: pointer;
+        }
+        .rhshop-gallery-box__tools button:hover { background: #2271b1; }
+        /* Das Hauptbild braucht den Hauptbild-Knopf nicht. */
+        .rhshop-gallery-box__list li.is-featured [data-rhshop-gallery-feature] { display: none; }
+        .rhshop-gallery-box__empty { color: #646970; font-style: italic; margin: 0 0 12px; }
+        .rhshop-gallery-box__empty[hidden] { display: none; }
         </style>
         <?php
     }
@@ -166,11 +259,22 @@ final class GalleryMetaBox
             return;
         }
 
+        // Hauptbild nur anfassen, wenn es in dieser Box aktiv gewechselt wurde.
+        // Sonst würde eine Änderung aus der Seitenleiste hier überschrieben.
+        $featuredRaw = isset($_POST['rhshop_featured_id']) ? absint($_POST['rhshop_featured_id']) : 0;
+        if ($featuredRaw > 0 && wp_attachment_is_image($featuredRaw)) {
+            set_post_thumbnail($postId, $featuredRaw);
+        }
+
+        $featured = (int) get_post_thumbnail_id($postId);
+
         $raw = isset($_POST['rhshop_gallery_ids']) ? sanitize_text_field(wp_unslash($_POST['rhshop_gallery_ids'])) : '';
         $ids = [];
         foreach (explode(',', $raw) as $part) {
             $id = absint($part);
-            if ($id > 0 && wp_attachment_is_image($id)) {
+            // Das Hauptbild gehört nicht in die Liste der weiteren Bilder, sonst
+            // stünde es auf der Produktseite zweimal.
+            if ($id > 0 && $id !== $featured && wp_attachment_is_image($id)) {
                 $ids[] = $id;
             }
         }
