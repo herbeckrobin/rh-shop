@@ -46,6 +46,18 @@ final class InvoiceService
             return null;
         }
 
+        return $this->create($client, $order, true);
+    }
+
+    /**
+     * @param bool $retryOnStaleTaxRate Self-Healing: die gecachte tax_rate-Id ist
+     *             account-gebunden. Nach einem Wechsel der Stripe-Keys antwortet
+     *             Stripe "No such tax rate"; dann den Cache verwerfen und genau
+     *             einmal neu versuchen (legt den Steuersatz im aktuellen Account an).
+     * @return array{id:string, number:string, url:string}|null
+     */
+    private function create(SdkClient $client, Order $order, bool $retryOnStaleTaxRate): ?array
+    {
         try {
             $customer = $client->customers->create($this->customerParams($order));
 
@@ -93,6 +105,16 @@ final class InvoiceService
                 'url' => (string) ($invoice->hosted_invoice_url ?? ''),
             ];
         } catch (ApiErrorException $e) {
+            if ($retryOnStaleTaxRate && str_contains($e->getMessage(), 'No such tax rate')) {
+                delete_option(self::OPTION_VAT_RATE . '_' . $this->config->taxRatePercent());
+
+                return $this->create($client, $order, false);
+            }
+
+            // Kein stilles Schlucken: die Rechnung bleibt best-effort, aber der
+            // Grund muss im Log stehen, sonst ist der Ausfall unsichtbar.
+            error_log(sprintf('[rh-shop] Rechnung zu Bestellung %s fehlgeschlagen: %s', $order->orderNumber, $e->getMessage()));
+
             return null;
         }
     }
@@ -172,6 +194,10 @@ final class InvoiceService
                 'inclusive' => true,
             ]);
         } catch (ApiErrorException $e) {
+            // Ohne Steuersatz wird die Rechnung trotzdem erstellt (ohne USt-Ausweis),
+            // aber der Grund gehört ins Log.
+            error_log('[rh-shop] Stripe-Steuersatz anlegen fehlgeschlagen: ' . $e->getMessage());
+
             return [];
         }
 
