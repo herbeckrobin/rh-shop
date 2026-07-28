@@ -1,0 +1,21 @@
+{
+    "$schema": "https://schemas.wp.org/trunk/block.json",
+    "apiVersion": 3,
+    "name": "rh-shop/product-gallery",
+    "title": "Produkt-Galerie",
+    "category": "rh-shop",
+    "icon": "images-alt2",
+    "description": "Bildergalerie des Produkts: Hauptbild mit Thumbnail-Leiste und Zoom. Ohne Galerie-Bilder zeigt der Block das Beitragsbild.",
+    "textdomain": "rh-shop",
+    "attributes": {
+        "productId": { "type": "number", "default": 0 }
+    },
+    "supports": {
+        "html": false,
+        "spacing": { "margin": true }
+    },
+    "editorScript": "rh-shop-blocks-editor",
+    "style": "rh-shop",
+    "viewScript": "rh-shop-view",
+    "render": "file:./render.php"
+}

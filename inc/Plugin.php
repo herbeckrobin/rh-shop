@@ -9,6 +9,7 @@ defined( 'ABSPATH' ) || exit;
 use RhBlueprint\Core\Core;
 use RhBlueprint\Core\Settings\SettingsPage;
 use RhShop\Admin\DashboardPage;
+use RhShop\Admin\GalleryMetaBox;
 use RhShop\Admin\HelpTabs;
 use RhShop\Admin\OrdersPage;
 use RhShop\Admin\SetupNotice;
@@ -115,6 +116,7 @@ final class Plugin
             (new SetupNotice(new Config()))->boot();
             (new HelpTabs())->boot();
             (new VariantMetaBox())->boot();
+            (new GalleryMetaBox())->boot();
             // GoLiveCheck rendert die ShopSettingsPage selbst in den Status-Tab, kein
             // eigener Hook mehr (sonst doppelt).
             (new ShopSettingsPage(new Config()))->boot();
