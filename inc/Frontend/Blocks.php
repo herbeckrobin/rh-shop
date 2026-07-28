@@ -20,7 +20,7 @@ use RhShop\Catalog\ProductType;
  */
 final class Blocks
 {
-    private const BLOCKS = ['product-grid', 'product-single', 'buy-box', 'cart-items', 'cart-summary', 'checkout-summary', 'checkout-form', 'cart-widget', 'widerruf'];
+    private const BLOCKS = ['product-grid', 'product-gallery', 'product-single', 'buy-box', 'cart-items', 'cart-summary', 'checkout-summary', 'checkout-form', 'cart-widget', 'search', 'widerruf'];
 
     public function boot(): void
     {
@@ -30,6 +30,7 @@ final class Blocks
 
         (new SingleProduct(new Render(new \RhShop\Catalog\VariantRepository(), new \RhShop\Stripe\Config())))->boot();
         (new CartRestController())->boot();
+        (new SearchRestController())->boot();
     }
 
     /**
@@ -89,6 +90,10 @@ final class Blocks
         // wo has_block() nicht greift. Deshalb braucht das Widget keinen needsAssets-Zweig.
         wp_register_script('rh-shop-cart-widget', RHSHOP_PLUGIN_URL . 'assets/js/cart-widget.js', ['rh-shop-view'], $this->assetVersion('assets/js/cart-widget.js'), true);
 
+        // Produkt-Suche (Nav): gleiches Muster wie das Warenkorb-Widget, damit das
+        // Overlay auch aus einem Header-Template-Part heraus funktioniert.
+        wp_register_script('rh-shop-search', RHSHOP_PLUGIN_URL . 'assets/js/search.js', ['rh-shop-view'], $this->assetVersion('assets/js/search.js'), true);
+
         // Kasse: eigenes Script (lädt Stripe.js erst dort nach) + Publishable Key.
         // Payment Element braucht Betrag + Währung vorab (deferred Elements), den Total
         // rechnen wir serverseitig aus dem aktuellen Warenkorb. Das Appearance-Theming
@@ -117,6 +122,9 @@ final class Blocks
         // Stripe Payment Element lehnt den String ab (erwartet eine Zahl).
         $data = [
             'pk' => $config->publishableKey(),
+            // Stripe-Elements-Locale aus der Site-Sprache (de_DE -> de), nicht aus
+            // der Browser-Sprache, damit die Zahl-UI zur Sprache der Kasse passt.
+            'locale' => substr(get_locale(), 0, 2),
             'restUrl' => esc_url_raw(rest_url(CartRestController::NAMESPACE . '/')),
             'nonce' => wp_create_nonce('wp_rest'),
             'amount' => $totals->totalCents,

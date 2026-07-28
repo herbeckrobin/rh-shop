@@ -46,11 +46,72 @@
 	.rhshop-grid { grid-template-columns: 1fr; }
 }
 
+/* Karte = <article> mit innerem Link über den ganzen Inhalt; der Quick-Add-Button
+   liegt als Geschwister daneben (Button im Link wäre invalides HTML). */
 .rhshop-card {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	border-radius: var(--rhshop-radius-lg);
+	transition: transform 0.18s ease;
+}
+
+/* display:flex schlägt das UA-[hidden], darum explizit: der Kategorie-Filter
+   blendet Karten über das hidden-Attribut aus. */
+.rhshop-card[hidden] { display: none; }
+
+.rhshop-card__link {
 	display: flex;
 	flex-direction: column;
 	text-decoration: none;
 	color: inherit;
+	border-radius: var(--rhshop-radius-lg);
+}
+
+.rhshop-card:hover { transform: translateY(-3px); }
+.rhshop-card:hover .rhshop-card__media {
+	box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+}
+.rhshop-card__link:focus-visible {
+	outline: 2px solid var(--rhshop-accent);
+	outline-offset: 4px;
+}
+
+/* Quick-Add: oben rechts auf dem Bild (das Badge sitzt links). Auf Zeige-Geräten
+   erst beim Karten-Hover sichtbar, auf Touch immer. */
+.rhshop-card__quick-add {
+	position: absolute;
+	top: 0.6rem;
+	right: 0.6rem;
+	z-index: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 2.5rem;
+	height: 2.5rem;
+	padding: 0;
+	border: 0;
+	border-radius: 50%;
+	background: var(--rhshop-accent);
+	color: var(--rhshop-on-accent);
+	cursor: pointer;
+	box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+	transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.rhshop-card__quick-add:hover { transform: scale(1.08); }
+.rhshop-card__quick-add:focus-visible {
+	outline: 2px solid var(--rhshop-on-accent);
+	outline-offset: -4px;
+}
+.rhshop-card__quick-add.is-error {
+	background: var(--rhshop-error);
+}
+@media (hover: hover) and (pointer: fine) {
+	.rhshop-card__quick-add { opacity: 0; }
+	.rhshop-card:hover .rhshop-card__quick-add,
+	.rhshop-card__quick-add:focus-visible,
+	.rhshop-card__quick-add.is-pending,
+	.rhshop-card__quick-add.is-error { opacity: 1; }
 }
 
 .rhshop-card__media {
@@ -61,6 +122,7 @@
 	border-radius: var(--rhshop-radius-lg);
 	background: var(--rhshop-surface-fallback);
 	background: var(--rhshop-surface);
+	transition: box-shadow 0.18s ease;
 }
 
 .rhshop-card__media img {
@@ -228,7 +290,6 @@
 
 /* Warenkorb */
 .rhshop-cart__lines { list-style: none; margin: 0; padding: 0; }
-.rhshop-cart__empty { opacity: 0.7; }
 
 .rhshop-cart__line {
 	display: grid;
@@ -262,6 +323,8 @@
 	background: var(--rhshop-surface-2);
 }
 
+/* display:flex schlägt das UA-[hidden], darum explizit: leer -> Summe/Kasse weg. */
+.rhshop-cart__foot[hidden] { display: none; }
 .rhshop-cart__foot {
 	display: flex;
 	justify-content: space-between;
@@ -574,14 +637,16 @@
    ein zentrierter Spinner das Label, Warenkorb-Zeilen dimmen während der Anfrage. */
 .rhshop-btn-add.is-pending,
 .rhshop-btn-order.is-pending,
-.rhshop-btn-checkout.is-pending {
+.rhshop-btn-checkout.is-pending,
+.rhshop-card__quick-add.is-pending {
 	position: relative;
 	color: transparent;
 	pointer-events: none;
 }
 .rhshop-btn-add.is-pending::after,
 .rhshop-btn-order.is-pending::after,
-.rhshop-btn-checkout.is-pending::after {
+.rhshop-btn-checkout.is-pending::after,
+.rhshop-card__quick-add.is-pending::after {
 	content: '';
 	position: absolute;
 	top: 50%;
@@ -749,3 +814,484 @@
 	.rhshop-cw__backdrop,
 	.rhshop-cw__panel { transition: none; }
 }
+
+/* =========================================================================
+   Produktseite: Titel-Umbruch, Sticky-Kaufspalte, Akkordeons
+   ========================================================================= */
+
+/* Lange Produktnamen ("Waschtischarmatur") sauber trennen statt hart umbrechen. */
+.single-rh_product .wp-block-post-title {
+	overflow-wrap: anywhere;
+	hyphens: auto;
+	-webkit-hyphens: auto;
+}
+
+/* Die Kauf-Spalte bleibt beim Scrollen neben langer Galerie/Beschreibung stehen.
+   align-self ist Pflicht: gestreckte Flex-Kinder sticken nicht. */
+@media (min-width: 782px) {
+	.wp-block-column.rhshop-sticky-col {
+		position: sticky;
+		top: 2rem;
+		align-self: flex-start;
+	}
+}
+
+/* Feature-Liste unter der Kauf-Box: Häkchen statt Bullets, kompakter Takt. */
+.rhshop-features {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	font-size: 0.95rem;
+}
+.rhshop-features li {
+	position: relative;
+	padding-left: 1.7rem;
+	margin: 0;
+}
+.rhshop-features li + li { margin-top: 0.45rem; }
+.rhshop-features li::before {
+	content: '';
+	position: absolute;
+	left: 0;
+	top: 0.28em;
+	width: 1.05em;
+	height: 1.05em;
+	border-radius: 50%;
+	background-color: var(--rhshop-ok);
+	/* Haken als Maske, damit er die ok-Farbe traegt und skaliert. */
+	-webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="none" stroke="black" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.8 4.6 4.6L19.5 6.6"/></svg>') center / contain no-repeat;
+	mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="none" stroke="black" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.8 4.6 4.6L19.5 6.6"/></svg>') center / contain no-repeat;
+}
+
+/* Akkordeons (Versand/Widerruf) unter der Kauf-Box: eigene Chevrons rechts,
+   ruhige Zeilen mit Trennlinien, Antwort-Text leicht zurueckgenommen. */
+.rhshop-details {
+	border-top: 1px solid var(--rhshop-line-fallback);
+	border-top: 1px solid var(--rhshop-line);
+	padding: 0;
+	margin: 0;
+}
+.rhshop-details:last-of-type {
+	border-bottom: 1px solid var(--rhshop-line-fallback);
+	border-bottom: 1px solid var(--rhshop-line);
+}
+.rhshop-details summary {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.8rem;
+	padding: 0.85rem 0;
+	cursor: pointer;
+	font-weight: 600;
+	list-style: none;
+	transition: opacity 0.15s ease;
+}
+.rhshop-details summary::-webkit-details-marker { display: none; }
+.rhshop-details summary::after {
+	content: '';
+	flex: none;
+	width: 0.55em;
+	height: 0.55em;
+	border-right: 2px solid currentColor;
+	border-bottom: 2px solid currentColor;
+	transform: rotate(45deg);
+	opacity: 0.55;
+	transition: transform 0.2s ease;
+	/* Die rotierte Box ragt diagonal ~2px über ihre Layout-Box hinaus und erzeugt
+	   sonst horizontalen Overflow auf Mobile; der Rand-Abstand fängt das ab. */
+	margin: -0.2em 3px 0;
+}
+.rhshop-details[open] summary::after { transform: rotate(225deg); margin-top: 0.2em; }
+.rhshop-details summary:hover { opacity: 0.75; }
+.rhshop-details > :not(summary) {
+	margin: 0 0 0.9rem;
+	font-size: 0.92rem;
+	opacity: 0.8;
+	max-width: 60ch;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.rhshop-details summary::after { transition: none; }
+}
+
+/* =========================================================================
+   Produkt-Galerie (Hauptbild + Thumbnail-Leiste + Lightbox)
+   ========================================================================= */
+
+.rhshop-gallery__main {
+	margin: 0;
+	border-radius: var(--rhshop-radius-lg);
+	overflow: hidden;
+	background: var(--rhshop-surface-fallback);
+	background: var(--rhshop-surface);
+	aspect-ratio: 1;
+}
+.rhshop-gallery__main .rhshop-card__ph { aspect-ratio: 1; }
+.rhshop-gallery__zoom {
+	display: block;
+	width: 100%;
+	height: 100%;
+	padding: 0;
+	border: 0;
+	background: none;
+	cursor: zoom-in;
+}
+.rhshop-gallery__zoom img,
+.rhshop-gallery__main > img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: block;
+}
+
+.rhshop-gallery__thumbs {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.6rem;
+	margin-top: 0.7rem;
+}
+.rhshop-gallery__thumb {
+	display: block;
+	width: clamp(56px, 8vw, 76px);
+	aspect-ratio: 1;
+	border-radius: var(--rhshop-radius);
+	overflow: hidden;
+	border: 2px solid transparent;
+	transition: border-color 0.15s ease, opacity 0.15s ease;
+	opacity: 0.75;
+}
+.rhshop-gallery__thumb:hover { opacity: 1; }
+.rhshop-gallery__thumb.is-active {
+	border-color: var(--rhshop-accent);
+	opacity: 1;
+}
+.rhshop-gallery__thumb img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: block;
+}
+
+/* Zoom-Overlay (per JS an den body gehängt). */
+.rhshop-lightbox {
+	position: fixed;
+	inset: 0;
+	z-index: 2147483000;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: clamp(1rem, 4vw, 3rem);
+	background: rgba(10, 10, 10, 0.88);
+	cursor: zoom-out;
+	animation: rhshop-fade 0.2s ease;
+}
+@keyframes rhshop-fade { from { opacity: 0; } }
+.rhshop-lightbox img {
+	max-width: 100%;
+	max-height: 100%;
+	object-fit: contain;
+	border-radius: var(--rhshop-radius);
+}
+.rhshop-lightbox__close {
+	position: absolute;
+	top: 1rem;
+	right: 1rem;
+	width: 2.6rem;
+	height: 2.6rem;
+	border: 0;
+	border-radius: 50%;
+	background: rgba(255, 255, 255, 0.14);
+	color: #fff;
+	font-size: 1.6rem;
+	line-height: 1;
+	cursor: pointer;
+}
+.rhshop-lightbox__close:hover { background: rgba(255, 255, 255, 0.26); }
+
+/* =========================================================================
+   Grid-Erweiterungen: Überschrift, Kategorie-Pills, Suche
+   ========================================================================= */
+
+.rhshop-grid-heading { margin: 0 0 1.2rem; }
+
+.rhshop-grid-controls {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.7rem 1rem;
+	margin: 0 0 1.4rem;
+}
+.rhshop-grid-controls[hidden] { display: none; }
+
+.rhshop-grid-pills {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.4rem;
+}
+.rhshop-grid-pill {
+	appearance: none;
+	padding: 0.42rem 0.95rem;
+	font-size: 0.88rem;
+	font-weight: 600;
+	line-height: 1;
+	color: inherit;
+	background: transparent;
+	border: 1px solid var(--rhshop-border-fallback);
+	border: 1px solid var(--rhshop-border);
+	border-radius: var(--rhshop-radius-pill);
+	cursor: pointer;
+	transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.rhshop-grid-pill:hover { border-color: var(--rhshop-accent); }
+.rhshop-grid-pill[aria-pressed="true"] {
+	background: var(--rhshop-accent);
+	border-color: var(--rhshop-accent);
+	color: var(--rhshop-on-accent);
+}
+.rhshop-grid-pill:focus-visible {
+	outline: 2px solid var(--rhshop-accent);
+	outline-offset: 2px;
+}
+
+.rhshop-grid-empty { opacity: 0.7; }
+
+/* Der Grid-Block-Wrapper übernimmt den bisherigen Self-Constraint des Rasters. */
+.wp-block-rh-shop-product-grid .rhshop-grid { margin: 0; }
+
+/* In einem constrained Layout (Produkt-Template, Section-Gruppen) regelt das
+   Layout-System Breite und Zentrierung. Das eigene Seiten-Padding des
+   Self-Constraints würde den Block dort gegen die Nachbarn einrücken (gemessen:
+   32px Versatz auf der Produktseite), darum dort neutralisieren. */
+.is-layout-constrained > .wp-block-rh-shop-product-grid {
+	padding-inline: 0;
+	margin-block: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.rhshop-card,
+	.rhshop-card:hover { transform: none; transition: none; }
+	.rhshop-card__quick-add,
+	.rhshop-card__quick-add:hover { transform: none; transition: none; }
+	.rhshop-card__media img { transition: none; }
+	.rhshop-card:hover .rhshop-card__media img { transform: none; }
+	.rhshop-lightbox { animation: none; }
+	.rhshop-gallery__thumb { transition: none; }
+}
+
+/* =========================================================================
+   Produkt-Suche (Nav-Trigger + Overlay)
+   Das Overlay wird per JS an den <body> gehängt, gleiche Isolation wie beim
+   Warenkorb-Widget (eigene Fläche, box-sizing-Reset).
+   ========================================================================= */
+
+.rhshop-search { display: inline-flex; }
+.rhshop-search__trigger {
+	display: inline-flex;
+	align-items: center;
+	padding: 0;
+	border: 0;
+	background: none;
+	color: inherit;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.rhshop-search__overlay {
+	position: fixed;
+	inset: 0;
+	z-index: 2147483000;
+}
+.rhshop-search__overlay[hidden] { display: none; }
+.rhshop-search__overlay,
+.rhshop-search__overlay *,
+.rhshop-search__overlay *::before,
+.rhshop-search__overlay *::after { box-sizing: border-box; }
+
+.rhshop-search__backdrop {
+	position: absolute;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.45);
+	opacity: 0;
+	transition: opacity 0.25s ease;
+}
+.rhshop-search__panel {
+	position: relative;
+	margin: clamp(3rem, 12vh, 8rem) auto 0;
+	width: min(560px, calc(100% - 2rem));
+	max-height: min(70vh, 560px);
+	display: flex;
+	flex-direction: column;
+	--rhshop-cw-bg: #ffffff;
+	--rhshop-cw-fg: #1c2c2c;
+	background: var(--rhshop-cw-bg);
+	color: var(--rhshop-cw-fg);
+	border-radius: var(--rhshop-radius-lg);
+	box-shadow: 0 18px 50px rgba(0, 0, 0, 0.25);
+	overflow: hidden;
+	opacity: 0;
+	transform: translateY(-10px);
+	transition: opacity 0.25s ease, transform 0.25s ease;
+	font-family: inherit;
+}
+.rhshop-search__overlay.is-open .rhshop-search__backdrop { opacity: 1; }
+.rhshop-search__overlay.is-open .rhshop-search__panel { opacity: 1; transform: translateY(0); }
+
+.rhshop-search__bar {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+	padding: 0.9rem 1rem;
+	border-bottom: 1px solid var(--rhshop-line-fallback);
+	border-bottom: 1px solid var(--rhshop-line);
+}
+.rhshop-search__field { flex: 1; margin: 0; }
+.rhshop-search__field input {
+	width: 100%;
+	padding: 0.45rem 0.2rem;
+	border: 0;
+	background: none;
+	color: inherit;
+	font: inherit;
+	font-size: 1.1rem;
+	outline: none;
+}
+/* Das native Clear-× des Suchfelds aus: der Panel-Schließen-Button steht direkt daneben. */
+.rhshop-search__field input::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
+.rhshop-search__close {
+	flex: none;
+	width: 2.1rem;
+	height: 2.1rem;
+	border: 0;
+	border-radius: var(--rhshop-radius-pill);
+	background: none;
+	color: inherit;
+	font-size: 1.5rem;
+	line-height: 1;
+	cursor: pointer;
+}
+.rhshop-search__close:hover {
+	background: var(--rhshop-surface-fallback);
+	background: var(--rhshop-surface);
+}
+
+.rhshop-search__status { margin: 0; padding: 0.5rem 1rem 0; font-size: 0.85rem; opacity: 0.65; }
+.rhshop-search__status:empty { padding: 0; }
+
+.rhshop-search__results {
+	list-style: none;
+	margin: 0;
+	padding: 0.5rem;
+	overflow-y: auto;
+}
+.rhshop-search__result {
+	display: flex;
+	align-items: center;
+	gap: 0.85rem;
+	padding: 0.55rem 0.6rem;
+	border-radius: var(--rhshop-radius);
+	color: inherit;
+	text-decoration: none;
+}
+.rhshop-search__result:hover,
+.rhshop-search__result:focus-visible {
+	background: var(--rhshop-surface-fallback);
+	background: var(--rhshop-surface);
+}
+.rhshop-search__result-media { flex: none; width: 52px; height: 52px; }
+.rhshop-search__result-media img,
+.rhshop-search__result-media .rhshop-card__ph {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	border-radius: var(--rhshop-radius);
+	display: block;
+}
+.rhshop-search__result-info { display: flex; flex-direction: column; min-width: 0; }
+.rhshop-search__result-title { font-weight: 600; }
+.rhshop-search__result-price { font-size: 0.88rem; opacity: 0.7; }
+.rhshop-search__soldout {
+	margin-left: auto;
+	flex: none;
+	font-size: 0.72rem;
+	font-weight: 600;
+	padding: 0.2rem 0.55rem;
+	border-radius: var(--rhshop-radius-pill);
+	background: rgba(20, 20, 20, 0.85);
+	color: #fff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.rhshop-search__backdrop,
+	.rhshop-search__panel { transition: none; transform: none; }
+}
+
+/* =========================================================================
+   Leerer Warenkorb: nutzbare Fläche statt nur ein Satz
+   (Seite: Symbol + Text + Button + Empfehlungs-Raster; Drawer: kompakt ohne Raster)
+   ========================================================================= */
+
+.rhshop-cart-empty__head {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	text-align: center;
+	padding: clamp(1.5rem, 4vw, 3rem) 1rem;
+}
+.rhshop-cart-empty__icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 3.4rem;
+	height: 3.4rem;
+	margin-bottom: 0.9rem;
+	border-radius: 50%;
+	background: var(--rhshop-surface-fallback);
+	background: var(--rhshop-surface);
+	font-size: 1.5rem;
+}
+.rhshop-cart-empty__title { margin: 0; font-size: 1.2rem; font-weight: 700; }
+.rhshop-cart-empty__text { margin: 0.35rem 0 0; opacity: 0.7; }
+.rhshop-cart-empty__cta { margin-top: 1.1rem; }
+
+.rhshop-cart-empty__suggest {
+	margin-top: clamp(1rem, 3vw, 2rem);
+	padding-top: clamp(1rem, 3vw, 1.6rem);
+	border-top: 1px solid var(--rhshop-line-fallback);
+	border-top: 1px solid var(--rhshop-line);
+}
+.rhshop-cart-empty__suggest-title {
+	margin: 0 0 1rem;
+	font-size: 0.78rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	opacity: 0.55;
+}
+@media (max-width: 600px) {
+	.rhshop-cart-empty__suggest .rhshop-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* Drawer-Variante: kompakter, das Panel bringt schon Rahmen und Fläche mit. */
+.rhshop-cw__panel .rhshop-cart-empty__head { padding: 2.2rem 1rem; }
+.rhshop-cw__panel .rhshop-cart-empty__cta {
+	background: var(--rhshop-accent);
+	border-radius: var(--rhshop-radius);
+	padding: 0.7rem 1.4rem;
+	font-weight: 600;
+}
+
+/* Technische-Daten-Liste (Produkt-Content): ruhige Zeilen mit Trennlinien. */
+.rhshop-spec-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	font-size: 0.92rem;
+}
+.rhshop-spec-list li {
+	margin: 0;
+	padding: 0.55rem 0;
+	border-bottom: 1px solid var(--rhshop-line-fallback);
+	border-bottom: 1px solid var(--rhshop-line);
+}
+.rhshop-spec-list li:first-child { padding-top: 0; }
+.rhshop-spec-list li:last-child { padding-bottom: 0; border-bottom: 0; }

@@ -430,8 +430,141 @@
 		}
 	}
 
+	// --- Produkt-Galerie (Detailseite) ---
+	// Thumb-Klick tauscht das Hauptbild, Klick aufs Hauptbild öffnet den Zoom.
+	// Ohne JS sind die Thumbs Links auf die Originaldatei (Progressive Enhancement).
+	function initGallery( gallery ) {
+		var main = gallery.querySelector( '[data-rhshop-gallery-main]' );
+		var zoomBtn = gallery.querySelector( '[data-rhshop-gallery-zoom]' );
+		var thumbs = gallery.querySelectorAll( '[data-rhshop-gallery-thumb]' );
+		var title = gallery.getAttribute( 'data-rhshop-gallery-title' ) || '';
+		var fullUrl = thumbs.length ? thumbs[ 0 ].getAttribute( 'href' ) : '';
+
+		thumbs.forEach( function ( thumb ) {
+			thumb.addEventListener( 'click', function ( e ) {
+				e.preventDefault();
+				if ( main ) {
+					main.src = thumb.getAttribute( 'data-rhshop-gallery-thumb' );
+					main.removeAttribute( 'srcset' );
+					main.removeAttribute( 'sizes' );
+				}
+				fullUrl = thumb.getAttribute( 'href' );
+				thumbs.forEach( function ( t ) {
+					t.classList.toggle( 'is-active', t === thumb );
+					if ( t === thumb ) {
+						t.setAttribute( 'aria-current', 'true' );
+					} else {
+						t.removeAttribute( 'aria-current' );
+					}
+				} );
+			} );
+		} );
+
+		if ( ! zoomBtn || ! main ) {
+			return;
+		}
+
+		zoomBtn.addEventListener( 'click', function () {
+			var overlay = document.createElement( 'div' );
+			overlay.className = 'rhshop-lightbox';
+			overlay.setAttribute( 'role', 'dialog' );
+			overlay.setAttribute( 'aria-modal', 'true' );
+			overlay.setAttribute( 'aria-label', title );
+			overlay.innerHTML = '<button type="button" class="rhshop-lightbox__close" aria-label="Schließen">×</button>' +
+				'<img src="' + esc( fullUrl || main.src ) + '" alt="' + esc( title ) + '">';
+			document.body.appendChild( overlay );
+			document.documentElement.style.overflow = 'hidden';
+
+			function close() {
+				overlay.remove();
+				document.documentElement.style.overflow = '';
+				document.removeEventListener( 'keydown', onKey );
+				zoomBtn.focus();
+			}
+			function onKey( e ) {
+				if ( e.key === 'Escape' ) {
+					close();
+				}
+			}
+			overlay.addEventListener( 'click', close );
+			document.addEventListener( 'keydown', onKey );
+			overlay.querySelector( '.rhshop-lightbox__close' ).focus();
+		} );
+	}
+
+	// --- Grid-Controls (Kategorie-Pills) ---
+	// Rein client-seitig über die data-Attribute der Karten; die Controls sind bis
+	// hierher hidden, ohne JS zeigt das Raster einfach alles.
+	function initGridControls( controls ) {
+		var block = controls.closest( '.rhshop-grid-block' ) || controls.parentElement;
+		var grid = block ? block.querySelector( '[data-rhshop-grid]' ) : null;
+		var empty = block ? block.querySelector( '[data-rhshop-grid-empty]' ) : null;
+		if ( ! grid ) {
+			return;
+		}
+
+		var pills = controls.querySelectorAll( '[data-rhshop-pill]' );
+		var activeCat = '';
+
+		function apply() {
+			var visible = 0;
+			grid.querySelectorAll( '.rhshop-card' ).forEach( function ( card ) {
+				var cats = ( card.getAttribute( 'data-rhshop-cats' ) || '' ).split( ' ' );
+				var show = ! activeCat || cats.indexOf( activeCat ) !== -1;
+				card.hidden = ! show;
+				if ( show ) {
+					visible++;
+				}
+			} );
+			if ( empty ) {
+				empty.hidden = visible > 0;
+			}
+		}
+
+		pills.forEach( function ( pill ) {
+			pill.addEventListener( 'click', function () {
+				activeCat = pill.getAttribute( 'data-rhshop-pill' ) || '';
+				pills.forEach( function ( p ) {
+					p.setAttribute( 'aria-pressed', p === pill ? 'true' : 'false' );
+				} );
+				apply();
+			} );
+		} );
+
+		controls.hidden = false;
+	}
+
+	// --- Quick-Add auf Grid-Karten (Produkte ohne Varianten) ---
+	// Delegation am document: greift auch für Karten, die JS später einhängt
+	// (z.B. die Empfehlungen im leeren Warenkorb). Erfolg zeigt der aufgehende
+	// Drawer (rhshop:cart-added), Fehler eine kurze Markierung am Button.
+	function initQuickAdd() {
+		document.addEventListener( 'click', function ( e ) {
+			var btn = e.target.closest( '[data-rhshop-quick-add]' );
+			if ( ! btn ) {
+				return;
+			}
+			e.preventDefault();
+			var productId = parseInt( btn.getAttribute( 'data-rhshop-quick-add' ), 10 );
+			btn.classList.remove( 'is-error' );
+			withPending( btn, request( 'cart/add', { product_id: productId, variant_id: 'default', qty: 1 } ) )
+				.then( function ( state ) {
+					applyCartState( state );
+					emitUpdated( state );
+					emitAdded( state );
+				} )
+				.catch( function ( err ) {
+					btn.classList.add( 'is-error' );
+					btn.setAttribute( 'title', ( err && err.message ) || NET_ERROR );
+				} );
+		} );
+	}
+
 	function init() {
 		document.querySelectorAll( '[data-rhshop-buy]' ).forEach( initBuyBox );
+		document.querySelectorAll( '[data-rhshop-gallery]' ).forEach( initGallery );
+		document.querySelectorAll( '[data-rhshop-grid-controls]' ).forEach( initGridControls );
+		initQuickAdd();
 		initCart();
 	}
 

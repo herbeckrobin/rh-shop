@@ -25,6 +25,7 @@
 
 	function editGrid( props ) {
 		var a = props.attributes;
+		var set = props.setAttributes;
 		var categories = [ { value: '', label: __( 'Alle Kategorien', 'rh-shop' ) } ].concat( data.categories || [] );
 
 		return el(
@@ -36,13 +37,21 @@
 				el(
 					c.PanelBody,
 					{ title: __( 'Raster', 'rh-shop' ) },
+					el( c.TextControl, {
+						label: __( 'Überschrift', 'rh-shop' ),
+						help: __( 'Leer lassen für ein Raster ohne Überschrift.', 'rh-shop' ),
+						value: a.heading,
+						onChange: function ( v ) {
+							set( { heading: v } );
+						},
+					} ),
 					el( c.RangeControl, {
 						label: __( 'Spalten', 'rh-shop' ),
 						min: 1,
 						max: 6,
 						value: a.columns,
 						onChange: function ( v ) {
-							props.setAttributes( { columns: v || 3 } );
+							set( { columns: v || 3 } );
 						},
 					} ),
 					el( c.RangeControl, {
@@ -51,20 +60,56 @@
 						max: 48,
 						value: a.limit,
 						onChange: function ( v ) {
-							props.setAttributes( { limit: v || 12 } );
+							set( { limit: v || 12 } );
 						},
 					} ),
 					el( c.SelectControl, {
-						label: __( 'Kategorie', 'rh-shop' ),
-						value: a.category,
-						options: categories,
+						label: __( 'Sortierung', 'rh-shop' ),
+						value: a.orderby,
+						options: [
+							{ value: 'menu_order', label: __( 'Reihenfolge (Standard)', 'rh-shop' ) },
+							{ value: 'date', label: __( 'Neueste zuerst', 'rh-shop' ) },
+							{ value: 'price', label: __( 'Preis aufsteigend', 'rh-shop' ) },
+						],
 						onChange: function ( v ) {
-							props.setAttributes( { category: v } );
+							set( { orderby: v } );
 						},
-					} )
+					} ),
+					el( c.ToggleControl, {
+						label: __( 'Ähnliche Produkte zeigen', 'rh-shop' ),
+						help: __( 'Zeigt Produkte aus der Kategorie des aktuellen Produkts, ohne das Produkt selbst. Für die Produkt-Detailseite.', 'rh-shop' ),
+						checked: a.related,
+						onChange: function ( v ) {
+							set( { related: v } );
+						},
+					} ),
+					! a.related
+						? el( c.SelectControl, {
+								label: __( 'Kategorie', 'rh-shop' ),
+								value: a.category,
+								options: categories,
+								onChange: function ( v ) {
+									set( { category: v } );
+								},
+						  } )
+						: null,
+					! a.related
+						? el( c.ToggleControl, {
+								label: __( 'Kategorie-Filter zeigen', 'rh-shop' ),
+								help: __( 'Filter-Buttons über dem Raster, wenn Produkte aus mehreren Kategorien dabei sind.', 'rh-shop' ),
+								checked: a.showFilter,
+								onChange: function ( v ) {
+									set( { showFilter: v } );
+								},
+						  } )
+						: null
 				)
 			),
-			el( 'div', useBlockProps(), preview( 'rh-shop/product-grid', a ) )
+			el( 'div', useBlockProps(), el( ServerSideRender, {
+				block: 'rh-shop/product-grid',
+				attributes: a,
+				urlQueryArgs: { rhshop_preview: 1 },
+			} ) )
 		);
 	}
 
@@ -253,13 +298,61 @@
 		);
 	}
 
+	/**
+	 * Produkt-Suche: Lupe-Vorschau im Canvas + Placeholder-Text im Inspector.
+	 * Kein ServerSideRender, weil der Block im Frontend ein Overlay an den <body>
+	 * hängt, das im Editor nichts zu suchen hat.
+	 */
+	function editSearch( props ) {
+		var a = props.attributes;
+
+		return el(
+			Fragment,
+			null,
+			el(
+				InspectorControls,
+				null,
+				el(
+					c.PanelBody,
+					{ title: __( 'Produkt-Suche', 'rh-shop' ), initialOpen: true },
+					el( c.TextControl, {
+						label: __( 'Platzhalter-Text', 'rh-shop' ),
+						value: a.placeholder,
+						onChange: function ( v ) {
+							props.setAttributes( { placeholder: v } );
+						},
+					} )
+				)
+			),
+			el(
+				'div',
+				useBlockProps( { className: 'rhshop-search' } ),
+				el(
+					'span',
+					{ className: 'rhshop-search__trigger', style: { display: 'inline-flex' } },
+					el(
+						'svg',
+						{ viewBox: '0 0 24 24', width: '1.35em', height: '1.35em', fill: 'none', stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round', 'aria-hidden': true },
+						el( 'circle', { cx: 11, cy: 11, r: 7 } ),
+						el( 'path', { d: 'm20 20-3.8-3.8' } )
+					)
+				)
+			)
+		);
+	}
+
 	var edits = {
 		'rh-shop/product-grid': editGrid,
 		'rh-shop/product-single': editSingle,
 		'rh-shop/cart-widget': editCartWidget,
+		'rh-shop/search': editSearch,
 		'rh-shop/buy-box': previewWithNote(
 			'rh-shop/buy-box',
 			__( 'Beispielansicht mit einem deiner Produkte. Im Frontend zeigt der Block das Produkt der jeweiligen Detailseite.', 'rh-shop' )
+		),
+		'rh-shop/product-gallery': previewWithNote(
+			'rh-shop/product-gallery',
+			__( 'Beispielansicht. Im Frontend zeigt der Block die Galerie-Bilder des jeweiligen Produkts, ohne Galerie das Beitragsbild.', 'rh-shop' )
 		),
 		'rh-shop/cart-items': previewWithNote(
 			'rh-shop/cart-items',
