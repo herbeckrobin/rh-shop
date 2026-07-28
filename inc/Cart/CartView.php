@@ -28,7 +28,12 @@ final class CartView
         return new self(new Cart(new VariantRepository()), new Config());
     }
 
-    public function itemsHtml(): string
+    /**
+     * @param bool $withSuggestions Empfehlungs-Raster im Leer-Zustand mitrendern.
+     *                              Auf der Warenkorb-Seite ja, im schmalen
+     *                              Drawer-Overlay nein (dort nur Text + Button).
+     */
+    public function itemsHtml(bool $withSuggestions = true): string
     {
         $state = $this->cart->toState($this->config);
 
@@ -38,12 +43,83 @@ final class CartView
         }
 
         return '<div class="rhshop-cart-items" data-rhshop-cart-items>'
-            . '<p class="rhshop-cart__empty" data-rhshop-cart-empty' . ($state['empty'] ? '' : ' hidden') . '>'
-            . esc_html__('Dein Warenkorb ist leer.', 'rh-shop') . '</p>'
+            . '<div class="rhshop-cart-empty" data-rhshop-cart-empty' . ($state['empty'] ? '' : ' hidden') . '>'
+            . $this->emptyStateHtml($withSuggestions)
+            . '</div>'
             . '<p class="rhshop-cart__notice" data-rhshop-cart-notice role="status" aria-live="polite"></p>'
             . '<ul class="rhshop-cart__lines" data-rhshop-cart-lines' . ($state['empty'] ? ' hidden' : '') . '>'
             . $lines // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- line() escapt intern.
             . '</ul></div>';
+    }
+
+    /**
+     * Der Leer-Zustand als nutzbare Fläche statt eines nackten Satzes: Symbol,
+     * Einladung, Zum-Shop-Button und (auf der Seite) drei Produkt-Empfehlungen.
+     * Liegt komplett im data-rhshop-cart-empty-Container, shop.js blendet ihn wie
+     * bisher als Ganzes ein und aus.
+     */
+    private function emptyStateHtml(bool $withSuggestions): string
+    {
+        $shopUrl = (string) apply_filters('rh-blueprint/shop/shop_url', $this->shopUrl());
+
+        $html = '<div class="rhshop-cart-empty__head">'
+            . '<span class="rhshop-cart-empty__icon" aria-hidden="true">' . \RhShop\Frontend\CartWidget::iconSvg('bag') . '</span>'
+            . '<p class="rhshop-cart-empty__title">' . esc_html__('Dein Warenkorb ist leer.', 'rh-shop') . '</p>'
+            . '<p class="rhshop-cart-empty__text">' . esc_html__('Stöber durch den Shop, deine Auswahl landet hier.', 'rh-shop') . '</p>';
+
+        if ($shopUrl !== '') {
+            $html .= '<a class="rhshop-btn-checkout rhshop-cart-empty__cta" href="' . esc_url($shopUrl) . '">' . esc_html__('Zum Shop', 'rh-shop') . '</a>';
+        }
+
+        $html .= '</div>';
+
+        if ($withSuggestions) {
+            $html .= $this->suggestionsHtml();
+        }
+
+        return $html;
+    }
+
+    /**
+     * Drei Produkt-Empfehlungen für den leeren Warenkorb (Katalog-Reihenfolge, wie
+     * das Standard-Raster). Leer, wenn der Katalog nichts hergibt.
+     */
+    private function suggestionsHtml(): string
+    {
+        $products = get_posts([
+            'post_type' => \RhShop\Catalog\ProductType::POST_TYPE,
+            'post_status' => 'publish',
+            'numberposts' => 3,
+            'orderby' => 'menu_order title',
+            'order' => 'ASC',
+        ]);
+
+        if ($products === []) {
+            return '';
+        }
+
+        $render = new \RhShop\Frontend\Render(new VariantRepository(), $this->config);
+
+        $cards = '';
+        foreach ($products as $product) {
+            $cards .= $render->card((int) $product->ID);
+        }
+
+        return '<div class="rhshop-cart-empty__suggest">'
+            . '<p class="rhshop-cart-empty__suggest-title">' . esc_html__('Beliebt im Shop', 'rh-shop') . '</p>'
+            . '<div class="rhshop-grid" style="--rhshop-cols:3;">' . $cards . '</div>'
+            . '</div>';
+    }
+
+    /**
+     * Ziel des Zum-Shop-Buttons: die Seite mit dem Slug "shop", überschreibbar über
+     * den Filter oben. Leer (kein Button), wenn es keine solche Seite gibt.
+     */
+    private function shopUrl(): string
+    {
+        $page = get_page_by_path('shop');
+
+        return $page instanceof \WP_Post ? (string) get_permalink($page) : '';
     }
 
     public function summaryHtml(): string
