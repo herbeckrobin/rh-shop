@@ -4,7 +4,7 @@ Tags: shop, ecommerce, stripe, products
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 0.9.0
+Stable tag: 0.10.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -17,6 +17,21 @@ RH Shop ist der leichte Weg, ein kleines Sortiment (Merch, ein paar Produkte) zu
 Teil der rh-blueprint Kollektion.
 
 == Changelog ==
+
+= 0.10.0 =
+* Produktseiten mit Bildergalerie: Neben dem Beitragsbild lassen sich weitere Bilder pflegen (Produkt bearbeiten → Bildergalerie, per Drag sortierbar). Im Frontend gibt es eine Thumbnail-Leiste, ein Klick aufs Hauptbild öffnet die Grossansicht.
+* Neue Produktseite: Die Kaufspalte bleibt beim Scrollen stehen, Versand und Widerruf sitzen in aufklappbaren Abschnitten, und unter der Beschreibung erscheinen ähnliche Produkte aus derselben Kategorie.
+* Produkt-Suche für die Navigation: Ein Lupen-Symbol öffnet ein Suchfeld, das schon beim Tippen passende Produkte mit Bild und Preis zeigt.
+* Kategorie-Filter über dem Produkt-Raster: Der Besucher schaltet zwischen den Kategorien um, ohne dass die Seite neu lädt. Dazu neue Sortierungen (Reihenfolge, neueste zuerst, Preis aufsteigend) und eine optionale Überschrift.
+* Direkt in den Warenkorb: Produkte ohne Varianten bekommen im Raster einen kleinen Warenkorb-Knopf, ein Klick genügt.
+* Leerer Warenkorb wird nutzbar: Statt eines nackten Satzes gibt es eine Einladung mit Zum-Shop-Knopf. Mit dem neuen Block „Warenkorb-Zustand" gestaltest du leeren und gefüllten Warenkorb frei im Editor, zum Beispiel mit Produktempfehlungen.
+* Die Bestellbestätigung ist jetzt ein Block statt eines Shortcodes und erklärt sich selbst, wenn jemand die Seite ohne Kauf aufruft.
+* Die Kasse spricht die Sprache deiner Website, nicht die des Browsers.
+* Behoben: Produktseiten lieferten nach einer frischen Installation oder einem Umzug „Seite nicht gefunden", bis man die Permalinks neu gespeichert hat. Das erledigt das Plugin jetzt selbst.
+* Behoben: Nach einem Wechsel der Stripe-Zugangsdaten wurden stillschweigend keine Rechnungen mehr erstellt. Das repariert sich jetzt automatisch, und Fehler landen im Log statt zu verschwinden.
+* Die Versandkosten-Angabe auf der Versandseite zeigt jetzt deine echten Versandarten statt der alten Pauschale.
+* Schneller: Produktraster, Warenkorb und Suche brauchen rund die Hälfte bis ein Fünftel der bisherigen Datenbankabfragen.
+* Sicherer: Das Anlegen in den Warenkorb ist gegen automatisierte Massenanfragen begrenzt, und in Fehlerprotokollen landen keine Kundendaten mehr.
 
 = 0.9.0 =
 * Mail-Verwaltung: Jede Shop-Mail lässt sich jetzt einzeln steuern (Einstellungen → E-Mail). Pro Mail an oder aus, ein eigener Betreff und ein Zusatztext, mit Platzhaltern wie {bestellnummer}, {name} oder {summe}, die automatisch eingesetzt werden.
