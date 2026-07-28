@@ -341,10 +341,63 @@
 		);
 	}
 
+	/**
+	 * Warenkorb-Zustand: Container mit frei editierbaren InnerBlocks, der im
+	 * Frontend nur im gewählten Zustand (leer/gefüllt) sichtbar ist. Im Editor
+	 * sind immer beide Container sichtbar und bearbeitbar; die Notice sagt, wann
+	 * der Inhalt im Frontend erscheint.
+	 */
+	function editCartState( props ) {
+		var a = props.attributes;
+		var InnerBlocks = wp.blockEditor.InnerBlocks;
+		var note = a.state === 'empty'
+			? __( 'Sichtbar bei leerem Warenkorb.', 'rh-shop' )
+			: __( 'Sichtbar, sobald etwas im Warenkorb liegt.', 'rh-shop' );
+
+		return el(
+			Fragment,
+			null,
+			el(
+				InspectorControls,
+				null,
+				el(
+					c.PanelBody,
+					{ title: __( 'Warenkorb-Zustand', 'rh-shop' ), initialOpen: true },
+					el( c.SelectControl, {
+						label: __( 'Inhalt zeigen bei', 'rh-shop' ),
+						value: a.state,
+						options: [
+							{ value: 'filled', label: __( 'Gefülltem Warenkorb', 'rh-shop' ) },
+							{ value: 'empty', label: __( 'Leerem Warenkorb', 'rh-shop' ) },
+						],
+						onChange: function ( v ) {
+							props.setAttributes( { state: v } );
+						},
+					} )
+				)
+			),
+			el(
+				'div',
+				useBlockProps(),
+				el( c.Notice, { status: 'info', isDismissible: false, className: 'rhshop-editor-note' }, note ),
+				el( InnerBlocks )
+			)
+		);
+	}
+
+	// InnerBlocks-Container: save muss den Inhalt speichern (alle anderen Blocks
+	// sind rein dynamisch und speichern null).
+	var saves = {
+		'rh-shop/cart-state': function () {
+			return el( wp.blockEditor.InnerBlocks.Content );
+		},
+	};
+
 	var edits = {
 		'rh-shop/product-grid': editGrid,
 		'rh-shop/product-single': editSingle,
 		'rh-shop/cart-widget': editCartWidget,
+		'rh-shop/cart-state': editCartState,
 		'rh-shop/search': editSearch,
 		'rh-shop/buy-box': previewWithNote(
 			'rh-shop/buy-box',
@@ -374,6 +427,10 @@
 			'rh-shop/widerruf',
 			__( 'So sieht das Widerrufs-Formular für den Kunden aus. Hier musst du nichts einstellen.', 'rh-shop' )
 		),
+		'rh-shop/danke': previewWithNote(
+			'rh-shop/danke',
+			__( 'Beispielansicht. Im Frontend zeigt der Block die echte Bestellbestätigung des Kunden nach der Zahlung.', 'rh-shop' )
+		),
 	};
 
 	( data.meta || [] ).forEach( function ( meta ) {
@@ -384,7 +441,7 @@
 			edit: edits[ meta.name ] || function () {
 				return null;
 			},
-			save: function () {
+			save: saves[ meta.name ] || function () {
 				return null;
 			},
 		} );

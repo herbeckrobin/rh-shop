@@ -375,6 +375,12 @@
 	function applyCartState( state ) {
 		renderCartViews( state );
 		updateCartCount( state );
+		// Zustands-Container (rh-shop/cart-state): jeder zeigt sich nur im
+		// passenden Zustand. Das JS fasst nur diese Plugin-eigenen Wrapper an,
+		// nie die Layout-Struktur des Betreibers.
+		document.querySelectorAll( '[data-rhshop-cart-state]' ).forEach( function ( el ) {
+			el.hidden = ( el.getAttribute( 'data-rhshop-cart-state' ) === 'empty' ) !== state.empty;
+		} );
 	}
 
 	function initCart() {
