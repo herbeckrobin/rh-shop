@@ -4,7 +4,7 @@ Tags: shop, ecommerce, stripe, products
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 0.10.1
+Stable tag: 0.10.2
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -17,6 +17,11 @@ RH Shop ist der leichte Weg, ein kleines Sortiment (Merch, ein paar Produkte) zu
 Teil der rh-blueprint Kollektion.
 
 == Changelog ==
+
+= 0.10.2 =
+* Die Bildergalerie am Produkt zeigt jetzt alle Bilder in einer Liste, das Hauptbild an erster Stelle und nur einmal. Pro Bild kannst du es zum Hauptbild machen, gegen ein anderes austauschen oder entfernen, und die Reihenfolge per Verschieben festlegen.
+* Die Galerie sitzt jetzt bei den übrigen Produktdaten unter Preis und Varianten, mit grossen Vorschaubildern.
+* Die Blockvorschau im Editor zeigt die Daten des Produkts, das du gerade bearbeitest (Bilder, Preis, Varianten), statt eines beliebigen Beispiels. Liegt etwas in deinem Warenkorb, zeigen Warenkorb und Kasse genau das.
 
 = 0.10.1 =
 * Behoben: In der Bildergalerie am Produkt liess sich kein Bild auswählen, der Knopf "Bilder hinzufügen" reagierte nicht. Die Medienauswahl war zum Zeitpunkt des Klicks noch nicht bereit.
