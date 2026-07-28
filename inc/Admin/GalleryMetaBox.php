@@ -15,7 +15,7 @@ use WP_Post;
  * Speichert eine sortierte Liste von Attachment-IDs im Meta `_rhshop_gallery`.
  * Das Beitragsbild bleibt das Hauptbild (Raster, Warenkorb, Fallback); die Galerie
  * ergänzt weitere Ansichten auf der Produktseite (Block rh-shop/product-gallery).
- * Bewusst nativ (wp.media-Frame + kleines Inline-JS), wie die Varianten-Box.
+ * Bewusst nativ (wp.media-Frame + eigenes kleines Script), kein Build.
  */
 final class GalleryMetaBox
 {
@@ -38,6 +38,10 @@ final class GalleryMetaBox
             __('Bildergalerie', 'rh-shop'),
             [$this, 'render'],
             ProductType::POST_TYPE,
+            // Bewusst 'side': im Block-Editor rendert das die Box in der rechten
+            // Dokument-Spalte, wo sie direkt sichtbar ist. 'normal' landet dagegen im
+            // unteren Meta-Boxen-Bereich, der standardmäßig zugeklappt ist (gemessen:
+            // Box dann gar nicht erreichbar, ohne dass der Nutzer ihn erst aufklappt).
             'side'
         );
     }
@@ -52,9 +56,30 @@ final class GalleryMetaBox
         }
 
         $screen = get_current_screen();
-        if ($screen instanceof \WP_Screen && $screen->post_type === ProductType::POST_TYPE) {
-            wp_enqueue_media();
+        if (! $screen instanceof \WP_Screen || $screen->post_type !== ProductType::POST_TYPE) {
+            return;
         }
+
+        wp_enqueue_media();
+
+        // Eigenes Script statt Inline im Meta-Box-Markup: das lief im Block-Editor
+        // los, bevor wp.media bereit war, brach still ab und der Button blieb tot.
+        // Als registriertes Script im Footer ist die Reihenfolge garantiert.
+        $rel = 'assets/js/gallery-metabox.js';
+        $abs = RHSHOP_PLUGIN_DIR . $rel;
+        wp_enqueue_script(
+            'rh-shop-gallery-metabox',
+            RHSHOP_PLUGIN_URL . $rel,
+            ['media-views'],
+            file_exists($abs) ? (string) filemtime($abs) : RHSHOP_VERSION,
+            true
+        );
+        wp_localize_script('rh-shop-gallery-metabox', 'rhShopGallery', [
+            'title' => __('Galerie-Bilder wählen', 'rh-shop'),
+            'button' => __('Übernehmen', 'rh-shop'),
+            'remove' => __('Bild entfernen', 'rh-shop'),
+            'mediaMissing' => __('Die Medienauswahl konnte nicht geladen werden. Bitte lade die Seite neu.', 'rh-shop'),
+        ]);
     }
 
     public function render(WP_Post $post): void
@@ -107,92 +132,12 @@ final class GalleryMetaBox
     }
 
     /**
-     * Inline-JS (wp.media-Frame, Entfernen, Drag-Sortierung) + Box-Styles.
-     * Bewusst inline wie bei der Varianten-Box: eine Datei, kein Build.
+     * Box-Styles. Die Interaktion (wp.media, Entfernen, Sortieren) liegt in
+     * assets/js/gallery-metabox.js, siehe enqueueMedia().
      */
     private function renderAssets(): void
     {
         ?>
-        <script>
-        ( function () {
-            var box = document.querySelector( '[data-rhshop-gallery-box]' );
-            if ( ! box || ! window.wp || ! wp.media ) {
-                return;
-            }
-            var list = box.querySelector( '[data-rhshop-gallery-list]' );
-            var input = box.querySelector( '[data-rhshop-gallery-ids]' );
-            var frame = null;
-
-            function syncInput() {
-                var ids = [];
-                list.querySelectorAll( '[data-rhshop-gallery-item]' ).forEach( function ( li ) {
-                    ids.push( li.getAttribute( 'data-rhshop-gallery-item' ) );
-                } );
-                input.value = ids.join( ',' );
-            }
-
-            function addItem( id, thumbUrl ) {
-                if ( list.querySelector( '[data-rhshop-gallery-item="' + id + '"]' ) ) {
-                    return;
-                }
-                var li = document.createElement( 'li' );
-                li.setAttribute( 'data-rhshop-gallery-item', id );
-                li.setAttribute( 'draggable', 'true' );
-                li.innerHTML = '<img src="' + thumbUrl + '" alt="">'
-                    + '<button type="button" data-rhshop-gallery-remove aria-label="<?php echo esc_js( __( 'Bild entfernen', 'rh-shop' ) ); ?>">×</button>';
-                list.appendChild( li );
-            }
-
-            box.querySelector( '[data-rhshop-gallery-add]' ).addEventListener( 'click', function () {
-                if ( ! frame ) {
-                    frame = wp.media( {
-                        title: '<?php echo esc_js( __( 'Galerie-Bilder wählen', 'rh-shop' ) ); ?>',
-                        button: { text: '<?php echo esc_js( __( 'Übernehmen', 'rh-shop' ) ); ?>' },
-                        library: { type: 'image' },
-                        multiple: 'add'
-                    } );
-                    frame.on( 'select', function () {
-                        frame.state().get( 'selection' ).forEach( function ( att ) {
-                            var data = att.toJSON();
-                            var thumb = ( data.sizes && data.sizes.thumbnail ) ? data.sizes.thumbnail.url : data.url;
-                            addItem( String( data.id ), thumb );
-                        } );
-                        syncInput();
-                    } );
-                }
-                frame.open();
-            } );
-
-            list.addEventListener( 'click', function ( e ) {
-                var btn = e.target.closest( '[data-rhshop-gallery-remove]' );
-                if ( btn ) {
-                    btn.closest( '[data-rhshop-gallery-item]' ).remove();
-                    syncInput();
-                }
-            } );
-
-            // Sortierung per Drag and Drop (natives HTML5, reicht für kleine Galerien).
-            var dragged = null;
-            list.addEventListener( 'dragstart', function ( e ) {
-                dragged = e.target.closest( '[data-rhshop-gallery-item]' );
-            } );
-            list.addEventListener( 'dragover', function ( e ) {
-                e.preventDefault();
-                var over = e.target.closest( '[data-rhshop-gallery-item]' );
-                if ( ! dragged || ! over || over === dragged ) {
-                    return;
-                }
-                var rect = over.getBoundingClientRect();
-                var before = ( e.clientX - rect.left ) < rect.width / 2;
-                list.insertBefore( dragged, before ? over : over.nextSibling );
-            } );
-            list.addEventListener( 'drop', function ( e ) {
-                e.preventDefault();
-                syncInput();
-            } );
-            list.addEventListener( 'dragend', syncInput );
-        } )();
-        </script>
         <style>
         .rhshop-gallery-box .rhshop-hint { color: #646970; }
         .rhshop-gallery-box__list { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 10px; padding: 0; list-style: none; }
