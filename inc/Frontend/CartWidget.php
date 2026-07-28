@@ -108,7 +108,7 @@ final class CartWidget
             . '<span class="rhshop-cw__panel-title">' . esc_html__('Warenkorb', 'rh-shop') . '</span>'
             . '<button type="button" class="rhshop-cw__close" data-rhshop-cw-close data-rhshop-cw-close-btn aria-label="' . esc_attr__('Schließen', 'rh-shop') . '">&times;</button>'
             . '</header>'
-            . '<div class="rhshop-cw__body">' . $view->itemsHtml(false) . '</div>' // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- CartView escapt intern.
+            . '<div class="rhshop-cw__body">' . $view->itemsHtml() . '</div>' // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- CartView escapt intern.
             . '<div class="rhshop-cw__summary">' . $view->summaryHtml() . '</div>' // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
             . '</aside>'
             . '</div>';

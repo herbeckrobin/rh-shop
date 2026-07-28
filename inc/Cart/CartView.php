@@ -28,12 +28,7 @@ final class CartView
         return new self(new Cart(new VariantRepository()), new Config());
     }
 
-    /**
-     * @param bool $withSuggestions Empfehlungs-Raster im Leer-Zustand mitrendern.
-     *                              Auf der Warenkorb-Seite ja, im schmalen
-     *                              Drawer-Overlay nein (dort nur Text + Button).
-     */
-    public function itemsHtml(bool $withSuggestions = true): string
+    public function itemsHtml(): string
     {
         $state = $this->cart->toState($this->config);
 
@@ -44,7 +39,7 @@ final class CartView
 
         return '<div class="rhshop-cart-items" data-rhshop-cart-items>'
             . '<div class="rhshop-cart-empty" data-rhshop-cart-empty' . ($state['empty'] ? '' : ' hidden') . '>'
-            . $this->emptyStateHtml($withSuggestions)
+            . $this->emptyStateHtml()
             . '</div>'
             . '<p class="rhshop-cart__notice" data-rhshop-cart-notice role="status" aria-live="polite"></p>'
             . '<ul class="rhshop-cart__lines" data-rhshop-cart-lines' . ($state['empty'] ? ' hidden' : '') . '>'
@@ -53,12 +48,12 @@ final class CartView
     }
 
     /**
-     * Der Leer-Zustand als nutzbare Fläche statt eines nackten Satzes: Symbol,
-     * Einladung, Zum-Shop-Button und (auf der Seite) drei Produkt-Empfehlungen.
-     * Liegt komplett im data-rhshop-cart-empty-Container, shop.js blendet ihn wie
-     * bisher als Ganzes ein und aus.
+     * Kompakter eingebauter Leer-Zustand (Symbol, Einladung, Zum-Shop-Button): der
+     * Default für Drawer und einfache Seiten. Wer den Leer-Zustand frei gestalten
+     * will (Empfehlungen, eigene Texte), nutzt auf der Seite den Block
+     * rh-shop/cart-state, der den ganzen Bereich zustandsabhängig zeigt.
      */
-    private function emptyStateHtml(bool $withSuggestions): string
+    private function emptyStateHtml(): string
     {
         $shopUrl = (string) apply_filters('rh-blueprint/shop/shop_url', $this->shopUrl());
 
@@ -71,44 +66,7 @@ final class CartView
             $html .= '<a class="rhshop-btn-checkout rhshop-cart-empty__cta" href="' . esc_url($shopUrl) . '">' . esc_html__('Zum Shop', 'rh-shop') . '</a>';
         }
 
-        $html .= '</div>';
-
-        if ($withSuggestions) {
-            $html .= $this->suggestionsHtml();
-        }
-
-        return $html;
-    }
-
-    /**
-     * Drei Produkt-Empfehlungen für den leeren Warenkorb (Katalog-Reihenfolge, wie
-     * das Standard-Raster). Leer, wenn der Katalog nichts hergibt.
-     */
-    private function suggestionsHtml(): string
-    {
-        $products = get_posts([
-            'post_type' => \RhShop\Catalog\ProductType::POST_TYPE,
-            'post_status' => 'publish',
-            'numberposts' => 3,
-            'orderby' => 'menu_order title',
-            'order' => 'ASC',
-        ]);
-
-        if ($products === []) {
-            return '';
-        }
-
-        $render = new \RhShop\Frontend\Render(new VariantRepository(), $this->config);
-
-        $cards = '';
-        foreach ($products as $product) {
-            $cards .= $render->card((int) $product->ID);
-        }
-
-        return '<div class="rhshop-cart-empty__suggest">'
-            . '<p class="rhshop-cart-empty__suggest-title">' . esc_html__('Beliebt im Shop', 'rh-shop') . '</p>'
-            . '<div class="rhshop-grid" style="--rhshop-cols:3;">' . $cards . '</div>'
-            . '</div>';
+        return $html . '</div>';
     }
 
     /**
@@ -117,9 +75,7 @@ final class CartView
      */
     private function shopUrl(): string
     {
-        $page = get_page_by_path('shop');
-
-        return $page instanceof \WP_Post ? (string) get_permalink($page) : '';
+        return \RhShop\Support\Pages::url('shop');
     }
 
     public function summaryHtml(): string
