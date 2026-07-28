@@ -112,8 +112,11 @@ final class InvoiceService
             }
 
             // Kein stilles Schlucken: die Rechnung bleibt best-effort, aber der
-            // Grund muss im Log stehen, sonst ist der Ausfall unsichtbar.
-            error_log(sprintf('[rh-shop] Rechnung zu Bestellung %s fehlgeschlagen: %s', $order->orderNumber, $e->getMessage()));
+            // Grund muss im Log stehen, sonst ist der Ausfall unsichtbar. Bewusst nur
+            // Fehlertyp + Stripe-Code, NICHT die Rohmeldung: die spiegelt bei
+            // Validierungsfehlern eingegebene Kundendaten zurück (DSGVO, Server-Log
+            // hat kein Löschkonzept).
+            error_log(sprintf('[rh-shop] Rechnung zu Bestellung %s fehlgeschlagen: %s (%s)', $order->orderNumber, get_class($e), (string) $e->getStripeCode()));
 
             return null;
         }
@@ -195,8 +198,8 @@ final class InvoiceService
             ]);
         } catch (ApiErrorException $e) {
             // Ohne Steuersatz wird die Rechnung trotzdem erstellt (ohne USt-Ausweis),
-            // aber der Grund gehört ins Log.
-            error_log('[rh-shop] Stripe-Steuersatz anlegen fehlgeschlagen: ' . $e->getMessage());
+            // aber der Grund gehört ins Log (nur Code, keine Rohmeldung).
+            error_log('[rh-shop] Stripe-Steuersatz anlegen fehlgeschlagen: ' . get_class($e) . ' (' . (string) $e->getStripeCode() . ')');
 
             return [];
         }

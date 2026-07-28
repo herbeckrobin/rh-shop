@@ -8,6 +8,7 @@ defined( 'ABSPATH' ) || exit;
 
 use RhShop\Catalog\VariantRepository;
 use RhShop\Stripe\Config;
+use RhShop\Support\RateLimiter;
 use WP_REST_Request;
 use WP_REST_Response;
 use WP_REST_Server;
@@ -57,8 +58,15 @@ final class CartRestController
         return $this->respond($this->cart());
     }
 
-    public function add(WP_REST_Request $request): WP_REST_Response
+    public function add(WP_REST_Request $request): WP_REST_Response|\WP_Error
     {
+        // Rate-Limit wie bei checkout/session: seit dem Quick-Add-Button liegt dieser
+        // Endpoint auf jeder Raster-Karte offen, jeder Aufruf kostet Katalog-Lookups.
+        // Großzügig genug für echtes Stöbern, eng genug gegen Bot-Dauerfeuer.
+        if (RateLimiter::tooMany('cart', 60, MINUTE_IN_SECONDS)) {
+            return new \WP_Error('rhshop_rate_limited', __('Zu viele Anfragen. Bitte warte einen Moment und versuch es erneut.', 'rh-shop'), ['status' => 429]);
+        }
+
         $cart = $this->cart();
         $capped = $cart->add(
             (int) $request->get_param('product_id'),
