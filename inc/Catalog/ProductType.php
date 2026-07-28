@@ -20,10 +20,31 @@ final class ProductType
     public const POST_TYPE = 'rh_product';
     public const TAXONOMY = 'rh_product_cat';
 
+    /** Option-Key: für welche Plugin-Version die Rewrite-Rules zuletzt gebaut wurden. */
+    private const REWRITE_VERSION_OPTION = 'rhshop_rewrite_version';
+
     public function boot(): void
     {
         $this->registerPostType();
         $this->registerTaxonomy();
+
+        // Rewrite-Rules einmal pro Version neu bauen. Ohne das liefern die
+        // Produkt-URLs (/produkt/<slug>/) nach einer frischen Installation, einem
+        // Update oder einem DB-Restore/Sync 404: die gespeicherten Rules kennen den
+        // Produkt-Typ dann noch nicht, obwohl WordPress die Links korrekt erzeugt.
+        // Der Aktivierungs-Hook allein reicht nicht, weil er beim Restore/Sync gar
+        // nicht läuft. Läuft nach der Registrierung, sonst fehlt die eigene Regel.
+        add_action('init', [$this, 'maybeFlushRewrites'], 99);
+    }
+
+    public function maybeFlushRewrites(): void
+    {
+        if (get_option(self::REWRITE_VERSION_OPTION) === RHSHOP_VERSION) {
+            return;
+        }
+
+        flush_rewrite_rules(false);
+        update_option(self::REWRITE_VERSION_OPTION, RHSHOP_VERSION);
     }
 
     private function registerPostType(): void
