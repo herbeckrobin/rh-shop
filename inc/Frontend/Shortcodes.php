@@ -33,6 +33,8 @@ final class Shortcodes
 
     /**
      * Status-bewusste Bestätigungsseite nach der Zahlung. Rückgabe ist escaptes Markup.
+     * Legacy: neue Seiten nutzen den Block rh-shop/danke, der Shortcode bleibt für
+     * bestehende Installationen erhalten.
      */
     public function danke(): string
     {
@@ -48,10 +50,34 @@ final class Shortcodes
     }
 
     /**
-     * Formatierte Versandkosten. Bei 0 der Hinweis "kostenlos".
+     * Formatierte Versandkosten, satz-tauglich (der Shortcode steht mitten im
+     * Fließtext). Sind Versandmethoden konfiguriert, werden die aktiven gelistet
+     * ("Abholung kostenlos, DHL 4,90 €"), sonst greift die Legacy-Pauschale.
      */
     public function shippingCost(): string
     {
+        $methods = \RhShop\Shipping\ShippingMethods::make()->active();
+
+        if ($methods !== []) {
+            $symbol = $this->config->currencySymbol();
+            $parts = [];
+            foreach ($methods as $method) {
+                $price = $method->priceCents <= 0
+                    ? __('kostenlos', 'rh-shop')
+                    : Money::format($method->priceCents, $symbol);
+                if ($method->freeFromCents !== null && $method->priceCents > 0) {
+                    $price .= sprintf(
+                        /* translators: %s: Bestellwert, ab dem der Versand kostenlos ist */
+                        __(' (kostenlos ab %s)', 'rh-shop'),
+                        Money::format($method->freeFromCents, $symbol)
+                    );
+                }
+                $parts[] = $method->label . ' ' . $price;
+            }
+
+            return esc_html(implode(', ', $parts));
+        }
+
         $cents = $this->config->shippingCents();
 
         if ($cents <= 0) {

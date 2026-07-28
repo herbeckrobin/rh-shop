@@ -20,7 +20,7 @@ use RhShop\Catalog\ProductType;
  */
 final class Blocks
 {
-    private const BLOCKS = ['product-grid', 'product-gallery', 'product-single', 'buy-box', 'cart-items', 'cart-summary', 'checkout-summary', 'checkout-form', 'cart-widget', 'search', 'widerruf'];
+    private const BLOCKS = ['product-grid', 'product-gallery', 'product-single', 'buy-box', 'cart-items', 'cart-summary', 'cart-state', 'checkout-summary', 'checkout-form', 'cart-widget', 'search', 'widerruf', 'danke'];
 
     public function boot(): void
     {
@@ -94,10 +94,21 @@ final class Blocks
         // Overlay auch aus einem Header-Template-Part heraus funktioniert.
         wp_register_script('rh-shop-search', RHSHOP_PLUGIN_URL . 'assets/js/search.js', ['rh-shop-view'], $this->assetVersion('assets/js/search.js'), true);
 
-        // Kasse: eigenes Script (lädt Stripe.js erst dort nach) + Publishable Key.
-        // Payment Element braucht Betrag + Währung vorab (deferred Elements), den Total
-        // rechnen wir serverseitig aus dem aktuellen Warenkorb. Das Appearance-Theming
-        // ist per Filter überschreibbar, damit es pro Projekt zum Design passt.
+        // Kasse: nur das Script registrieren. Die Inline-Daten (Betrag, Versandmethode)
+        // brauchen Warenkorb + Totals und werden darum erst in enqueueFrontend gebaut,
+        // wenn die Seite den Kassen-Block wirklich enthält. Sonst zahlte JEDE Seite
+        // (auch Blogposts, Admin, REST, Cron) den Warenkorb-Aufbau umsonst.
+        wp_register_script('rh-shop-checkout', RHSHOP_PLUGIN_URL . 'assets/js/checkout.js', [], $this->assetVersion('assets/js/checkout.js'), true);
+    }
+
+
+    /**
+     * Inline-Konfiguration für die Kasse (Publishable Key, Betrag, Versandmethode,
+     * Locale). Bewusst erst beim Enqueue gebaut: der Betrag braucht den Warenkorb
+     * und die Versandmethoden, das ist auf jeder anderen Seite verschwendete Arbeit.
+     */
+    private function checkoutInlineData(): void
+    {
         $config = new \RhShop\Stripe\Config();
         $cart = new \RhShop\Cart\Cart(new \RhShop\Catalog\VariantRepository());
         // Betrag mit der Default-Versandmethode (erste verfügbare), damit der an Stripe
@@ -106,6 +117,7 @@ final class Blocks
         $defaultMethod = \RhShop\Shipping\ShippingMethods::make()->availableForCheckout()[0];
         $totals = \RhShop\Checkout\Totals::forCart($cart, $config, $defaultMethod);
 
+        // Das Appearance-Theming ist per Filter überschreibbar, damit es pro Projekt passt.
         $appearance = apply_filters('rh-blueprint/shop/stripe_appearance', [
             'theme' => 'stripe',
             'variables' => [
@@ -134,7 +146,6 @@ final class Blocks
             'countries' => array_values((array) apply_filters('rh-blueprint/shop/shipping_countries', ['DE', 'AT', 'CH'])),
             'appearance' => $appearance,
         ];
-        wp_register_script('rh-shop-checkout', RHSHOP_PLUGIN_URL . 'assets/js/checkout.js', [], $this->assetVersion('assets/js/checkout.js'), true);
         wp_add_inline_script('rh-shop-checkout', 'window.rhShopCheckout=' . wp_json_encode($data) . ';', 'before');
     }
 
@@ -148,6 +159,7 @@ final class Blocks
         wp_enqueue_script('rh-shop-view');
 
         if (has_block('rh-shop/checkout-form')) {
+            $this->checkoutInlineData();
             wp_enqueue_script('rh-shop-checkout');
         }
 

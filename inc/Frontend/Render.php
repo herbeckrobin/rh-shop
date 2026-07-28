@@ -76,13 +76,7 @@ final class Render
      */
     private function shippingInfoUrl(): string
     {
-        $default = '';
-        $page = get_page_by_path('versand');
-        if ($page instanceof \WP_Post) {
-            $default = (string) get_permalink($page);
-        }
-
-        return (string) apply_filters('rh-blueprint/shop/legal_url', $default, 'versand');
+        return (string) apply_filters('rh-blueprint/shop/legal_url', \RhShop\Support\Pages::url('versand'), 'versand');
     }
 
     /**
