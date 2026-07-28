@@ -29,6 +29,9 @@ final class Cart
     /** @var array<int, array{p:int,v:string,q:int}> */
     private array $items;
 
+    /** @var array<int, CartLine>|null Memoisierte Positionen, null = noch nicht aufgelöst. */
+    private ?array $linesCache = null;
+
     public function __construct(private readonly VariantRepository $variants)
     {
         $this->items = $this->read();
@@ -50,12 +53,14 @@ final class Cart
             if ($item['p'] === $productId && $item['v'] === $variantId) {
                 $requested = $item['q'] + $qty;
                 $this->items[$i]['q'] = $this->clampQty($productId, $variantId, $requested);
+                $this->linesCache = null;
 
                 return $this->cappedTo($productId, $variantId, $requested);
             }
         }
 
         $this->items[] = ['p' => $productId, 'v' => $variantId, 'q' => $this->clampQty($productId, $variantId, $qty)];
+        $this->linesCache = null;
 
         return $this->cappedTo($productId, $variantId, $qty);
     }
@@ -74,6 +79,7 @@ final class Cart
         foreach ($this->items as $i => $item) {
             if ($item['p'] === $productId && $item['v'] === $variantId) {
                 $this->items[$i]['q'] = $this->clampQty($productId, $variantId, $qty);
+                $this->linesCache = null;
 
                 return $this->cappedTo($productId, $variantId, $qty);
             }
@@ -101,18 +107,28 @@ final class Cart
             $this->items,
             static fn (array $item): bool => ! ($item['p'] === $productId && $item['v'] === $variantId)
         ));
+        $this->linesCache = null;
     }
 
     public function clear(): void
     {
         $this->items = [];
+        $this->linesCache = null;
     }
 
     /**
+     * Aufgelöste Positionen. Memoisiert pro Instanz: toState() braucht sie dreimal
+     * (Liste, Summe, Gesamt-Cents) und jede Auflösung kostet pro Position einen
+     * Produkt- und Varianten-Lookup. Jede Mutation verwirft den Cache.
+     *
      * @return array<int, CartLine>
      */
     public function lines(): array
     {
+        if ($this->linesCache !== null) {
+            return $this->linesCache;
+        }
+
         $lines = [];
 
         foreach ($this->items as $item) {
@@ -142,7 +158,7 @@ final class Cart
             );
         }
 
-        return $lines;
+        return $this->linesCache = $lines;
     }
 
     public function totalCents(): int

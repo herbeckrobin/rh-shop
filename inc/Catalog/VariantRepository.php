@@ -21,10 +21,40 @@ defined( 'ABSPATH' ) || exit;
  */
 final class VariantRepository
 {
+    /**
+     * Request-Memoization: eine Produktkarte fragt dieselben Einheiten mehrfach ab
+     * (Preis-Label, Grundpreis, Bestands-Zusammenfassung), ein Raster tut das pro
+     * Produkt. Ohne Cache kostet jede dieser Fragen eine eigene Bestands-Query.
+     * Der Cache lebt nur für den Request und ist static, damit auch die verstreut
+     * erzeugten Repository-Instanzen (Views, Blocks, Cart) davon profitieren.
+     *
+     * @var array<int, array<int, Variant>>
+     */
+    private static array $variantCache = [];
+
+    /** @var array<int, array<string, int>> */
+    private static array $reservedCache = [];
+
     public function __construct(
         private readonly StockRepository $stock = new StockRepository(),
         private readonly ReservationRepository $reservations = new ReservationRepository(),
     ) {
+    }
+
+    /**
+     * Cache verwerfen. Nach jedem Schreiben (Varianten, Bestand, Reservierung)
+     * nötig, damit derselbe Request keine veralteten Bestände weiterreicht.
+     */
+    public static function flushCache(?int $productId = null): void
+    {
+        if ($productId === null) {
+            self::$variantCache = [];
+            self::$reservedCache = [];
+
+            return;
+        }
+
+        unset(self::$variantCache[$productId], self::$reservedCache[$productId]);
     }
 
     /**
@@ -36,7 +66,8 @@ final class VariantRepository
      */
     public function availableForProduct(int $productId): array
     {
-        $reserved = $this->reservations->activeReservedForProduct($productId);
+        $reserved = self::$reservedCache[$productId]
+            ??= $this->reservations->activeReservedForProduct($productId);
 
         return array_map(
             static function (Variant $v) use ($reserved): Variant {
@@ -86,13 +117,17 @@ final class VariantRepository
      */
     public function forProduct(int $productId): array
     {
+        if (isset(self::$variantCache[$productId])) {
+            return self::$variantCache[$productId];
+        }
+
         $rows = get_post_meta($productId, self::META_VARIANTS, true);
 
         if (is_array($rows) && $rows !== []) {
             // Bestand kommt aus der Tabelle (nicht mehr aus dem Post-Meta), ein Query.
             $stockMap = $this->stock->forProduct($productId);
 
-            return array_values(array_map(
+            $variants = array_values(array_map(
                 function (array $row) use ($stockMap): Variant {
                     $variant = Variant::fromArray($row);
 
@@ -100,9 +135,11 @@ final class VariantRepository
                 },
                 array_filter($rows, 'is_array')
             ));
+        } else {
+            $variants = [$this->simpleVariant($productId)];
         }
 
-        return [$this->simpleVariant($productId)];
+        return self::$variantCache[$productId] = $variants;
     }
 
     public function hasRealVariants(int $productId): bool
@@ -230,6 +267,7 @@ final class VariantRepository
             $this->stock->set($productId, (string) $row['id'], $row['stock'] === null || $row['stock'] === '' ? null : (int) $row['stock']);
         }
         $this->stock->pruneOrphans($productId, $keep);
+        self::flushCache($productId);
     }
 
     public function saveSimple(int $productId, int $priceCents, ?int $stock): void
@@ -237,6 +275,7 @@ final class VariantRepository
         update_post_meta($productId, self::META_SIMPLE_PRICE, $priceCents);
         // Bestand wohnt in der Tabelle, nicht mehr im Post-Meta.
         $this->stock->set($productId, self::SIMPLE_VARIANT_ID, $stock);
+        self::flushCache($productId);
     }
 
     /**
@@ -246,6 +285,7 @@ final class VariantRepository
     public function decrementStock(int $productId, string $variantId, int $qty): bool
     {
         $this->stock->decrement($productId, $variantId, $qty);
+        self::flushCache($productId);
 
         return true;
     }

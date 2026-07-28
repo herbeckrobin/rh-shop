@@ -34,6 +34,10 @@ final class ReservationRepository
             return true;
         }
 
+        // Reservieren verändert den verfügbaren Bestand: Request-Cache verwerfen,
+        // damit ein späterer Render im selben Request den echten Stand sieht.
+        VariantRepository::flushCache($productId);
+
         global $wpdb;
         $stockTable = Schema::variantStockTable();
         $resTable = Schema::reservationsTable();
@@ -103,6 +107,9 @@ final class ReservationRepository
      */
     public function releaseForOrder(int $orderId): void
     {
+        // Freigabe hebt Reservierungen auf, betrifft potenziell mehrere Produkte.
+        VariantRepository::flushCache();
+
         global $wpdb;
 
         $wpdb->delete(Schema::reservationsTable(), ['order_id' => $orderId], ['%d']);
