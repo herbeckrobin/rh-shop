@@ -19,6 +19,21 @@
 	var c = wp.components;
 	var ServerSideRender = wp.serverSideRender;
 
+	/**
+	 * Query-Argumente für die Server-Vorschau. Die aktuelle Post-ID geht mit, damit
+	 * die Blöcke im Produkt-Editor die Daten DIESES Produkts zeigen (Bilder, Preis,
+	 * Varianten) statt eines beliebigen Beispiels aus dem Katalog.
+	 */
+	function previewArgs() {
+		var args = { rhshop_preview: 1 };
+		var editor = wp.data && wp.data.select( 'core/editor' );
+		var postId = editor && editor.getCurrentPostId ? editor.getCurrentPostId() : 0;
+		if ( postId ) {
+			args.rhshop_post = postId;
+		}
+		return args;
+	}
+
 	function preview( block, attributes ) {
 		return el( ServerSideRender, { block: block, attributes: attributes } );
 	}
@@ -108,7 +123,7 @@
 			el( 'div', useBlockProps(), el( ServerSideRender, {
 				block: 'rh-shop/product-grid',
 				attributes: a,
-				urlQueryArgs: { rhshop_preview: 1 },
+				urlQueryArgs: previewArgs(),
 			} ) )
 		);
 	}
@@ -156,16 +171,18 @@
 	 * damit man sich das Ergebnis vorstellen kann, plus eine Info-Notice, die erklärt,
 	 * dass es eine Beispielansicht ist und hier nichts einzustellen ist.
 	 */
-	function previewWithNote( block, note ) {
+	function previewWithNote( block, note, liveNote ) {
 		return function ( props ) {
+			var editor = wp.data && wp.data.select( 'core/editor' );
+			var isProduct = editor && editor.getCurrentPostType && editor.getCurrentPostType() === 'rh_product';
 			return el(
 				'div',
 				useBlockProps(),
-				el( c.Notice, { status: 'info', isDismissible: false, className: 'rhshop-editor-note' }, note ),
+				el( c.Notice, { status: 'info', isDismissible: false, className: 'rhshop-editor-note' }, isProduct && liveNote ? liveNote : note ),
 				el( ServerSideRender, {
 					block: block,
 					attributes: props.attributes,
-					urlQueryArgs: { rhshop_preview: 1 },
+					urlQueryArgs: previewArgs(),
 				} )
 			);
 		};
@@ -401,11 +418,13 @@
 		'rh-shop/search': editSearch,
 		'rh-shop/buy-box': previewWithNote(
 			'rh-shop/buy-box',
-			__( 'Beispielansicht mit einem deiner Produkte. Im Frontend zeigt der Block das Produkt der jeweiligen Detailseite.', 'rh-shop' )
+			__( 'Beispielansicht mit einem deiner Produkte. Im Frontend zeigt der Block das Produkt der jeweiligen Detailseite.', 'rh-shop' ),
+			__( 'Preis, Varianten und Bestand dieses Produkts. Änderungen erscheinen nach dem Speichern.', 'rh-shop' )
 		),
 		'rh-shop/product-gallery': previewWithNote(
 			'rh-shop/product-gallery',
-			__( 'Beispielansicht. Im Frontend zeigt der Block die Galerie-Bilder des jeweiligen Produkts, ohne Galerie das Beitragsbild.', 'rh-shop' )
+			__( 'Beispielansicht. Im Frontend zeigt der Block die Galerie-Bilder des jeweiligen Produkts, ohne Galerie das Beitragsbild.', 'rh-shop' ),
+			__( 'Die Bilder dieses Produkts. Änderungen erscheinen nach dem Speichern.', 'rh-shop' )
 		),
 		'rh-shop/cart-items': previewWithNote(
 			'rh-shop/cart-items',

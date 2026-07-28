@@ -63,7 +63,7 @@ final class Blocks
         wp_register_script(
             'rh-shop-blocks-editor',
             RHSHOP_PLUGIN_URL . $editorRel,
-            ['wp-blocks', 'wp-element', 'wp-block-editor', 'wp-components', 'wp-server-side-render', 'wp-i18n'],
+            ['wp-blocks', 'wp-element', 'wp-block-editor', 'wp-components', 'wp-server-side-render', 'wp-i18n', 'wp-data'],
             $this->assetVersion($editorRel),
             true
         );
