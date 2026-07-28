@@ -8,15 +8,48 @@
     "description": "Zeigt Produkte als Raster, optional nach Kategorie gefiltert.",
     "textdomain": "rh-shop",
     "attributes": {
-        "category": { "type": "string", "default": "" },
-        "columns": { "type": "number", "default": 3 },
-        "limit": { "type": "number", "default": 12 }
+        "category": {
+            "type": "string",
+            "default": ""
+        },
+        "columns": {
+            "type": "number",
+            "default": 3
+        },
+        "limit": {
+            "type": "number",
+            "default": 12
+        },
+        "orderby": {
+            "type": "string",
+            "default": "menu_order"
+        },
+        "heading": {
+            "type": "string",
+            "default": ""
+        },
+        "related": {
+            "type": "boolean",
+            "default": false
+        },
+        "showFilter": {
+            "type": "boolean",
+            "default": false
+        }
     },
     "supports": {
-        "align": ["wide", "full"],
-        "html": false
+        "align": [
+            "wide",
+            "full"
+        ],
+        "html": false,
+        "spacing": {
+            "margin": true,
+            "padding": true
+        }
     },
     "editorScript": "rh-shop-blocks-editor",
     "style": "rh-shop",
+    "viewScript": "rh-shop-view",
     "render": "file:./render.php"
 }

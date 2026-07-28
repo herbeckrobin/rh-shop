@@ -141,16 +141,37 @@ final class Render
         }
 
         // Grundpreis der günstigsten Variante (passt zur "ab X €"-Anzeige),
-        // Preishinweis ohne Link (die Karte ist selbst ein Link, kein Link-im-Link).
+        // Preishinweis ohne Link (der Karten-Link umfasst den Inhalt, kein Link-im-Link).
         $grundpreis = $this->grundpreisSpan($productId);
 
+        // Filter-Daten für die client-seitigen Grid-Controls (Kategorie-Pills).
+        $terms = get_the_terms($productId, \RhShop\Catalog\ProductType::TAXONOMY);
+        $catSlugs = is_array($terms) ? implode(' ', wp_list_pluck($terms, 'slug')) : '';
+
+        // Quick-Add nur, wo es keine Auswahl braucht: Produkt ohne echte Varianten,
+        // verfügbar, mit Preis. Der Button liegt als Geschwister NEBEN dem Link
+        // (Button im Link wäre invalides HTML), absolut über dem Bild positioniert.
+        $quickAdd = '';
+        if (! $soldOut && ! $this->variants->hasRealVariants($productId) && $this->variants->fromPriceCents($productId) > 0) {
+            $quickAdd = sprintf(
+                '<button type="button" class="rhshop-card__quick-add" data-rhshop-quick-add="%d" aria-label="%s">%s</button>',
+                $productId,
+                /* translators: %s: Produktname */
+                esc_attr(sprintf(__('%s in den Warenkorb legen', 'rh-shop'), $title)),
+                CartWidget::iconSvg('bag')
+            );
+        }
+
         return sprintf(
-            '<a class="rhshop-card%1$s" href="%2$s">'
+            '<article class="rhshop-card%1$s" data-rhshop-cats="%9$s" data-rhshop-name="%10$s">'
+            . '<a class="rhshop-card__link" href="%2$s">'
             . '<span class="rhshop-card__media">%3$s%4$s</span>'
             . '<span class="rhshop-card__title">%5$s</span>'
             . '<span class="rhshop-card__price">%6$s%7$s</span>'
             . '%8$s'
-            . '</a>',
+            . '</a>'
+            . '%11$s'
+            . '</article>',
             $soldOut ? ' is-sold-out' : '',
             esc_url((string) get_permalink($productId)),
             $media,
@@ -158,7 +179,10 @@ final class Render
             esc_html($title),
             esc_html($this->priceLabel($productId)),
             $grundpreis !== '' ? ' ' . $grundpreis : '',
-            $this->priceNote(false)
+            $this->priceNote(false),
+            esc_attr($catSlugs),
+            esc_attr(mb_strtolower($title)),
+            $quickAdd
         );
     }
 
