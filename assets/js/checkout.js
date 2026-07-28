@@ -28,16 +28,22 @@
 		return '<span class="rhshop-spinner" aria-hidden="true"></span>' + text;
 	}
 
+	// Locale explizit aus der Site-Sprache: sonst folgt das Payment Element der
+	// Browser-Sprache und rendert z.B. englisch in einer deutschen Kasse.
+	function stripeInstance() {
+		return window.Stripe( cfg.pk, { locale: cfg.locale || 'auto' } );
+	}
+
 	function loadStripe() {
 		return new Promise( function ( resolve, reject ) {
 			if ( window.Stripe ) {
-				resolve( window.Stripe( cfg.pk ) );
+				resolve( stripeInstance() );
 				return;
 			}
 			var s = document.createElement( 'script' );
 			s.src = 'https://js.stripe.com/v3/';
 			s.onload = function () {
-				window.Stripe ? resolve( window.Stripe( cfg.pk ) ) : reject( new Error( LABELS.error ) );
+				window.Stripe ? resolve( stripeInstance() ) : reject( new Error( LABELS.error ) );
 			};
 			s.onerror = function () {
 				reject( new Error( LABELS.error ) );
