@@ -46,15 +46,11 @@ final class DankeView
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Landing von Stripe, kein Formular; nur Anzeige.
         $paymentIntent = isset($_GET['payment_intent']) ? sanitize_text_field(wp_unslash($_GET['payment_intent'])) : '';
 
-        $order = ($paymentIntent !== '' && str_starts_with($paymentIntent, 'pi_'))
-            ? $this->orders->findByPaymentIntent($paymentIntent)
-            : null;
+        $hasIntent = $paymentIntent !== '' && str_starts_with($paymentIntent, 'pi_');
+        $order = $hasIntent ? $this->orders->findByPaymentIntent($paymentIntent) : null;
 
         if ($order === null) {
-            return $this->shell(
-                'neutral',
-                '<p class="rhshop-danke__lead">' . esc_html__('Vielen Dank für deinen Einkauf.', 'rh-shop') . '</p>'
-            );
+            return $hasIntent ? $this->orderNotFound() : $this->directVisit();
         }
 
         $paid = $order->status === Order::STATUS_PAID
@@ -62,6 +58,46 @@ final class DankeView
             || $this->isPaidAtStripe($paymentIntent);
 
         return $paid ? $this->confirmed($order) : $this->processing($order);
+    }
+
+    /**
+     * Die Seite wurde direkt aufgerufen, ohne Kauf: erklären, was sie ist, und
+     * zurück in den Shop führen, statt für nichts zu danken.
+     */
+    private function directVisit(): string
+    {
+        $shopUrl = (string) apply_filters('rh-blueprint/shop/shop_url', $this->shopUrl());
+
+        $inner = '<p class="rhshop-danke__lead">' . esc_html__('Hier erscheint deine Bestellbestätigung.', 'rh-shop') . '</p>'
+            . '<p class="rhshop-danke__note">' . esc_html__('Nach einem Kauf landest du automatisch auf dieser Seite und siehst den Stand deiner Bestellung. Deine Bestellbestätigung bekommst du zusätzlich per E-Mail.', 'rh-shop') . '</p>';
+
+        if ($shopUrl !== '') {
+            $inner .= '<a class="rhshop-btn-checkout" href="' . esc_url($shopUrl) . '">' . esc_html__('Zum Shop', 'rh-shop') . '</a>';
+        }
+
+        return $this->shell('neutral', $inner);
+    }
+
+    /**
+     * Es kam ein payment_intent mit, aber dazu gibt es keine Bestellung (alter oder
+     * fremder Link): ehrlich sagen statt pauschal danken.
+     */
+    private function orderNotFound(): string
+    {
+        return $this->shell(
+            'neutral',
+            '<p class="rhshop-danke__lead">' . esc_html__('Zu diesem Link haben wir keine Bestellung gefunden.', 'rh-shop') . '</p>'
+            . '<p class="rhshop-danke__note">' . esc_html__('Nutze den Link aus deiner Bestellbestätigungs-Mail. Wenn du dort nichts findest, melde dich gerne bei uns.', 'rh-shop') . '</p>'
+        );
+    }
+
+    /**
+     * Ziel des Zum-Shop-Buttons: die Seite mit dem Slug "shop", überschreibbar über
+     * den Filter oben. Leer (kein Button), wenn es keine solche Seite gibt.
+     */
+    private function shopUrl(): string
+    {
+        return \RhShop\Support\Pages::url('shop');
     }
 
     private function confirmed(Order $order): string

@@ -1,0 +1,18 @@
+{
+    "$schema": "https://schemas.wp.org/trunk/block.json",
+    "apiVersion": 3,
+    "name": "rh-shop/danke",
+    "title": "Bestellbestätigung",
+    "category": "rh-shop",
+    "icon": "yes-alt",
+    "description": "Die Bestätigungsseite nach der Zahlung: Status, Bestellübersicht und Rechnungs-Link. Für die Danke-Seite des Shops.",
+    "textdomain": "rh-shop",
+    "supports": {
+        "html": false,
+        "align": ["wide", "full"],
+        "spacing": { "margin": true, "padding": true }
+    },
+    "editorScript": "rh-shop-blocks-editor",
+    "style": "rh-shop",
+    "render": "file:./render.php"
+}
