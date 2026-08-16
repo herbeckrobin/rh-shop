@@ -7,6 +7,7 @@ namespace RhShop;
 defined( 'ABSPATH' ) || exit;
 
 use RhBlueprint\Core\Core;
+use RhBlueprint\Core\UpdateChecker;
 use RhBlueprint\Core\Settings\SettingsPage;
 use RhShop\Admin\DashboardPage;
 use RhShop\Admin\GalleryMetaBox;
@@ -50,9 +51,9 @@ final class Plugin
 {
     public static function boot(): void
     {
-        if (class_exists(UpdateChecker::class)) {
-            (new UpdateChecker())->boot();
-        }
+        add_action('plugins_loaded', static function (): void {
+            (new UpdateChecker('rh-shop', RHSHOP_PLUGIN_FILE))->boot();
+        }, 0);
 
         // Bestell-Tabelle bei Versions-Sprung synchron halten (Updates feuern keinen
         // Activation-Hook). Registrierung in boot() (läuft vor init), damit der

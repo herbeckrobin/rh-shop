@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace RhShop\Admin;
 
+use RhBlueprint\Core\Admin\Guard;
 defined( 'ABSPATH' ) || exit;
 
 use RhShop\Catalog\ProductType;
@@ -366,11 +367,7 @@ final class OrdersPage
      */
     public function handleSetStatus(): void
     {
-        if (! current_user_can(self::CAPABILITY)) {
-            wp_die(esc_html__('Keine Berechtigung.', 'rh-shop'));
-        }
-
-        check_admin_referer(self::NONCE);
+        Guard::form(self::NONCE, self::CAPABILITY);
 
         $orderId = isset($_POST['order_id']) ? absint(wp_unslash($_POST['order_id'])) : 0;
         $status = isset($_POST['status']) ? sanitize_key(wp_unslash($_POST['status'])) : '';

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace RhShop\Admin;
 
+use RhBlueprint\Core\Admin\Guard;
 defined( 'ABSPATH' ) || exit;
 
 use RhShop\Catalog\ProductType;
@@ -60,11 +61,7 @@ final class SetupNotice
 
     public function handleDismiss(): void
     {
-        if (! current_user_can('manage_options')) {
-            wp_die(esc_html__('Keine Berechtigung.', 'rh-shop'));
-        }
-
-        check_admin_referer(self::DISMISS_ACTION);
+        Guard::form(self::DISMISS_ACTION);
         update_option(self::OPTION_DISMISSED, true);
 
         wp_safe_redirect(wp_get_referer() ?: admin_url());

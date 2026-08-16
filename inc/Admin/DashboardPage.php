@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace RhShop\Admin;
 
+use RhBlueprint\Core\Admin\Guard;
 defined( 'ABSPATH' ) || exit;
 
 use RhShop\Catalog\ProductType;
@@ -43,10 +44,7 @@ final class DashboardPage
      */
     public function ajaxChart(): void
     {
-        if (! current_user_can(self::CAPABILITY)) {
-            wp_send_json_error(['message' => 'forbidden'], 403);
-        }
-        check_ajax_referer('rhshop_dash', 'nonce');
+        Guard::ajax('rhshop_dash', self::CAPABILITY);
 
         $range = sanitize_key((string) ($_GET['range'] ?? 'month'));
         if (! in_array($range, ['week', 'month', 'year'], true)) {

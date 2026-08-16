@@ -1,8 +1,11 @@
-/* Panes der Shop-Einstellungs-Sub-Tabs: nur der aktive ist sichtbar. Ohne JS sind
-   alle sichtbar (kein Inhalt geht verloren, graceful degradation). */
-.rhshop-settings-tabs.js [data-rhshop-pane] { display: none; }
-.rhshop-settings-tabs.js [data-rhshop-pane].is-active { display: block; }
-.rhshop-settings-tabs.js .rhshop-hidden { display: none; }
+/* Die Bereiche der Shop-Einstellungen schaltet der Core (.rhbp-tabpane), die
+   drei Regeln dafuer standen hier noch einmal. Sie hingen an einer js-Klasse,
+   damit ohne JavaScript alle Bereiche sichtbar bleiben. Das war das einzige
+   Vorkommen dieses Musters in der Suite und im Backend ohne Nutzen: ohne
+   JavaScript laesst sich hier ohnehin nichts bedienen, und die Klasse haette
+   beim Laden ein Aufblitzen aller Bereiche erzeugt.
+   Uebrig bleibt, was wirklich rh-shop gehoert. */
+.rhshop-settings-tabs .rhshop-hidden { display: none; }
 .rhshop-settings-tabs .rhbp-subtabs { margin-bottom: 1rem; }
 .rhshop-xlinks { margin: 0.2rem 0 1rem; display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; }
 .rhshop-xlinks a { font-size: 13px; }

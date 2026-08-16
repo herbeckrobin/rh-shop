@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace RhShop\Admin;
 
+use RhBlueprint\Core\Admin\Ui;
+use RhBlueprint\Core\Admin\Guard;
 defined( 'ABSPATH' ) || exit;
 
 use RhBlueprint\Core\Settings\SettingsPage;
@@ -108,18 +110,18 @@ final class ShopSettingsPage
         // Erster Tab = Status/Einrichtung (Startklar-Check + Webhook), das ist der
         // Setup-Kram OHNE Speichern. Danach die Config-Tabs, die nur Felder + Speichern
         // enthalten. So klebt kein Webhook mehr unter dem Speichern-Knopf.
-        echo '<div class="rhbp-subtabs">';
-        $this->tabButton('status', __('Status', 'rh-shop'), true);
-        $this->tabButton('zahlung', __('Zahlung', 'rh-shop'), false);
-        $this->tabButton('preise', __('Preise & Steuer', 'rh-shop'), false);
-        $this->tabButton('versand', __('Versand', 'rh-shop'), false);
-        $this->tabButton('email', __('E-Mail', 'rh-shop'), false);
-        $this->tabButton('rechtlich', __('Rechtliches', 'rh-shop'), false);
-        echo '</div>';
+        echo Ui::subtabs([
+            'status' => __('Status', 'rh-shop'),
+            'zahlung' => __('Zahlung', 'rh-shop'),
+            'preise' => __('Preise & Steuer', 'rh-shop'),
+            'versand' => __('Versand', 'rh-shop'),
+            'email' => __('E-Mail', 'rh-shop'),
+            'rechtlich' => __('Rechtliches', 'rh-shop'),
+        ], 'status');
 
         // Status-Tab: Startklar-Check + Webhook. Ausserhalb des Formulars (der Webhook
         // hat eigene Formulare, und hier gibt es nichts zu speichern).
-        echo '<div class="rhshop-pane is-active" data-rhshop-pane="status">';
+        echo Ui::paneOpen('status', true);
         (new GoLiveCheck($this->config))->render(self::TAB_ID);
         $this->renderWebhookCard();
         echo '</div>';
@@ -149,19 +151,9 @@ final class ShopSettingsPage
      */
     private function pane(string $key, callable $render, bool $active): void
     {
-        printf('<div class="rhshop-pane%s" data-rhshop-pane="%s">', $active ? ' is-active' : '', esc_attr($key));
+        echo Ui::paneOpen($key, $active);
         $render();
         echo '</div>';
-    }
-
-    private function tabButton(string $key, string $label, bool $active): void
-    {
-        printf(
-            '<button type="button" class="rhbp-subtab%s" data-rhshop-subtab="%s">%s</button>',
-            $active ? ' is-active' : '',
-            esc_attr($key),
-            esc_html($label)
-        );
     }
 
     /**
@@ -637,11 +629,10 @@ final class ShopSettingsPage
             . '<span class="rhshop-mailrow__desc">' . esc_html($type->description) . '</span></div>';
 
         if ($type->lockable) {
-            printf(
-                '<label class="rhbp-switch"><input type="checkbox" name="%s" value="1" %s><span class="rhbp-switch__track" aria-hidden="true"></span></label>',
-                esc_attr($enabledKey),
-                checked($settings->enabled($type), true, false)
-            );
+            echo Ui::switch([
+                'name' => $enabledKey,
+                'checked' => $settings->enabled($type),
+            ]);
         } else {
             echo '<span class="rhbp-pill rhbp-pill--ok">' . esc_html__('immer aktiv', 'rh-shop') . '</span>';
         }
@@ -845,10 +836,7 @@ final class ShopSettingsPage
 
     public function handleSave(): void
     {
-        if (! current_user_can(self::CAPABILITY)) {
-            wp_die(esc_html__('Keine Berechtigung.', 'rh-shop'));
-        }
-        check_admin_referer(self::NONCE);
+        Guard::form(self::NONCE, self::CAPABILITY);
 
         $values = [
             Config::FIELD_PUBLISHABLE => isset($_POST['publishable_key']) ? sanitize_text_field(wp_unslash($_POST['publishable_key'])) : '',
@@ -981,10 +969,7 @@ final class ShopSettingsPage
 
     public function handleWebhookInstall(): void
     {
-        if (! current_user_can(self::CAPABILITY)) {
-            wp_die(esc_html__('Keine Berechtigung.', 'rh-shop'));
-        }
-        check_admin_referer('rhshop_webhook_install');
+        Guard::form('rhshop_webhook_install', self::CAPABILITY);
 
         $installer = new WebhookInstaller($this->config, new StripeClient($this->config));
         $result = $installer->install();
@@ -998,10 +983,7 @@ final class ShopSettingsPage
 
     public function handleWebhookRemove(): void
     {
-        if (! current_user_can(self::CAPABILITY)) {
-            wp_die(esc_html__('Keine Berechtigung.', 'rh-shop'));
-        }
-        check_admin_referer('rhshop_webhook_remove');
+        Guard::form('rhshop_webhook_remove', self::CAPABILITY);
 
         (new WebhookInstaller($this->config, new StripeClient($this->config)))->remove();
 
