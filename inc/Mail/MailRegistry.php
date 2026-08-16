@@ -121,4 +121,44 @@ final class MailRegistry
     {
         return self::all()[$id] ?? null;
     }
+
+    /**
+     * Meldet die Shop-Mails beim Core an.
+     *
+     * Damit stehen sie da, wo alle anderen Modul-Mails auch stehen: im
+     * E-Mail-Reiter, mit Schalter, Empfänger, Betreff und Zusatztext. Der Shop
+     * hatte das früher selbst gebaut, mit einer eigenen Oberfläche und eigenen
+     * Einstellungen. Drei Merkmale dieses Modells (Vorgabe-Betreff,
+     * Platzhalter-Liste, Pflichtmail) sind dafür in den Core gewandert.
+     *
+     * Gehört auf `init`, weil die Beschriftungen übersetzt werden.
+     */
+    public static function registerWithCore(): void
+    {
+        if (! class_exists(\RhBlueprint\Core\Mail\MailKind::class)) {
+            return;
+        }
+
+        foreach (self::all() as $type) {
+            \RhBlueprint\Core\Mail\MailKind::register('shop.' . $type->id, [
+                'module' => 'shop',
+                'label' => $type->label,
+                'summary' => $type->description,
+                'subject' => $type->defaultSubject,
+                'placeholders' => $type->placeholders,
+                'lockable' => $type->lockable,
+                'audience' => $type->isForCustomer()
+                    ? \RhBlueprint\Core\Mail\MailMessage::AUDIENCE_EXTERNAL
+                    : \RhBlueprint\Core\Mail\MailMessage::AUDIENCE_INTERNAL,
+            ]);
+        }
+    }
+
+    /**
+     * Die Kennung einer Shop-Mail beim Core.
+     */
+    public static function kindId(string $id): string
+    {
+        return 'shop.' . $id;
+    }
 }

@@ -9,12 +9,16 @@ defined( 'ABSPATH' ) || exit;
 use RhShop\Stripe\Config;
 
 /**
- * Gemeinsamer Rahmen für alle Shop-Mails: Kopf (Logo oder Shop-Name auf Akzentfarbe),
- * Inhalt, Fuss (Anschrift). Table-basiertes Markup mit Inline-CSS, weil E-Mail-Clients
- * (Outlook &amp; Co.) weder externe Stylesheets noch modernes Layout zuverlässig rendern.
+ * Der frühere eigene Rahmen der Shop-Mails.
  *
- * Der übergebene Body ist bereits fertiges, escaptes HTML aus den Mailer-Methoden, hier
- * wird nur gerahmt.
+ * WIRD NICHT MEHR BENUTZT. Der Rahmen kommt jetzt aus dem E-Mail-Modul, damit
+ * eine Website nicht zwei Mail-Optiken hat. Logo, Akzentfarbe und Anschrift
+ * reisen über Haken dorthin (siehe MailDispatcher::applyBranding).
+ *
+ * Bleibt vorerst stehen, falls jemand ihn von aussen aufruft. Beim nächsten
+ * Aufräumen kann er weg.
+ *
+ * @deprecated Seit der Umstellung auf den gemeinsamen Mailweg.
  */
 final class MailLayout
 {

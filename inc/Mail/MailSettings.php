@@ -16,6 +16,10 @@ use RhShop\Stripe\Config;
  *
  * Betreff leer = Standard-Betreff aus der Registry. Rechtliche Pflicht-Mails
  * (lockable=false) gehen immer raus, unabhängig vom An/Aus-Schalter.
+ *
+ * NUR NOCH ZUM LESEN. Gepflegt wird über die Mail-Einstellungen des Core,
+ * diese Werte sind der Altbestand, den SettingsMigration einmalig übernimmt.
+ * Die Schlüssel-Methoden braucht sie dafür weiterhin.
  */
 final class MailSettings
 {

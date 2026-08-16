@@ -6,63 +6,93 @@ namespace RhShop\Mail;
 
 defined( 'ABSPATH' ) || exit;
 
+use RhBlueprint\Core\Mail\Mail;
+use RhBlueprint\Core\Mail\MailMessage;
 use RhShop\Stripe\Config;
 
 /**
- * Baut eine Shop-Mail zusammen und verschickt sie über wp_mail (rh-smtp macht den
- * Transport). Eine Stelle für den ganzen Ablauf, den beide Mailer (Bestellung, Widerruf)
- * teilen: An/Aus prüfen, Betreff und Zusatztext aus der Konfiguration mit Platzhaltern
- * füllen, in den gemeinsamen Rahmen wrappen, Absender-Header setzen.
+ * Verschickt eine Shop-Mail über den gemeinsamen Weg der Suite.
+ *
+ * Vorher lief das hier an allem vorbei: eigene Registry, eigene Einstellungen,
+ * eigener Rahmen, eigener Aufruf von wp_mail. Das Ergebnis waren zwei
+ * Mail-Optiken auf einer Website und Einstellungen an zwei Orten, von denen der
+ * Betreiber nur einen findet.
+ *
+ * Was der Shop mitbringt, bleibt: Logo, Akzentfarbe und Anschrift hängen an
+ * seiner Konfiguration und reisen über Haken in den gemeinsamen Rahmen. Was
+ * überall gleich ist (An/Aus, Empfänger, Betreff mit Platzhaltern, Zusatztext,
+ * Testmodus, Wellenbremse, Protokoll), macht jetzt der Core.
  */
 final class MailDispatcher
 {
-    private readonly MailSettings $settings;
-
     public function __construct(private readonly Config $config)
     {
-        $this->settings = new MailSettings();
     }
 
     /**
      * Verschickt die Mail, wenn ihre Art aktiv ist und ein Empfänger vorliegt.
      *
-     * @param array<string, string> $values     Platzhalter-Werte
-     * @param string                $legacyNote  Fallback-Zusatztext, falls für diese Mail
-     *                                           noch kein eigener gepflegt ist (Migration).
+     * @param array<string, string> $values     Werte für die Platzhalter.
+     * @param string                $legacyNote Zusatztext aus der alten Konfiguration,
+     *                                          falls für diese Mail noch keiner gepflegt ist.
      */
     public function send(?MailType $type, string $to, array $values, string $bodyHtml, string $legacyNote = ''): void
     {
-        if ($type === null || $to === '' || ! $this->settings->enabled($type)) {
+        if ($type === null || $to === '') {
             return;
         }
 
-        $subject = Placeholders::inSubject($this->settings->subjectTemplate($type), $values);
+        $this->applyBranding();
 
-        $noteTemplate = $this->settings->noteTemplate($type->id);
-        if ($noteTemplate === '' && $legacyNote !== '') {
-            $noteTemplate = $legacyNote;
-        }
-        $note = Placeholders::inHtml($noteTemplate, $values);
+        $nachricht = new MailMessage($type->label);
+        $nachricht->kind(MailRegistry::kindId($type->id));
+        $nachricht->placeholders($values);
 
-        wp_mail($to, $subject, MailLayout::wrap($bodyHtml . $note, $this->config), $this->headers());
+        // Der Rumpf ist fertiges, escaptes HTML aus den Mailern. Er geht als
+        // ein Block durch, statt ihn in Bausteine zu zerlegen: eine Rechnung
+        // mit Positionstabelle ist kein Textabsatz.
+        $nachricht->raw(['type' => 'html', 'html' => $bodyHtml]);
+
+        // Der alte Zusatztext greift nur, solange für diese Mail keiner in den
+        // E-Mail-Einstellungen steht. Der Core setzt seinen eigenen davor.
+        $zusatz = $legacyNote !== ''
+            ? Placeholders::inPlain($legacyNote, $values)
+            : '';
+
+        Mail::send($to, $type->label, $nachricht, $zusatz);
     }
 
     /**
-     * Gemeinsame Mail-Header. Absender (From) nur, wenn der Betreiber eine eigene Adresse
-     * gepflegt hat, sonst bleibt der WordPress-/rh-smtp-Default.
+     * Reicht Logo, Farbe und Anschrift des Shops in den gemeinsamen Rahmen.
      *
-     * @return array<int, string>
+     * Einmal pro Anfrage, und nur solange der Shop verschickt: die Haken sind
+     * für Mails an Endkunden gedacht, eine Sicherheitsmeldung soll weiter wie
+     * eine Systemmeldung aussehen.
      */
-    private function headers(): array
+    private function applyBranding(): void
     {
-        $headers = ['Content-Type: text/html; charset=UTF-8'];
+        static $gesetzt = false;
 
-        $fromAddress = $this->config->mailFromAddress();
-        if ($fromAddress !== '') {
-            $fromName = $this->config->mailFromName();
-            $headers[] = 'From: ' . ($fromName !== '' ? sprintf('%s <%s>', $fromName, $fromAddress) : $fromAddress);
+        if ($gesetzt) {
+            return;
         }
 
-        return $headers;
+        $gesetzt = true;
+
+        $farbe = $this->config->mailLayoutAccent();
+        $logo = $this->config->mailLayoutLogoUrl();
+        $fuss = $this->config->mailLayoutFooter();
+
+        if ($farbe !== '') {
+            add_filter('rh-blueprint/mail/brand_accent', static fn (): string => $farbe);
+        }
+
+        if ($logo !== '') {
+            add_filter('rh-blueprint/mail/brand_logo', static fn (): string => $logo);
+        }
+
+        if ($fuss !== '') {
+            add_filter('rh-blueprint/mail/footer_note', static fn (): string => $fuss);
+        }
     }
 }

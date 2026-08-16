@@ -65,6 +65,13 @@ final class Plugin
 
     public static function onCoreBooted(Core $core): void
     {
+        // Die acht Shop-Mails beim Core anmelden. Damit stehen sie im
+        // E-Mail-Reiter neben denen der anderen Module, statt in einer eigenen
+        // Oberfläche, die niemand dort sucht. Direkt danach die einmalige
+        // Übernahme der bisher gepflegten Betreffe und Schalter.
+        \RhShop\Mail\MailRegistry::registerWithCore();
+        \RhShop\Mail\SettingsMigration::run();
+
         // Der CPT registriert sich frontend UND backend (Produktseiten brauchen ihn),
         // die Varianten-Meta-Box nur im Admin.
         (new ProductType())->boot();

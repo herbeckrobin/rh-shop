@@ -7,12 +7,12 @@ namespace RhShop\Admin;
 use RhBlueprint\Core\Admin\Ui;
 use RhBlueprint\Core\Admin\Assets;
 use RhBlueprint\Core\Admin\Guard;
+use RhBlueprint\Core\Admin\MailPanel;
 defined( 'ABSPATH' ) || exit;
 
 use RhBlueprint\Core\Settings\SettingsPage;
 use RhShop\Catalog\ProductType;
 use RhShop\Mail\MailRegistry;
-use RhShop\Mail\MailSettings;
 use RhShop\Mail\MailType;
 use RhShop\Orders\Order;
 use RhShop\Shipping\Carrier;
@@ -165,6 +165,13 @@ final class ShopSettingsPage
         // Initial versteckt, weil Status der Default-Tab ist.
         echo '<p class="rhshop-hidden" data-rhshop-hide="status" style="max-width:640px"><button type="submit" class="rhbp-btn rhbp-btn--primary">' . esc_html__('Speichern', 'rh-shop') . '</button></p>';
         echo '</form>';
+
+        // Die Mail-Einstellungen des Core, mit eigenem Formular und eigenem
+        // Speichern. Derselbe Reiter-Schlüssel wie oben: das Core-Skript
+        // schaltet beide Bereiche zusammen.
+        echo Ui::paneOpen('email', false);
+        (new MailPanel())->render(self::TAB_ID);
+        echo '</div>';
 
         echo '</div>';
     }
@@ -617,72 +624,14 @@ final class ShopSettingsPage
 
         $this->sectionClose();
 
-        // Die einzelnen Mails.
-        $this->sectionOpen(
-            __('Einzelne Mails', 'rh-shop'),
-            __('Pro Mail: an oder aus, eigener Betreff und ein Zusatztext. Platzhalter in geschweiften Klammern werden automatisch eingesetzt.', 'rh-shop')
-        );
-        $settings = new MailSettings();
-        foreach (MailRegistry::all() as $type) {
-            $this->renderMailRow($type, $settings);
-        }
+        // Die einzelnen Mails stehen nicht mehr hier: sie kommen aus dem Core
+        // und damit aus derselben Oberfläche wie die Mails aller anderen
+        // Module. Der Block sitzt ausserhalb dieses Formulars (siehe
+        // renderMailPanel), weil er sein eigenes mitbringt und Formulare sich
+        // nicht verschachteln lassen.
         $this->mailMediaScript();
-        $this->sectionClose();
     }
 
-    /**
-     * Eine Mail-Reihe: An/Aus-Schalter (bei Pflicht-Mails gesperrt) plus ein aufklappbarer
-     * Bereich für Betreff und Zusatztext. Alle Felder liegen im gemeinsamen Tab-Formular,
-     * gespeichert wird über handleSave.
-     */
-    private function renderMailRow(MailType $type, MailSettings $settings): void
-    {
-        $enabledKey = MailSettings::enabledKey($type->id);
-        $subjectVal = trim((string) rhbp_setting(Config::GROUP, MailSettings::subjectKey($type->id), ''));
-        $noteVal = trim((string) rhbp_setting(Config::GROUP, MailSettings::noteKey($type->id), ''));
-        // Legacy: der alte globale Zusatztext füllt anfangs den der Bestellbestätigung.
-        if ($noteVal === '' && $type->id === MailRegistry::ORDER_CONFIRMATION) {
-            $noteVal = $this->config->mailNote();
-        }
-        $placeholders = implode(' ', array_map(static fn (string $p): string => '{' . $p . '}', $type->placeholders));
-
-        echo '<div class="rhshop-mailrow">';
-        echo '<div class="rhshop-mailrow__head">';
-        echo '<div class="rhshop-mailrow__title"><strong>' . esc_html($type->label) . '</strong>'
-            . '<span class="rhshop-mailrow__desc">' . esc_html($type->description) . '</span></div>';
-
-        if ($type->lockable) {
-            echo Ui::switch([
-                'name' => $enabledKey,
-                'checked' => $settings->enabled($type),
-            ]);
-        } else {
-            echo '<span class="rhbp-pill rhbp-pill--ok">' . esc_html__('immer aktiv', 'rh-shop') . '</span>';
-        }
-        echo '</div>';
-
-        echo '<details class="rhshop-mailrow__edit"><summary>' . esc_html__('Betreff & Text bearbeiten', 'rh-shop') . '</summary>';
-        echo '<div class="rhbp-field">';
-        echo '<label class="rhbp-field__label">' . esc_html__('Betreff', 'rh-shop') . '</label>';
-        printf(
-            '<input type="text" name="%s" value="%s" placeholder="%s" class="regular-text">',
-            esc_attr(MailSettings::subjectKey($type->id)),
-            esc_attr($subjectVal),
-            esc_attr($type->defaultSubject)
-        );
-        echo '</div>';
-        echo '<div class="rhbp-field">';
-        echo '<label class="rhbp-field__label">' . esc_html__('Zusatztext', 'rh-shop') . '</label>';
-        printf(
-            '<textarea name="%s" rows="3" class="regular-text" style="max-width:420px">%s</textarea>',
-            esc_attr(MailSettings::noteKey($type->id)),
-            esc_textarea($noteVal)
-        );
-        echo '<p class="rhbp-field__desc">' . esc_html__('Platzhalter:', 'rh-shop') . ' <code>' . esc_html($placeholders) . '</code></p>';
-        echo '</div>';
-        echo '</details>';
-        echo '</div>';
-    }
 
     /**
      * Medien-Picker fürs Mail-Logo (wp.media). Einmal ausgegeben, steuert das Hidden-Feld
@@ -891,16 +840,11 @@ final class ShopSettingsPage
         $values[Config::FIELD_MAIL_LAYOUT_ACCENT] = sanitize_hex_color((string) wp_unslash($_POST['mail_layout_accent'] ?? '')) ?? '';
         $values[Config::FIELD_MAIL_LAYOUT_FOOTER] = isset($_POST['mail_layout_footer']) ? sanitize_textarea_field(wp_unslash($_POST['mail_layout_footer'])) : '';
 
-        // Per-Mail: An/Aus (nur abschaltbare), Betreff, Zusatztext.
-        foreach (MailRegistry::all() as $type) {
-            if ($type->lockable) {
-                $values[MailSettings::enabledKey($type->id)] = isset($_POST[MailSettings::enabledKey($type->id)]);
-            }
-            $subjectKey = MailSettings::subjectKey($type->id);
-            $noteKey = MailSettings::noteKey($type->id);
-            $values[$subjectKey] = isset($_POST[$subjectKey]) ? sanitize_text_field(wp_unslash($_POST[$subjectKey])) : '';
-            $values[$noteKey] = isset($_POST[$noteKey]) ? sanitize_textarea_field(wp_unslash($_POST[$noteKey])) : '';
-        }
+        // An/Aus, Betreff und Zusatztext je Mail speichert der Core. Die alten
+        // Werte bleiben unangetastet in der Option stehen: sie sind die
+        // Rückfalltür, falls an der Übernahme etwas nicht gestimmt hat. Hier
+        // dürfen sie nicht mit leeren Feldern überschrieben werden, denn die
+        // Eingaben gibt es in diesem Formular nicht mehr.
 
         rhbp_update_settings(Config::GROUP, $values);
 

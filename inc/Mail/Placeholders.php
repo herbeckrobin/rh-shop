@@ -29,6 +29,28 @@ final class Placeholders
     }
 
     /**
+     * Klartext mit eingesetzten Werten, ohne HTML.
+     *
+     * Für den Zusatztext auf dem gemeinsamen Weg: der Rahmen der Suite escapt
+     * selbst und baut den Absatz. Wer hier HTML liefert, bekommt es im Postfach
+     * als sichtbares Markup zurück.
+     *
+     * @param array<string, string> $values
+     */
+    public static function inPlain(string $template, array $values): string
+    {
+        if (trim($template) === '') {
+            return '';
+        }
+
+        foreach ($values as $key => $value) {
+            $template = str_replace('{' . $key . '}', $value, $template);
+        }
+
+        return trim($template);
+    }
+
+    /**
      * Zusatztext für den HTML-Body: Vorlagentext escapen + Zeilenumbrüche, dann die
      * Werte escaped einsetzen. Leerer Text = leerer String (kein `<p>`).
      *
