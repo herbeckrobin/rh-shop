@@ -52,6 +52,30 @@ final class ShopSettingsPage
         add_action('admin_post_rhshop_webhook_install', [$this, 'handleWebhookInstall']);
         add_action('admin_post_rhshop_webhook_remove', [$this, 'handleWebhookRemove']);
         add_action('admin_enqueue_scripts', [$this, 'enqueueAssets']);
+        add_filter('rh-blueprint/dependencies', [$this, 'dependencies']);
+    }
+
+    /**
+     * Ohne Mail-Anbindung verschickt der Shop keine Bestellbestätigung.
+     *
+     * Das faellt niemandem auf: es bricht nichts, es kommt nur nie eine Mail
+     * an, und gemerkt wird es beim ersten Kunden, der nachfragt. Deshalb als
+     * Voraussetzung gemeldet und nicht als Empfehlung.
+     *
+     * @param array<int, array<string, mixed>> $deps
+     * @return array<int, array<string, mixed>>
+     */
+    public function dependencies(array $deps): array
+    {
+        $deps[] = [
+            'module' => 'rh-shop',
+            'needs' => 'rh-smtp',
+            'for' => __('Bestellbestätigung, Rechnung und Versandmeldung', 'rh-shop'),
+            'tab' => self::TAB_ID,
+            'required' => true,
+        ];
+
+        return $deps;
     }
 
     public function renderMessage(string $tabId): void
