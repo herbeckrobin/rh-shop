@@ -26,9 +26,37 @@ final class SettingsMigration
 {
     private const DONE_OPTION = 'rhshop_mail_settings_migrated';
 
+    /**
+     * Der aktuelle Wert der Erledigt-Marke.
+     *
+     * Die erste Fassung schrieb '1' und liess die Marke dabei auf
+     * autoload=off. Damit kostete der Früh-Ausstieg unten auf JEDEM Aufruf
+     * eine eigene Datenbank-Abfrage, Frontend eingeschlossen und dauerhaft
+     * (gemessen 0,58 ms). Denn `run()` hängt an `init` und nicht am Backend:
+     * die erste Bestellbestätigung kann aus einem Stripe-Webhook kommen, und
+     * bis dahin müssen die Einstellungen übernommen sein.
+     *
+     * Ein höherer Wert ist der Weg, das auf bestehenden Installationen
+     * nachzuziehen: `update_option()` kehrt bei unverändertem Wert zurück,
+     * BEVOR es die Autoload-Spalte anfasst (option.php, "If the new and old
+     * values are the same, no need to update"). Dasselbe nochmal zu schreiben
+     * ändert also nichts. Ein neuer Wert schon.
+     */
+    private const DONE_VALUE = '2';
+
     public static function run(): void
     {
-        if (get_option(self::DONE_OPTION) === '1') {
+        $stand = get_option(self::DONE_OPTION);
+
+        if ($stand === self::DONE_VALUE) {
+            return;
+        }
+
+        if ($stand !== false) {
+            // Übernommen wurde schon, nur unter dem alten Markenwert. Nichts
+            // nachholen, bloss die Marke einmal richtig hinlegen.
+            update_option(self::DONE_OPTION, self::DONE_VALUE, true);
+
             return;
         }
 
@@ -82,7 +110,7 @@ final class SettingsMigration
             $uebernommen++;
         }
 
-        update_option(self::DONE_OPTION, '1', false);
+        update_option(self::DONE_OPTION, self::DONE_VALUE, true);
 
         if ($uebernommen > 0 && function_exists('error_log')) {
             error_log(sprintf('[rh-shop] %d Mail-Einstellungen in den Core übernommen.', $uebernommen));

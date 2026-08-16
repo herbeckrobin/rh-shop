@@ -8,6 +8,7 @@ defined( 'ABSPATH' ) || exit;
 
 use RhBlueprint\Core\Mail\Mail;
 use RhBlueprint\Core\Mail\MailMessage;
+use RhBlueprint\Core\Mail\MailSettings;
 use RhShop\Stripe\Config;
 
 /**
@@ -54,8 +55,12 @@ final class MailDispatcher
         $nachricht->raw(['type' => 'html', 'html' => $bodyHtml]);
 
         // Der alte Zusatztext greift nur, solange für diese Mail keiner in den
-        // E-Mail-Einstellungen steht. Der Core setzt seinen eigenen davor.
-        $zusatz = $legacyNote !== ''
+        // E-Mail-Einstellungen steht. Ohne diese Prüfung stünden beide in der
+        // Mail: der neue als Absatz im Rumpf, der alte in der Fusszeile. Gemessen
+        // an einer Bestellbestätigung mit beiden gepflegten Texten.
+        $schonGepflegt = MailSettings::note(MailRegistry::kindId($type->id)) !== '';
+
+        $zusatz = ($legacyNote !== '' && ! $schonGepflegt)
             ? Placeholders::inPlain($legacyNote, $values)
             : '';
 
