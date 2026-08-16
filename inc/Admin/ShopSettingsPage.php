@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace RhShop\Admin;
 
 use RhBlueprint\Core\Admin\Ui;
+use RhBlueprint\Core\Admin\Assets;
 use RhBlueprint\Core\Admin\Guard;
 defined( 'ABSPATH' ) || exit;
 
@@ -83,9 +84,7 @@ final class ShopSettingsPage
      */
     public function enqueueAssets(string $hook): void
     {
-        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reines Asset-Gate.
-        $page = isset($_GET['page']) ? sanitize_key((string) $_GET['page']) : '';
-        if ($page !== SettingsPage::MENU_SLUG) {
+        if (! Assets::onSettings(self::TAB_ID)) {
             return;
         }
 
