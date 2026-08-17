@@ -4,7 +4,7 @@ Tags: shop, ecommerce, stripe, products
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 0.11.0
+Stable tag: 0.11.1
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -17,6 +17,9 @@ RH Shop ist der leichte Weg, ein kleines Sortiment (Merch, ein paar Produkte) zu
 Teil der rh-blueprint Kollektion.
 
 == Changelog ==
+
+= 0.11.1 =
+* Fix: bundle core 2.6.1. The 2.6.0 release bundled an incomplete core.
 
 = 0.11.0 =
 * Change: shop mails now go through the suite's shared mail path. Subjects, recipients and switches live next to those of the other modules instead of in a separate screen. Existing settings are carried over once, automatically.
