@@ -4,7 +4,7 @@ Tags: shop, ecommerce, stripe, products
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 0.11.1
+Stable tag: 0.11.2
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -17,6 +17,10 @@ RH Shop ist der leichte Weg, ein kleines Sortiment (Merch, ein paar Produkte) zu
 Teil der rh-blueprint Kollektion.
 
 == Changelog ==
+
+= 0.11.2 =
+* Update checks: use a GitHub token from RH_GITHUB_TOKEN (environment variable or wp-config constant) when one is set, which lifts the API limit from 60 to 5,000 requests per hour. Without a token nothing changes.
+* Update checks: after a GitHub rate-limit response all rh modules on the site pause their checks until GitHub resets the limit, and the last known update is kept. Bundles core 2.7.1.
 
 = 0.11.1 =
 * Fix: bundle core 2.6.1. The 2.6.0 release bundled an incomplete core.
